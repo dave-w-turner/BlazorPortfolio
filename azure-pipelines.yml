@@ -9,6 +9,7 @@ trigger:
       - master
     exclude:
       - refs/pull/*  # Excludes PR-related branches from CI
+pr: none
 
 pool:
   vmImage: ubuntu-latest
