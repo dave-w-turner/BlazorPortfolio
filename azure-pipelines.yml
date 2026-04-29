@@ -6,7 +6,7 @@
 trigger:
   branches:
     include:
-      - main
+      - master
     exclude:
       - refs/pull/*  # Excludes PR-related branches from CI
 
