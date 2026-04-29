@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CorporatePortfolio.Client\CorporatePortfolio.Client.csproj" />
+    <PackageReference Include="Bluehill.Blazor.GHPages" Version="1.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.7" />
   </ItemGroup>
 
