@@ -4,7 +4,11 @@
 # https://aka.ms/yaml
 
 trigger:
-- master
+  branches:
+    include:
+      - main
+    exclude:
+      - refs/pull/*  # Excludes PR-related branches from CI
 
 pool:
   vmImage: ubuntu-latest
