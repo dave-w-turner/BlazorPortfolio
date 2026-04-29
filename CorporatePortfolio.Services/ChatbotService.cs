@@ -22,7 +22,7 @@
                 Question: {question}
                 ";
 
-            var response = await http.PostAsJsonAsync("http://localhost:11434/api/generate", new
+            var response = await http.PostAsJsonAsync(http.BaseAddress, new
             {
                 model = "llama3",
                 prompt,

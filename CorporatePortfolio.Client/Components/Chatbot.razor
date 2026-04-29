@@ -21,7 +21,6 @@
 
     async Task Ask()
     {
-        Console.WriteLine("test");
         var res = await Http.PostAsJsonAsync($"{NavigationManager.BaseUri}api/chat", question);
         answer = await res.Content.ReadAsStringAsync();
     }
