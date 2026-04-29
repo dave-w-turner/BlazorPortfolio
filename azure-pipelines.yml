@@ -11,6 +11,7 @@ pool:
 
 steps:
   - task: DotNetCoreCLI@2
+    displayName: 'Restore Packages'
     inputs:
       azureSubscription: 'Azure subscription 1(0d9eff65-1b86-4467-a230-fc35f2dcacec)'
       command: 'restore'
@@ -18,12 +19,20 @@ steps:
       feedsToUse: 'select'
       vstsFeed: 'b41853a4-9df0-4837-819c-c6c90e6bfcd8'
   - task: DotNetCoreCLI@2
+    displayName: 'Build Solution'
     inputs:
       azureSubscription: 'Azure subscription 1(0d9eff65-1b86-4467-a230-fc35f2dcacec)'
       command: 'build'
       projects: '**/CorporatePortfolio.slnx'
   - task: DotNetCoreCLI@2
+    displayName: 'Publish Solution'
     inputs:
       azureSubscription: 'Azure subscription 1(0d9eff65-1b86-4467-a230-fc35f2dcacec)'
       command: 'publish'
       publishWebProjects: true
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Build Artifacts'  
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      ArtifactName: 'drop'
+      publishLocation: 'Container'
