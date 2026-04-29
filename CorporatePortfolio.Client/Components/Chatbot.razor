@@ -1,0 +1,34 @@
+﻿@rendermode InteractiveWebAssembly
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<div class="section chatbot">
+    <h2>Ask About Me</h2>
+
+    <div class="chatbox">
+        <input @bind="question" @onkeydown="@EnterKey" placeholder="Ask about my experience, skills, or projects..." />
+        <button @onclick="Ask">Send</button>
+    </div>
+
+    <div class="response">
+        @answer
+    </div>
+</div>
+
+@code {
+    string question;
+    string answer;
+
+    async Task Ask()
+    {
+        Console.WriteLine("test");
+        var res = await Http.PostAsJsonAsync($"{NavigationManager.BaseUri}api/chat", question);
+        answer = await res.Content.ReadAsStringAsync();
+    }
+
+    async Task EnterKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await Ask();
+    }
+}
