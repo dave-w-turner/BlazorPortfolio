@@ -55,6 +55,14 @@ h1:focus {
     margin: auto;
 }
 
+.section .grid, .timeline {
+    padding-left: 20px;
+}
+
+.section > h2 {
+    padding-bottom: 10px;
+}
+
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -123,7 +131,7 @@ h1:focus {
     }
 
 .timeline .card {
-    align-items: self-end;
+    align-items: flex-start;
 }
 
     .timeline .card:hover {
@@ -131,13 +139,24 @@ h1:focus {
         box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }
 
+.timeline .card > h3 {
+    margin-block: 9px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.timeline .card > p {
+    margin-left: 36px;
+    margin-top: 10px;
+}
+
 .glow:hover {
     box-shadow: 0 0 20px rgba(99,102,241,0.6);
 }
 
 .timeline {
-    position: relative;
-    padding-left: 20px;
+    position: relative;    
 }
 
 .timeline-item {
@@ -156,10 +175,11 @@ h1:focus {
 }
 
 body {
-    margin: 0;
+    margin: 50px;
     font-family: 'Segoe UI', sans-serif;
     background: linear-gradient(135deg, #0f172a, #020617);
     color: white;
+    display: block;
 }
 
 h1, h2 {
