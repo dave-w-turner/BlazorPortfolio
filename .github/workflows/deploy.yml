@@ -3,7 +3,7 @@ name: Deploy GitHub Pages
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
         uses: na1307/blazor-github-pages@v4
         id: prepare
         with:
-          project-path: MyBlazorApp/MyBlazorApp.csproj
+          project-path: CorporatePortfolio.slnx
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
