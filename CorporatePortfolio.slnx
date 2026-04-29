@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="CorporatePortfolio.Client/CorporatePortfolio.Client.csproj" Id="fc743f87-4303-4502-b6ff-e45722f5e775" />
+  <Project Path="CorporatePortfolio.Services/CorporatePortfolio.Services.csproj" Id="13700c1b-e92f-4be9-9757-f994d8513223" />
+  <Project Path="CorporatePortfolio/CorporatePortfolio.csproj" Id="5b7f1cb8-45de-492c-99f1-788b9e4fa118" />
+</Solution>
