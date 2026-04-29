@@ -11,7 +11,18 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddHttpClient();
-builder.Services.AddSingleton<ChatbotService>();
+builder.Services.AddSingleton(provider =>
+{
+    var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+    var httpClient = httpClientFactory.CreateClient();
+
+    if (!provider.GetRequiredService<IHostEnvironment>().IsDevelopment())
+        httpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {provider.GetRequiredService<IConfiguration>()["OllamaServiceCreds"]}");
+
+    httpClient.BaseAddress = new Uri($"{provider.GetRequiredService<IConfiguration>()["OllamaServiceUrl"]}/api/generate" ?? string.Empty);
+
+    return new ChatbotService(httpClient);
+});
 
 var app = builder.Build();
 
