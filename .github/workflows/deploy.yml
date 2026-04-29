@@ -1,58 +1,43 @@
-name: Deploy GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
-  # Runs on pushes targeting the default branch
   push:
-    branches: [ "master" ]
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+    branches: "master"
 
 jobs:
-  # Build job
-  build:
+  deploy-to-github-pages:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to push to gh-pages branch
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v4
+
+      # 1. Setup .NET 10
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - name: Prepare Blazor WASM for GitHub Pages
-        uses: na1307/blazor-github-pages@v4
-        id: prepare
-        with:
-          project-path: CorporatePortfolio.slnx
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: ${{ steps.prepare.outputs.wwwroot-path }}
-      - name: Create 404.html fallback
-        run: cp _out/wwwroot/index.html _out/wwwroot/404.html
 
-  # Deployment job
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
+      # 2. Publish the app
+      - name: Publish .NET App
+        run: dotnet publish -c Release -o release --nologo
+
+      # 3. Fix: Create .nojekyll to allow _framework folder
+      - name: Add .nojekyll file
+        run: touch release/wwwroot/.nojekyll
+
+      # 4. Fix: Rewrite base href to match repo name
+      # This allows the app to run at https://<user>.github.io/<repo>/
+      - name: Change base tag in index.html
+        run: sed -i 's/<base href="\/" \/>/<base href="\/${{ github.event.repository.name }}\/" \/>/g' release/wwwroot/index.html
+
+      # 5. Fix: Copy index.html to 404.html to handle routing refreshes
+      - name: Copy index.html to 404.html
+        run: cp release/wwwroot/index.html release/wwwroot/404.html
+
+      # 6. Deploy to gh-pages branch
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: release/wwwroot
