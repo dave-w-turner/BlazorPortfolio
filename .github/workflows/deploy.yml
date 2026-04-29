@@ -1,43 +1,41 @@
-name: Deploy to GitHub Pages
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
 
-on:
-  push:
-    branches: "master"
+trigger:
+- master
 
-jobs:
-  deploy-to-github-pages:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # Needed to push to gh-pages branch
-    steps:
-      - uses: actions/checkout@v4
+pool:
+  vmImage: ubuntu-latest
 
-      # 1. Setup .NET 10
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-
-      # 2. Publish the app
-      - name: Publish .NET App
-        run: dotnet publish -c Release -o release --nologo
-
-      # 3. Fix: Create .nojekyll to allow _framework folder
-      - name: Add .nojekyll file
-        run: touch release/wwwroot/.nojekyll
-
-      # 4. Fix: Rewrite base href to match repo name
-      # This allows the app to run at https://<user>.github.io/<repo>/
-      - name: Change base tag in index.html
-        run: sed -i 's/<base href="\/" \/>/<base href="\/${{ github.event.repository.name }}\/" \/>/g' release/wwwroot/index.html
-
-      # 5. Fix: Copy index.html to 404.html to handle routing refreshes
-      - name: Copy index.html to 404.html
-        run: cp release/wwwroot/index.html release/wwwroot/404.html
-
-      # 6. Deploy to gh-pages branch
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          branch: gh-pages
-          folder: release/wwwroot
+steps:
+  - task: DotNetCoreCLI@2
+    displayName: 'Restore Packages'
+    inputs:
+      azureSubscription: 'Azure subscription 1(0d9eff65-1b86-4467-a230-fc35f2dcacec)'
+      command: 'restore'
+      projects: '**/CorporatePortfolio.slnx'
+      feedsToUse: 'select'
+      vstsFeed: 'b41853a4-9df0-4837-819c-c6c90e6bfcd8'
+  - task: DotNetCoreCLI@2
+    displayName: 'Build Solution'
+    inputs:
+      azureSubscription: 'Azure subscription 1(0d9eff65-1b86-4467-a230-fc35f2dcacec)'
+      command: 'build'
+      projects: '**/CorporatePortfolio.slnx'
+  - task: DotNetCoreCLI@2
+    displayName: 'Publish Solution'
+    inputs:
+      azureSubscription: 'Azure subscription 1(0d9eff65-1b86-4467-a230-fc35f2dcacec)'
+      command: 'publish'
+      projects: '**/CorporatePortfolio.slnx'
+      publishWebProjects: false
+      arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
+      zipAfterPublish: true
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Build Artifacts'  
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      ArtifactName: 'drop'
+      publishLocation: 'Container'
