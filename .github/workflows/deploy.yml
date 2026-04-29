@@ -30,7 +30,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 10.0.x
       - name: Prepare Blazor WASM for GitHub Pages
         uses: na1307/blazor-github-pages@v4
         id: prepare
@@ -42,6 +42,8 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: ${{ steps.prepare.outputs.wwwroot-path }}
+      - name: Create 404.html fallback
+        run: cp _out/wwwroot/index.html _out/wwwroot/404.html
 
   # Deployment job
   deploy:
