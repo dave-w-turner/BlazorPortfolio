@@ -43,7 +43,7 @@ h1:focus {
 
 .hero {
     height: 40vh;
-    display: flex;
+    display: inline;
     align-items: center;
     justify-content: center;
     text-align: center;
@@ -60,7 +60,7 @@ h1:focus {
 }
 
 .section > h2 {
-    padding-bottom: 10px;
+    padding-bottom: 20px;
 }
 
 .grid {
@@ -115,38 +115,38 @@ h1:focus {
     }
 }
 
-.card i {
+.customcard i {
     margin-right: 8px;
     vertical-align: middle;
 }
 
-.card {
+.customcard {
     display: flex;
     align-items: center;
     gap: 15px;
 }
 
-    .card:hover {
+    .customcard:hover {
         transform: translateY(-8px) scale(1.02);
     }
 
-.timeline .card {
+.timeline .customcard {
     align-items: flex-start;
 }
 
-    .timeline .card:hover {
+    .timeline .customcard:hover {
         transform: translateY(-8px);
         box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }
 
-.timeline .card > h3 {
+.timeline .customcard > h3 {
     margin-block: 9px;
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.timeline .card > p {
+.timeline .customcard > p {
     margin-left: 36px;
     margin-top: 10px;
 }
@@ -162,7 +162,7 @@ h1:focus {
 .timeline-item {
     display: flex;
     align-items: flex-start;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .timeline-dot {
@@ -252,6 +252,11 @@ p {
     cursor: pointer;
 }
 
+.cta {
+    margin-top: 50px;
+    margin-bottom: 50px;
+}
+
 .primary {
     background: #6366f1;
     color: white;
@@ -291,3 +296,10 @@ p {
     color: #cbd5f5;
 }
 
+h3 {
+    font-size: 1.17em;
+}
+
+h2 {
+    font-size: 1.5em;
+}

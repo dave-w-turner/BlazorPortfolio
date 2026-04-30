@@ -1,11 +1,14 @@
 using CorporatePortfolio.Components;
 using CorporatePortfolio.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
+
+builder.Services.AddBlazorBootstrap();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -17,12 +20,16 @@ builder.Services.AddSingleton(provider =>
     var httpClient = httpClientFactory.CreateClient();
 
     if (!provider.GetRequiredService<IHostEnvironment>().IsDevelopment())
-        httpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {provider.GetRequiredService<IConfiguration>()["OllamaServiceCreds"]}");
+        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(
+            Encoding.ASCII.GetBytes((provider.GetRequiredService<IConfiguration>()["OllamaServiceCreds"] ?? string.Empty).Trim())));
 
-    httpClient.BaseAddress = new Uri($"{provider.GetRequiredService<IConfiguration>()["OllamaServiceUrl"]}/api/generate" ?? string.Empty);
+    httpClient.BaseAddress = new Uri($"{provider.GetRequiredService<IConfiguration>()["OllamaServiceUrl"]}" ?? string.Empty);
+    httpClient.DefaultRequestHeaders.Add("User-Agent", "C# App/1.0");
 
-    return new ChatbotService(httpClient);
+    return new ChatbotService(httpClient, provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty);
 });
+
+builder.WebHost.UseStaticWebAssets();
 
 var app = builder.Build();
 
@@ -40,11 +47,17 @@ else
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
-app.UseRouting();
-app.UseAntiforgery();
+app.UseRouting()
+    .UseAntiforgery()
+    .UseEndpoints(r =>
+    {
+        r.MapDefaultControllerRoute();
+    });
 
 app.MapControllers();
 app.MapStaticAssets();
+app.UseStaticFiles();
+app.UseBlazorFrameworkFiles();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode();
 

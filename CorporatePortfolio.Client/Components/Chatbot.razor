@@ -6,8 +6,8 @@
     <h2>Ask About Me</h2>
 
     <div class="chatbox">
-        <input @bind="question" @onkeydown="@EnterKey" placeholder="Ask about my experience, skills, or projects..." />
-        <button @onclick="Ask">Send</button>
+        <input @bind="question" @bind:event="oninput" @onkeydown="@EnterKey" placeholder="Ask about my experience, skills, or projects..." />
+        <button type="button" class="btn btn-info" @onclick="Ask">Send</button>
     </div>
 
     <div class="response">

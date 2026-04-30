@@ -2,10 +2,14 @@
 {
     using System.Net.Http.Json;
 
-    public class ChatbotService(HttpClient http)
+    public class ChatbotService(HttpClient http, string ollamaModel)
     {
+        private readonly string _ollamaModel = ollamaModel;
+
         public async Task<string> Ask(string question)
         {
+            if (string.IsNullOrEmpty(_ollamaModel)) throw new Exception("Ollama model is not specified.");
+
             var prompt = $@"
                 You are an AI assistant representing David Turner, a Senior Software Developer.
 
@@ -22,9 +26,9 @@
                 Question: {question}
                 ";
 
-            var response = await http.PostAsJsonAsync(http.BaseAddress, new
+            var response = await http.PostAsJsonAsync("api/generate", new
             {
-                model = "llama3",
+                model = _ollamaModel,
                 prompt,
                 stream = false
             });
