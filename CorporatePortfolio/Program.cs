@@ -1,14 +1,17 @@
 using CorporatePortfolio.Components;
 using CorporatePortfolio.Services;
+using MudBlazor.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveWebAssemblyComponents();
+    .AddInteractiveWebAssemblyComponents()
+    .AddInteractiveServerComponents();
 
 builder.Services.AddBlazorBootstrap();
+builder.Services.AddMudServices();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -29,6 +32,8 @@ builder.Services.AddSingleton(provider =>
     return new ChatbotService(httpClient, provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty);
 });
 
+builder.Services.AddScoped<ChatState>();
+
 builder.WebHost.UseStaticWebAssets();
 
 var app = builder.Build();
@@ -44,6 +49,7 @@ else
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
@@ -59,6 +65,7 @@ app.MapStaticAssets();
 app.UseStaticFiles();
 app.UseBlazorFrameworkFiles();
 app.MapRazorComponents<App>()
-    .AddInteractiveWebAssemblyRenderMode();
+    .AddInteractiveWebAssemblyRenderMode()
+    .AddInteractiveServerRenderMode();
 
 app.Run();

@@ -9,8 +9,9 @@
     <ResourcePreloader />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link href="_content/Blazor.Bootstrap/blazor.bootstrap.css" rel="stylesheet" /> 
-    <link rel="stylesheet" href="app.css" />
+    <link href="_content/Blazor.Bootstrap/blazor.bootstrap.css" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="app.css" />    
     <ImportMap />
     <HeadOutlet />
 </head>
@@ -20,6 +21,64 @@
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
     <script src="_content/Blazor.Bootstrap/blazor.bootstrap.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script>
+        window.initChatDrag = (dotNetHelper) => {
+            const dialog = document.querySelector('.mud-dialog');
+            const header = document.querySelector('.mud-dialog-title');
+            if (!dialog || !header) return;
+
+            header.style.cursor = 'move';
+    
+            header.onmousedown = (e) => {
+                e = e || window.event;
+                e.preventDefault();
+
+                // 1. PIN THE POSITION IMMEDIATELY
+                // Get exactly where the box is relative to the viewport right now
+                const rect = dialog.getBoundingClientRect();
+        
+                // Apply those coordinates as fixed pixels BEFORE changing anything else
+                dialog.style.top = rect.top + 'px';
+                dialog.style.left = rect.left + 'px';
+        
+                // 2. Lock size and remove MudBlazor's auto-margins
+                dialog.style.width = rect.width + 'px';
+                dialog.style.height = rect.height + 'px';
+                dialog.style.position = 'fixed';
+                dialog.style.margin = '0';
+                dialog.style.maxWidth = 'none';
+
+                // 3. Set up the start coordinates for the move
+                let startX = e.clientX;
+                let startY = e.clientY;
+
+                document.onmousemove = (moveEvent) => {
+                    let deltaX = startX - moveEvent.clientX;
+                    let deltaY = startY - moveEvent.clientY;
+            
+                    startX = moveEvent.clientX;
+                    startY = moveEvent.clientY;
+
+                    dialog.style.top = (dialog.offsetTop - deltaY) + "px";
+                    dialog.style.left = (dialog.offsetLeft - deltaX) + "px";
+                };
+
+                document.onmouseup = () => {
+                    document.onmouseup = null;
+                    document.onmousemove = null;
+            
+                    if (dotNetHelper) {
+                        dotNetHelper.invokeMethodAsync('SaveDimensions', 
+                            dialog.style.top, 
+                            dialog.style.left, 
+                            dialog.style.width, 
+                            dialog.style.height);
+                    }
+                };
+            }
+        }
+    </script>
 </body>
 
 </html>
