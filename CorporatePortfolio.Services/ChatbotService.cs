@@ -1,71 +1,108 @@
 ﻿namespace CorporatePortfolio.Services
 {
+    using CorporatePortfolio.DTO;
     using System.Net.Http.Json;
 
-    public class ChatbotService(HttpClient http, string ollamaModel, string resumeText)
+    public class ChatbotService(HttpClient http, string ollamaModel, string _resumeText)
     {
         private readonly string _ollamaModel = ollamaModel;
-        private readonly string _resumeText = resumeText;
 
-        public async Task<string> Ask(string question)
+        public async Task<IAsyncEnumerable<string?>> Ask(string question, List<ChatMessage> history)
         {
             if (string.IsNullOrEmpty(_ollamaModel)) throw new Exception("Ollama model is not specified.");
-            if (string.IsNullOrEmpty(_resumeText)) throw new Exception("You must supply the resume string content for the AI reference.");
 
-            var prompt = $@"
-                You are an AI assistant representing David Turner, a Senior Software Developer, as a matter of fact you are pretending to be David.
+            var instructions = $@"
+                You are David Turner, a Senior Software Developer. You are NOT an assistant; you ARE David.
+                Answer professionally, confidently, and concisely.
 
-                Answer questions professionally and confidently using the following background:
+                ### CORE PROFILE
+                - 10+ years experience in C#, ASP.NET Core, Azure, and DevOps.
+                - Located in Ontario; open to remote or on-site work.
+                - Rates: $100k/year full-time or $75/hr contract.
+                - Status: Currently looking for new opportunities.
 
-                - 10+ years enterprise experience
-                - Strong in C#, ASP.NET Core, Azure, DevOps
-                - Built workflow engines, CRM systems, automation pipelines
-                - Led teams and mentored developers
-                - Focus on scalable architecture and clean design
+                ### RESUME CONTENT (Use this for ALL professional questions)
+                {_resumeText}
 
-                Be concise, confident, and clear.
+                ### GUIDELINES
+                - Use the resume text above to answer questions about specific companies, dates, and projects.
+                - If a detail isn't in the text or this prompt, point the user to: https://azurewebsites.net
+                - Do not invent fake company names.
+                - Do not mention that you are an AI or that you were provided with a resume.
+                - Stop saying 'I've already shared my resume.'
+                - Don't ask the user about their goals or how you can help them achieve them.
+                - Don't tell the user that they can find my resume at my email address.
+            ";
 
-                Please note I do not currently work at any of the positions that I previously held any longer.
-
-                I am not currently working on any active projects at the moment other than this portfolio website.
-
-                I am currently looking for new opportunities and open to new challenges, meaning I do need work and I am open to opportunities.
-
-                I am looking for at least a full-time position, but I am open to contract work as well.
-
-                My full time rate is $100,000 per year, and my contract rate is $75 per hour.
-
-                I am incorporated in Ontario and I am open to working remotely or on-site in this province.
-
-                You have already asked the user how they are today.
-
-                Don't answer any questions that you don't have proper knowledge of such as my links or contact info unless it's supplied in my resume or excplicitly in this prompt.
-                
-                A link to my resume is https://david-turner-portfolio.azurewebsites.net/DavidTurner_Resume.docx.
-
-                Stop telling users that you have already provided you with a copy of my resume in this prompt because it has not been provided.
-
-                Stop saying 'I've already shared my resume with you earlier.'
-
-                Here is my resume for your reference: {_resumeText}
-
-                Question: {question}
-                ";
-
-            var response = await http.PostAsJsonAsync("api/generate", new
+            var messages = new List<object>
             {
-                model = _ollamaModel,
-                prompt,
-                stream = false
+                new
+                {
+                    role = "system",
+                    content = instructions
+                }
+            };
+
+            // Add conversation history
+            foreach (var msg in history.TakeLast(6)) // Limit history to keep it snappy
+            {
+                messages.Add(new
+                {
+                    role = msg.IsUser ? "user" : "assistant",
+                    content = msg.Text
+                });
+            }
+
+            messages.Add(new
+            {
+                role = "user",
+                content = $"User Question: {question}\n\nReminder: Answer as David using only the facts provided above."
             });
 
-            var result = await response.Content.ReadFromJsonAsync<OllamaResponse>();
-            return result?.response ?? "No response";
+            var response = await http.PostAsJsonAsync("api/chat", new
+            {
+                model = _ollamaModel,
+                messages,
+                stream = true,
+                options = new { 
+                    num_ctx = 4096, // Lowering this speeds up processing
+                    temperature = 0.6, // Lower is faster/more focused
+                    repeat_penalty = 1.2, // Prevents looping which slows things down
+                    num_predict = 500,  // Allow for slightly longer technical answers
+                    top_p = 0.9
+                }, 
+            }, new System.Text.Json.JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
+
+            return StreamResponse(response);
+        }
+
+        private async IAsyncEnumerable<string?> StreamResponse(HttpResponseMessage response)
+        {
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            // Read full lines (Ollama sends 1 JSON object per word/token per line)
+            while (await reader.ReadLineAsync() is { } line)
+            {
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    var chunk = System.Text.Json.JsonSerializer.Deserialize<OllamaResponse>(line);
+                    if (chunk?.message?.content != null)
+                    {
+                        yield return chunk.message.content;
+                    }
+                }
+            }
         }
 
         private class OllamaResponse
         {
-            public string response { get; set; }
+            public ChatMessagePart message { get; set; }
+        }
+
+        private class ChatMessagePart
+        {
+            public string content { get; set; }
         }
     }
 }

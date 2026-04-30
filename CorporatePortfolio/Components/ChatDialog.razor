@@ -1,4 +1,6 @@
-﻿@using CorporatePortfolio.Services
+﻿@using CorporatePortfolio.DTO
+@using CorporatePortfolio.Services
+@using Microsoft.AspNetCore.Components.WebAssembly.Http
 @inject NavigationManager NavigationManager
 @inject ChatState State
 @inject IJSRuntime JSRuntime
@@ -147,26 +149,67 @@
     {
         if (string.IsNullOrWhiteSpace(_userInput) || _isTyping) return;
 
-        _messages.Add(new ChatMessage { Text = _userInput, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl });
-        
-        _userInput = ""; // Clear immediately
+        var userText = _userInput;
+        _messages.Add(new ChatMessage { Text = userText, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl });
+    
+        _userInput = "";
         await ScrollToBottom();
         _isTyping = true;
-
         StateHasChanged();
         await ScrollToBottom();
 
-        var res = await Http.PostAsJsonAsync($"{NavigationManager.BaseUri}api/chat", _messages.Last().Text);
-        var answer = await res.Content.ReadAsStringAsync();
+        // 1. Create a placeholder message for David
+        var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl };
+        _messages.Add(aiMsg);
+
+        var chatRequest = new ChatRequest
+        {
+            Question = userText,
+            History = _messages.TakeLast(10).ToList() // Only send the last 10 messages for speed
+        };
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/chat")
+        {
+            // Serialize the whole request object
+            Content = JsonContent.Create(chatRequest)
+        };
+
+        request.SetBrowserResponseStreamingEnabled(true);
+
+        var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+    
+        // 3. Read the body as a stream
+        using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream);        
+
+        // 4. Read chunks as they arrive from the Controller
+        char[] buffer = new char[1024];
+        int read;
+
+        while ((read = await reader.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        {
+            _isTyping = false; // Hide dots once words start appearing
+
+            for (int i = 0; i < read; i++)
+            {
+                aiMsg.Text += buffer[i];
+
+                // Only call StateHasChanged every few characters or at spaces
+                // to keep the UI from stuttering on your i9
+                if (char.IsWhiteSpace(buffer[i]) || i % 3 == 0)
+                {
+                    StateHasChanged();
+                    await ScrollToBottom();
+                }
+
+                await Task.Delay(8);
+            }
+        }
 
         _isTyping = false;
-
-        _messages.Add(new ChatMessage { Text = answer, IsUser = false, UserName = "David", AvatarUrl = _avatarUrl });
-
         StateHasChanged();
         await Task.Delay(50);
         await _textField.FocusAsync();
-
         await ScrollToBottom();
     }
 
@@ -180,16 +223,6 @@
     {
         await Task.Delay(100);
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
-    }
-
-    // Data Class
-    public class ChatMessage
-    {
-        public string Text { get; set; } = "";
-        public bool IsUser { get; set; }
-        public string UserName { get; set; } = "";
-        public string AvatarUrl { get; set; } = "";
-        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }
 
