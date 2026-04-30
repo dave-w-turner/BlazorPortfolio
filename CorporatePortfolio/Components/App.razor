@@ -78,6 +78,17 @@
                 };
             }
         }
+
+        window.scrollToBottom = (elementId) => {
+            const element = document.getElementById(elementId);
+            if (element) {
+                // Use requestAnimationFrame for smoother performance 
+                // especially with fast Ollama streaming
+                requestAnimationFrame(() => {
+                    element.scrollTop = element.scrollHeight;
+                });
+            }
+        };
     </script>
 </body>
 

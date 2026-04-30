@@ -23,6 +23,8 @@
 
                 Be concise, confident, and clear.
 
+                You have already asked the user how they are today.
+
                 Question: {question}
                 ";
 

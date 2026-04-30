@@ -1,6 +1,8 @@
 ﻿@using CorporatePortfolio.Services
+@inject NavigationManager NavigationManager
 @inject ChatState State
 @inject IJSRuntime JSRuntime
+@inject HttpClient Http
 
 <MudDialog Class="chat-dark" Style="@_customStyle" ContentClass="mudDialog">
     <TitleContent>
@@ -149,16 +151,17 @@
         
         _userInput = ""; // Clear immediately
         await ScrollToBottom();
-
         _isTyping = true;
+
         StateHasChanged();
         await ScrollToBottom();
 
-        await Task.Delay(2000); // Simulate Ollama/AI delay
+        var res = await Http.PostAsJsonAsync($"{NavigationManager.BaseUri}api/chat", _messages.Last().Text);
+        var answer = await res.Content.ReadAsStringAsync();
 
         _isTyping = false;
 
-        _messages.Add(new ChatMessage { Text = "Here is the information you requested!", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl });
+        _messages.Add(new ChatMessage { Text = answer, IsUser = false, UserName = "David", AvatarUrl = _avatarUrl });
 
         StateHasChanged();
         await Task.Delay(50);
