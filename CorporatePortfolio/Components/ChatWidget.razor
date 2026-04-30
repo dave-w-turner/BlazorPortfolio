@@ -1,0 +1,44 @@
+﻿@using MudBlazor
+@rendermode InteractiveServer
+@inject IDialogService DialogService
+
+<div class="chat-launcher-container">
+    <MudFab Color="Color.Primary"
+            StartIcon="@(_chatReference == null ? Icons.Material.Filled.Chat : Icons.Material.Filled.Close)"
+            OnClick="ToggleChatWindow" />
+</div>
+
+@code {
+    private IDialogReference? _chatReference;
+
+    private async Task ToggleChatWindow()
+    {
+        if (_chatReference != null)
+        {
+            // Close the existing window
+            _chatReference.Close();
+            _chatReference = null;
+        }
+        else
+        {
+            var options = new DialogOptions
+            {
+                MaxWidth = MaxWidth.Small,
+                FullWidth = false,
+                Position = DialogPosition.BottomRight,
+                BackdropClick = true,
+                CloseButton = true,
+                CloseOnEscapeKey = true,
+                CloseOnNavigation = true
+            };
+
+            // Capture the reference when opening
+            _chatReference = await DialogService.ShowAsync<ChatDialog>("David Turner's AI Assistant", options);
+
+            // Listen for when the dialog is closed via its OWN close button
+            var result = await _chatReference.Result;
+            _chatReference = null; // Reset reference so icon flips back
+            StateHasChanged();
+        }
+    }
+}

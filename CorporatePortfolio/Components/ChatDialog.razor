@@ -1,0 +1,241 @@
+﻿@using CorporatePortfolio.Services
+@inject NavigationManager NavigationManager
+@inject ChatState State
+@inject IJSRuntime JSRuntime
+@inject HttpClient Http
+
+<MudDialog Class="chat-dark" Style="@_customStyle" ContentClass="mudDialog">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.SmartToy" Class="mr-3 mb-n1" />
+            David Turner
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <div id="chat-container" style="flex-grow: 1; overflow-y: auto;" class="pa-4">
+            @foreach (var msg in _messages)
+            {
+                @* Reverse the direction if it's the user so the avatar is on the right *@
+                <div style="display: flex; flex-direction: @(msg.IsUser ? "row-reverse" : "row");" class="mb-6 gap-3">
+            
+                    @* Avatar Section *@
+                    <MudAvatar Size="Size.Medium" Elevation="2">
+                        @if (!string.IsNullOrEmpty(msg.AvatarUrl))
+                        {
+                            <MudImage Src="@msg.AvatarUrl" />
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@(msg.IsUser ? Icons.Material.Filled.Person : Icons.Material.Filled.SmartToy)" />
+                        }
+                    </MudAvatar>
+
+                    @* Message Bubble Section *@
+                    <div style="max-width: 75%; display: flex; flex-direction: column; align-items: @(msg.IsUser ? "flex-end" : "flex-start");">
+                        @* Name Label *@
+                        <MudText Typo="Typo.caption"
+                                 Class="mb-1 px-1"
+                                 Style="@($"font-weight: 700; opacity: 1; color: {(msg.IsUser ? "#FFFFFF" : "#1E90FF")} !important;")">
+                            @msg.UserName
+                        </MudText>
+
+                        <MudPaper Class="pa-3" Elevation="3"
+                                  Style="@(msg.IsUser ?
+                                                      "background-color: var(--mud-palette-primary); color: var(--mud-palette-primary-text); border-radius: 15px 0 15px 15px;" :
+                                                      "background-color: var(--mud-palette-surface); color: var(--mud-palette-text-primary); border-radius: 0 15px 15px 15px;")">
+                            <MudText Typo="Typo.body1" Style="color: inherit;">@msg.Text</MudText>
+                        </MudPaper>
+                    </div>
+                </div>
+            }
+
+            @if (_isTyping)
+            {
+                <div style="display: flex; flex-direction: row;" class="mb-6 gap-3">
+                    <MudAvatar Size="Size.Medium" Elevation="2">
+                        <MudImage Src="@_avatarUrl" />
+                    </MudAvatar>
+                    <div style="display: flex; flex-direction: column;">
+                        <MudText Typo="Typo.caption"
+                                 Class="mb-1"
+                                 Style="font-weight: 700; color: #1E90FF !important; opacity: 1 !important;">
+                            David
+                        </MudText>
+                        <MudPaper Class="pa-4" Elevation="1"
+                                  Style="background-color: #32333d !important; border-radius: 0 15px 15px 15px; width: 60px;">
+                            <div class="typing-indicator">
+                                @* No inline styles here; let the CSS class handle the color *@
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                            </div>
+                        </MudPaper>
+                    </div>
+                </div>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <div class="px-4 pb-2" style="width: 100%;">
+            <MudTextField @ref="_textField" 
+                          @bind-Value="_userInput"
+                          OnKeyDown="HandleKeyDown"
+                          Placeholder="Ask about my experience, skills, or projects..."
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@Icons.Material.Filled.Send"
+                          AdornmentColor="@(_isTyping ? Color.Default : Color.Primary)"
+                          OnAdornmentClick="SendMessage"
+                          Immediate="true"
+                          Disabled="_isTyping" />
+        </div>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    private MudTextField<string> _textField = default!;
+
+    // 1. State & UI Properties
+    private string _customStyle => State.HasPosition
+        ? $"position: fixed; margin: 0; top: {State.Top}; left: {State.Left}; width: {State.Width}; height: {State.Height}; max-width: none; z-index: 3000;"
+        : "width: 500px; height: 600px; z-index: 3000;";
+
+    // 2. Chat Variables
+    private List<ChatMessage> _messages = new();
+    private string _userInput = "";
+    private bool _isTyping = false;
+    private const string _avatarUrl = "images/my-profile-pic.jpg";
+    private const string _userAvatarUrl = "images/user-profile-pic.png";
+
+    // 3. Lifecycle & Initialization
+    protected override async Task OnInitializedAsync()
+    {
+        if (!_messages.Any())
+        {
+            _isTyping = true;
+            await Task.Delay(1000);
+            _isTyping = false;
+            _messages.Add(new ChatMessage { Text = "How are you today?", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl });
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(150);
+            var objRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("initChatDrag", objRef);
+        }
+    }
+
+    // 4. Methods
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            // Give Blazor a tiny moment to sync the last keystroke
+            await Task.Yield();
+            await SendMessage();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_userInput) || _isTyping) return;
+
+        _messages.Add(new ChatMessage { Text = _userInput, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl });
+        
+        _userInput = ""; // Clear immediately
+        await ScrollToBottom();
+        _isTyping = true;
+
+        StateHasChanged();
+        await ScrollToBottom();
+
+        var res = await Http.PostAsJsonAsync($"{NavigationManager.BaseUri}api/chat", _messages.Last().Text);
+        var answer = await res.Content.ReadAsStringAsync();
+
+        _isTyping = false;
+
+        _messages.Add(new ChatMessage { Text = answer, IsUser = false, UserName = "David", AvatarUrl = _avatarUrl });
+
+        StateHasChanged();
+        await Task.Delay(50);
+        await _textField.FocusAsync();
+
+        await ScrollToBottom();
+    }
+
+    [JSInvokable]
+    public void SaveDimensions(string top, string left, string width, string height)
+    {
+        State.Top = top; State.Left = left; State.Width = width; State.Height = height;
+    }
+
+    private async Task ScrollToBottom()
+    {
+        await Task.Delay(100);
+        await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
+    }
+
+    // Data Class
+    public class ChatMessage
+    {
+        public string Text { get; set; } = "";
+        public bool IsUser { get; set; }
+        public string UserName { get; set; } = "";
+        public string AvatarUrl { get; set; } = "";
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+    }
+}
+
+<style>
+    .chat-dark {
+        background-color: #27272f !important;
+        color: white !important; /* Force overall text to white */
+        z-index: 3000 !important;
+    }
+
+        /* 1. Fix Title and Icon Visibility */
+        .chat-dark .mud-dialog-title,
+        .chat-dark .mud-dialog-title .mud-text,
+        .chat-dark .mud-icon-root {
+            color: white !important;
+        }
+
+        /* 2. Fix Textbox Background and Text Color */
+        .chat-dark .mud-input-control {
+            background-color: #32333d !important; /* Slightly lighter than window bg */
+            border-radius: 4px;
+        }
+
+        .chat-dark .mud-input-root {
+            color: white !important;
+        }
+
+        /* 3. Fix Placeholder Visibility (Very Important) */
+        .chat-dark .mud-input-outlined::placeholder,
+        .chat-dark .mud-input-outlined::-webkit-input-placeholder {
+            color: rgba(255, 255, 255, 0.5) !important;
+            opacity: 1 !important;
+        }
+
+        /* 4. Fix Input Border Color */
+        .chat-dark .mud-input-outlined-border {
+            border-color: rgba(255, 255, 255, 0.2) !important;
+        }
+
+        /* 5. Fix the Typing Indicator dots */
+        .chat-dark .typing-dot {
+            width: 8px;
+            height: 8px;
+            /* Force the dots to be white so they pop against #27272f */
+            background-color: #FFFFFF !important;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+</style>

@@ -1,9 +1,29 @@
 ﻿@inherits LayoutComponentBase
+@inject IDialogService DialogService
+<MudLayout>
+    <MudMainContent>
+        @Body
+    </MudMainContent>  
+    
+    <ChatWidget />
 
-@Body
+    <MudThemeProvider @rendermode="InteractiveServer" />
+    <MudDialogProvider @rendermode="InteractiveServer" />
+
+    @* This second provider forces dark mode on anything with the .chat-dark class *@
+    <MudThemeProvider IsDarkMode="true" Theme="_darkTheme" @rendermode="InteractiveServer" />
+</MudLayout>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private MudTheme _darkTheme = new MudTheme()
+    {
+        // This ensures the dark variables only apply inside our chat window
+        PseudoCss = { Scope = ".chat-dark" }
+    };
+}
