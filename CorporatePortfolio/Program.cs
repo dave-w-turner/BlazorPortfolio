@@ -2,6 +2,7 @@ using CorporatePortfolio.Components;
 using CorporatePortfolio.Services;
 using MudBlazor.Services;
 using System.Text;
+using Xceed.Words.NET;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,7 +30,8 @@ builder.Services.AddSingleton(provider =>
     httpClient.BaseAddress = new Uri($"{provider.GetRequiredService<IConfiguration>()["OllamaServiceUrl"]}" ?? string.Empty);
     httpClient.DefaultRequestHeaders.Add("User-Agent", "C# App/1.0");
 
-    return new ChatbotService(httpClient, provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty);
+    DocX document = DocX.Load("DavidTurner_Resume.docx");
+    return new ChatbotService(httpClient, provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty, document.Text);
 });
 
 builder.Services.AddScoped<ChatState>();
