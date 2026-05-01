@@ -1,9 +1,11 @@
 ﻿@using CorporatePortfolio.DTO
 @using CorporatePortfolio.Services
+@using CorporatePortfolio.Services.DTO
 @using Microsoft.AspNetCore.Components.WebAssembly.Http
 @inject NavigationManager NavigationManager
 @inject ChatState State
 @inject IJSRuntime JSRuntime
+@inject IHostEnvironment HostEnvironment
 @inject HttpClient Http
 
 <MudDialog Class="chat-dark" Style="@_customStyle" ContentClass="mudDialog">
@@ -87,10 +89,10 @@
                           FullWidth="true"
                           Adornment="Adornment.End"
                           AdornmentIcon="@Icons.Material.Filled.Send"
-                          AdornmentColor="@(_isTyping ? Color.Default : Color.Primary)"
+                          AdornmentColor="@(_disableInput ? Color.Default : Color.Primary)"
                           OnAdornmentClick="SendMessage"
                           Immediate="true"
-                          Disabled="_isTyping" />
+                          Disabled="_disableInput" />
         </div>
     </DialogActions>
 </MudDialog>
@@ -108,6 +110,7 @@
     private List<ChatMessage> _messages = new();
     private string _userInput = "";
     private bool _isTyping = false;
+    private bool _disableInput = false;
     private const string _avatarUrl = "images/my-profile-pic.jpg";
     private const string _userAvatarUrl = "images/user-profile-pic.png";
 
@@ -117,8 +120,10 @@
         if (!_messages.Any())
         {
             _isTyping = true;
+            _disableInput = true;
             await Task.Delay(1000);
             _isTyping = false;
+            _disableInput = false;
             _messages.Add(new ChatMessage { Text = "How are you today?", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl });
             StateHasChanged();
         }
@@ -151,10 +156,11 @@
 
         var userText = _userInput;
         _messages.Add(new ChatMessage { Text = userText, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl });
-    
+
         _userInput = "";
         await ScrollToBottom();
         _isTyping = true;
+        _disableInput = true;
         StateHasChanged();
         await ScrollToBottom();
 
@@ -177,7 +183,7 @@
         request.SetBrowserResponseStreamingEnabled(true);
 
         var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-    
+
         // 3. Read the body as a stream
         using var stream = await response.Content.ReadAsStreamAsync();
         using var reader = new StreamReader(stream);        
@@ -202,11 +208,15 @@
                     await ScrollToBottom();
                 }
 
-                await Task.Delay(8);
+                if (HostEnvironment.IsDevelopment())
+                    await Task.Delay(8);
+                else
+                    await Task.Delay(4);
             }
         }
 
         _isTyping = false;
+        _disableInput = false;
         StateHasChanged();
         await Task.Delay(50);
         await _textField.FocusAsync();
