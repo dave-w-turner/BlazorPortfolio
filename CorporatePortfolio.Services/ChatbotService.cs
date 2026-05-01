@@ -1,82 +1,95 @@
 ﻿namespace CorporatePortfolio.Services
 {
-    using CorporatePortfolio.DTO;
+    using CorporatePortfolio.Services.DTO;
     using System.Net.Http.Json;
 
-    public class ChatbotService(HttpClient http, string ollamaModel, string _resumeText)
+
+    public class ChatbotService(HttpClient http, bool isDevelopment, string ollamaModel, string _resumeText)
     {
         private readonly string _ollamaModel = ollamaModel;
+        private string? _cachedInstructions;
+        private DateTime _lastReadTime = DateTime.MinValue;
+        private readonly string _filePath = "AIInstructions.txt";
 
         public async Task<IAsyncEnumerable<string?>> Ask(string question, List<ChatMessage> history)
         {
             if (string.IsNullOrEmpty(_ollamaModel)) throw new Exception("Ollama model is not specified.");
 
-            var instructions = $@"
-                You are David Turner, a Senior Software Developer. You are NOT an assistant; you ARE David.
-                Answer professionally, confidently, and concisely.
+            // 1. Handle Lazy Loading of Instructions
+            var lastWrite = File.GetLastWriteTime(_filePath);
+            if (_cachedInstructions == null || lastWrite > _lastReadTime)
+            {
+                _cachedInstructions = await File.ReadAllTextAsync(_filePath);
+                _lastReadTime = lastWrite;
+            }
+                       
+            var systemContent = _cachedInstructions.Contains("{resumeContent}")
+                ? _cachedInstructions.Replace("{resumeContent}", _resumeText)
+                : _cachedInstructions + "\n" + _resumeText;
 
-                ### CORE PROFILE
-                - 10+ years experience in C#, ASP.NET Core, Azure, and DevOps.
-                - Located in Ontario; open to remote or on-site work.
-                - Rates: $100k/year full-time or $75/hr contract.
-                - Status: Currently looking for new opportunities.
+            systemContent = systemContent.Contains("{todaysDate}")
+                ? systemContent.Replace("{todaysDate}", DateTime.Now.ToString("MMMM dd, yyyy"))
+                : systemContent + "\n" + DateTime.Now.ToString("MMMM dd, yyyy");
 
-                ### RESUME CONTENT (Use this for ALL professional questions)
-                {_resumeText}
+            //Inject dynamic date rules
+            var start = new DateTime(2026, 4, 29);
+            var today = DateTime.Now;
+            int daysCount = (today - start).Days; // +1 to include today
 
-                ### GUIDELINES
-                - Use the resume text above to answer questions about specific companies, dates, and projects.
-                - If a detail isn't in the text or this prompt, point the user to: https://azurewebsites.net
-                - Do not invent fake company names.
-                - Do not mention that you are an AI or that you were provided with a resume.
-                - Stop saying 'I've already shared my resume.'
-                - Don't ask the user about their goals or how you can help them achieve them.
-                - Don't tell the user that they can find my resume at my email address.
-            ";
+            string dynamicRule = $"IF {{todaysDate}} is {today:MMMM dd, yyyy}: Duration is {daysCount} days.";
 
+            systemContent = systemContent.Contains("{dateLogic}")
+                ? systemContent.Replace("{dateLogic}", dynamicRule)
+                : systemContent;
+
+            // 3. Build the Message Collection
             var messages = new List<object>
             {
-                new
-                {
-                    role = "system",
-                    content = instructions
-                }
+                new { role = "system", content = systemContent },
+                new { role = "system", content = "I'm David Turner. I'm a Senior Developer currently looking for new opportunities in the .NET and Azure space. How can I help you today?" }
             };
 
-            // Add conversation history
-            foreach (var msg in history.TakeLast(6)) // Limit history to keep it snappy
+            var historyToProcess = isDevelopment ? history.TakeLast(10) : history.TakeLast(5);
+            var historyList = historyToProcess.Where(m => !string.IsNullOrWhiteSpace(m.Text)).ToList();
+
+            for (int i = 0; i < historyList.Count; i++)
             {
-                messages.Add(new
-                {
-                    role = msg.IsUser ? "user" : "assistant",
-                    content = msg.Text
-                });
+                var msg = historyList[i];
+
+                // Only skip the very last message in history if it is a user message 
+                // identical to the current question.
+                if (i == historyList.Count - 1 && msg.IsUser && msg.Text.Trim().Equals(question.Trim(), StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                messages.Add(new { role = msg.IsUser ? "user" : "assistant", content = msg.Text });
             }
 
-            messages.Add(new
-            {
-                role = "user",
-                content = $"User Question: {question}\n\nReminder: Answer as David using only the facts provided above."
-            });
+            // 5. Add the Current Question
+            messages.Add(new { role = "user", content = question });
 
+            // 6. Send to Ollama
             var response = await http.PostAsJsonAsync("api/chat", new
             {
                 model = _ollamaModel,
                 messages,
                 stream = true,
-                options = new { 
-                    num_ctx = 4096, // Lowering this speeds up processing
-                    temperature = 0.6, // Lower is faster/more focused
-                    repeat_penalty = 1.2, // Prevents looping which slows things down
-                    num_predict = 500,  // Allow for slightly longer technical answers
-                    top_p = 0.9
-                }, 
+                options = new
+                {
+                    num_ctx = isDevelopment ? 4096 : 1024,
+                    temperature = 0.0, // Critical for stopping hallucinations
+                    repeat_penalty = 1.1,
+                    num_predict = isDevelopment ? 500 : 100,
+                    top_p = isDevelopment ? 0.9 : 0.2,
+                    top_k = isDevelopment ? 40 : 10,
+                    num_thread = isDevelopment ? 4 : 2,
+                    seed = isDevelopment ? (int?)null : 42
+                },
             }, new System.Text.Json.JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
 
             return StreamResponse(response);
         }
 
-        private async IAsyncEnumerable<string?> StreamResponse(HttpResponseMessage response)
+        private static async IAsyncEnumerable<string?> StreamResponse(HttpResponseMessage response)
         {
             using var stream = await response.Content.ReadAsStreamAsync();
             using var reader = new StreamReader(stream);

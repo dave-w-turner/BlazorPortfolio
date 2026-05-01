@@ -1,4 +1,4 @@
-﻿namespace CorporatePortfolio.Services
+﻿namespace CorporatePortfolio.Services.DTO
 {
     public class ChatState
     {

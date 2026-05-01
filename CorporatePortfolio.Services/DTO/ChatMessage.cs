@@ -1,4 +1,4 @@
-﻿namespace CorporatePortfolio.DTO
+﻿namespace CorporatePortfolio.Services.DTO
 {
     public class ChatMessage
     {

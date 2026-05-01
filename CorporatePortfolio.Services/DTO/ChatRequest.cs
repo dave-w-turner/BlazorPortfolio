@@ -1,4 +1,6 @@
-﻿namespace CorporatePortfolio.DTO
+﻿using CorporatePortfolio.Services.DTO;
+
+namespace CorporatePortfolio.DTO
 {
     public class ChatRequest
     {
