@@ -1,6 +1,4 @@
 ﻿using System.Text;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using Xceed.Words.NET;
 
 namespace CorporatePortfolio.Services
@@ -11,60 +9,79 @@ namespace CorporatePortfolio.Services
 
         public async Task<string> GetResumeText(bool isDevelopment)
         {
-            if (isDevelopment)
-                return _document.Text;
+            if (isDevelopment) return _document.Text;
 
             var documentTextSb = new StringBuilder();
-            XNamespace w = "http://openxmlformats.org";
+            var experienceList = new List<string>();
 
             foreach (var bm in _document.Bookmarks)
             {
-                var currentBmSb = new StringBuilder($"{bm.Name.ToUpper()}:\r\n");
+                var isExperience = bm.Name.StartsWith("Experience_");
+                var currentBmSb = new StringBuilder();
 
-                // 1. Find the start tag by checking ONLY the LocalName (ignoring namespaces)
                 var startTag = _document.Xml.Descendants()
                     .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
                                          (x.Attribute("name")?.Value == bm.Name ||
                                           x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == bm.Name)));
 
-                if (startTag == null)
-                {
-                    // Debug: If still null, try to see if the library's Paragraph property works at all
-                    if (bm.Paragraph != null)
-                    {
-                        currentBmSb.AppendLine(bm.Paragraph.Text + " (End tag not found)");
-                    }
-                    continue;
-                }
+                if (startTag == null) continue;
 
-                // 2. Get the ID using LocalName
                 string bookmarkId = startTag.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value;
                 var currentParagraph = bm.Paragraph;
+                var expParagraphCounter = 0;
+                var expLine = string.Empty;
+
+                if (!isExperience)
+                    currentBmSb.Append($"{bm.Name.ToUpper()}: ");
 
                 while (currentParagraph != null)
                 {
-                    if (bm.Name.Equals("Competencies"))
-                        currentBmSb.AppendLine($"- {currentParagraph.Text}");
-                    else
-                        currentBmSb.AppendLine(currentParagraph.Text);
+                    var text = currentParagraph.Text.Trim();
 
-                    // 3. Check for end tag using LocalName
-                    bool hasEndTag = currentParagraph.Xml.DescendantsAndSelf()
-                        .Any(x => x.Name.LocalName == "bookmarkEnd" &&
-                                  x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bookmarkId));
+                    // Replace 'goto' logic with a standard if check
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        if (bm.Name.Equals("Skills") || bm.Name.Equals("Education"))
+                        {
+                            currentBmSb.AppendLine();
+                            currentBmSb.Append($"* {text}");
+                        }
+                        else if (isExperience)
+                        {
+                            if (expParagraphCounter == 0) expLine += $"* {text}: ";
+                            else if (expParagraphCounter == 1) expLine += $"{text} ";
+                            else if (expParagraphCounter == 2) expLine += $"({text})";
+                            expParagraphCounter++;
+                        }
+                        else
+                        {
+                            currentBmSb.AppendLine();
+                            currentBmSb.Append(text);
+                        }
+                    }
 
-                    if (hasEndTag)
+                    // The loop always proceeds to check the end tag and move to next paragraph
+                    if (currentParagraph.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
+                        x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bookmarkId)))
                         break;
 
                     currentParagraph = currentParagraph.NextParagraph;
-                    if (currentParagraph == null) break;
                 }
 
-                documentTextSb.AppendLine(currentBmSb.ToString());
-                documentTextSb.AppendLine(string.Empty);
+                if (isExperience && !string.IsNullOrWhiteSpace(expLine))
+                    experienceList.Add(expLine.Trim());
+                else if (currentBmSb.Length > 0)
+                    documentTextSb.AppendLine(currentBmSb.ToString().TrimEnd() + "\r\n");
             }
 
-            return documentTextSb.ToString();
+            if (experienceList.Count > 0)
+            {
+                documentTextSb.AppendLine("EXPERIENCE:");
+                foreach (var exp in experienceList) documentTextSb.AppendLine(exp);
+            }
+
+            return documentTextSb.ToString().Trim();
         }
+
     }
 }

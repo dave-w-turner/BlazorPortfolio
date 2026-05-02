@@ -43,11 +43,13 @@
                             @msg.UserName
                         </MudText>
 
-                        <MudPaper Class="pa-3" Elevation="3"
+                        <MudPaper Class="pa-4" Elevation="1"
                                   Style="@(msg.IsUser ?
-                                                      "background-color: var(--mud-palette-primary); color: var(--mud-palette-primary-text); border-radius: 15px 0 15px 15px;" :
-                                                      "background-color: var(--mud-palette-surface); color: var(--mud-palette-text-primary); border-radius: 0 15px 15px 15px;")">
-                            <MudText Typo="Typo.body1" Style="color: inherit;">@msg.Text</MudText>
+                                    "background-color: var(--mud-palette-primary); color: white; border-radius: 15px 15px 0 15px;" :
+                                    "background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);")">
+                            <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem;">
+                                @FormatMessage(msg.Text)
+                            </MudText>
                         </MudPaper>
                     </div>
                 </div>
@@ -234,6 +236,28 @@
         await Task.Delay(100);
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
     }
+
+    private MarkupString FormatMessage(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return new MarkupString("");
+
+        // 1. Links
+        var formatted = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"(https?://[^\s]+)",
+            "<a href=\"$1\" target=\"_blank\" style=\"color: #1E90FF; text-decoration: underline; font-weight: 600;\">$1</a>"
+        );
+
+        // 2. Surgical Diamond Swap
+        // Only replace the "*" if it's NOT already preceded by a diamond.
+        // Also, strip out any diamonds the AI tried to "type" itself to prevent doubles.
+        formatted = formatted.Replace("🔹", "").Replace("*", "🔹");
+    
+        // 3. Remove trailing diamonds or weird formatting the AI hallucinated
+        formatted = formatted.Trim();
+
+        return new MarkupString(formatted);
+    }
 }
 
 <style>
@@ -281,4 +305,34 @@
             border-radius: 50%;
             animation: bounce 1.4s infinite ease-in-out both;
         }
+
+        /* 1. Target the MudPaper containing David's text */
+        .mud-paper:not(.user-message) .mud-typography-body1 {
+            line-height: 1.6;
+        }
+
+        /* 2. Style the bullets */
+        /* Note: This logic works best if we use the Regex helper to wrap bullets in a span,
+           but for a quick CSS-only 'look better' fix, we can style the text block */
+        .mud-paper {
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* Optional: Add a slight border-left to David's messages to make them pop */
+        .mud-paper:not(.user-message) {
+            border-left: 4px solid #1E90FF;
+        }
+
+    /* This creates a clean "hanging indent" for your list items */
+    .mud-typography-body1 {
+        display: block;
+        text-align: left;
+        line-height: 1.6;
+    }
+
+    /* Optional: Add a slight glow to David's message bubble */
+    .mud-paper:not(.user-message) {
+        box-shadow: 0 0 10px rgba(30, 144, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    }
 </style>

@@ -78,7 +78,7 @@
                     num_ctx = isDevelopment ? 4096 : 1024,
                     temperature = 0.0, // Critical for stopping hallucinations
                     repeat_penalty = 1.1,
-                    num_predict = isDevelopment ? 500 : 100,
+                    num_predict = 500,
                     top_p = isDevelopment ? 0.9 : 0.2,
                     top_k = isDevelopment ? 40 : 10,
                     num_thread = isDevelopment ? 4 : 2,
