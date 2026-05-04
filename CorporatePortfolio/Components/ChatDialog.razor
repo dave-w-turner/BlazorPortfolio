@@ -2,6 +2,7 @@
 @using CorporatePortfolio.Services
 @using CorporatePortfolio.Services.DTO
 @using Microsoft.AspNetCore.Components.WebAssembly.Http
+@using System.Text.RegularExpressions
 @inject NavigationManager NavigationManager
 @inject ChatState State
 @inject IJSRuntime JSRuntime
@@ -19,10 +20,7 @@
         <div id="chat-container" style="flex-grow: 1; overflow-y: auto;" class="pa-4">
             @foreach (var msg in _messages)
             {
-                @* Reverse the direction if it's the user so the avatar is on the right *@
                 <div style="display: flex; flex-direction: @(msg.IsUser ? "row-reverse" : "row");" class="mb-6 gap-3">
-            
-                    @* Avatar Section *@
                     <MudAvatar Size="Size.Medium" Elevation="2">
                         @if (!string.IsNullOrEmpty(msg.AvatarUrl))
                         {
@@ -34,9 +32,7 @@
                         }
                     </MudAvatar>
 
-                    @* Message Bubble Section *@
                     <div style="max-width: 75%; display: flex; flex-direction: column; align-items: @(msg.IsUser ? "flex-end" : "flex-start");">
-                        @* Name Label *@
                         <MudText Typo="Typo.caption"
                                  Class="mb-1 px-1"
                                  Style="@($"font-weight: 700; opacity: 1; color: {(msg.IsUser ? "#FFFFFF" : "#1E90FF")} !important;")">
@@ -44,18 +40,19 @@
                         </MudText>
 
                         <MudPaper Class="pa-4" Elevation="1"
-                                  Style="@(msg.IsUser ?
-                                    "background-color: var(--mud-palette-primary); color: white; border-radius: 15px 15px 0 15px;" :
-                                    "background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);")">
-                            <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem;">
-                                @FormatMessage(msg.Text)
+                            Style="@(msg.IsUser ?
+                                "background-color: var(--mud-palette-primary); color: white; border-radius: 15px 15px 0 15px;" :
+                                "background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);")">
+                            <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">
+                                @FormatMessage(msg.Text, msg.IsComplete)
                             </MudText>
                         </MudPaper>
                     </div>
                 </div>
             }
 
-            @if (_isTyping)
+            @* The typing indicator displays below the loop ONLY when the AI is processing the first chunk *@
+            @if (_isTyping && _messages.LastOrDefault()?.IsUser == true)
             {
                 <div style="display: flex; flex-direction: row;" class="mb-6 gap-3">
                     <MudAvatar Size="Size.Medium" Elevation="2">
@@ -63,14 +60,13 @@
                     </MudAvatar>
                     <div style="display: flex; flex-direction: column;">
                         <MudText Typo="Typo.caption"
-                                 Class="mb-1"
+                                 Class="mb-1 px-1"
                                  Style="font-weight: 700; color: #1E90FF !important; opacity: 1 !important;">
                             David
                         </MudText>
                         <MudPaper Class="pa-4" Elevation="1"
                                   Style="background-color: #32333d !important; border-radius: 0 15px 15px 15px; width: 60px;">
                             <div class="typing-indicator">
-                                @* No inline styles here; let the CSS class handle the color *@
                                 <div class="typing-dot"></div>
                                 <div class="typing-dot"></div>
                                 <div class="typing-dot"></div>
@@ -126,7 +122,7 @@
             await Task.Delay(1000);
             _isTyping = false;
             _disableInput = false;
-            _messages.Add(new ChatMessage { Text = "How are you today?", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl });
+            _messages.Add(new ChatMessage { Text = "How are you today?", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false });
             StateHasChanged();
         }
     }
@@ -157,72 +153,88 @@
         if (string.IsNullOrWhiteSpace(_userInput) || _isTyping) return;
 
         var userText = _userInput;
-        _messages.Add(new ChatMessage { Text = userText, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl });
+        _messages.Add(new ChatMessage { Text = userText, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl, IsComplete = true });
 
         _userInput = "";
         await ScrollToBottom();
-        _isTyping = true;
+        _isTyping = true; // Displays the dots until the first word appears
         _disableInput = true;
         StateHasChanged();
         await ScrollToBottom();
 
-        // 1. Create a placeholder message for David
-        var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl };
-        _messages.Add(aiMsg);
+        var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };
 
         var chatRequest = new ChatRequest
         {
             Question = userText,
-            History = _messages.TakeLast(10).ToList() // Only send the last 10 messages for speed
+            History = _messages.TakeLast(10).ToList()
         };
 
         var request = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/chat")
         {
-            // Serialize the whole request object
             Content = JsonContent.Create(chatRequest)
         };
 
         request.SetBrowserResponseStreamingEnabled(true);
+        request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/event-stream"));
 
-        var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-
-        // 3. Read the body as a stream
-        using var stream = await response.Content.ReadAsStreamAsync();
-        using var reader = new StreamReader(stream);        
-
-        // 4. Read chunks as they arrive from the Controller
-        char[] buffer = new char[1024];
-        int read;
-
-        while ((read = await reader.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        try
         {
-            _isTyping = false; // Hide dots once words start appearing
+            var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
 
-            for (int i = 0; i < read; i++)
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            string? line;
+            bool firstWordReceived = false;
+
+            while ((line = await reader.ReadLineAsync()) != null)
             {
-                aiMsg.Text += buffer[i];
-
-                // Only call StateHasChanged every few characters or at spaces
-                // to keep the UI from stuttering on your i9
-                if (char.IsWhiteSpace(buffer[i]) || i % 3 == 0)
+                if (line.StartsWith("data: "))
                 {
+                    var chunk = line["data: ".Length..];
+
+                    // Handle initial typing state
+                    if (!firstWordReceived)
+                    {
+                        _isTyping = false;
+                        _messages.Add(aiMsg);
+                        firstWordReceived = true;
+                    }
+
+                    // Check if the chunk is an actual empty line/newline sent by the LLM
+                    if (string.IsNullOrEmpty(chunk))
+                    {
+                        aiMsg.Text += "\n";
+                    }
+                    else
+                    {
+                        // FIX: Explicitly normalize escaped or stripped newlines during data streaming
+                        string sanitizedChunk = chunk.Replace("\\n", "\n").Replace("\r", "");
+                        aiMsg.Text += sanitizedChunk;
+                    }
+
+
                     StateHasChanged();
                     await ScrollToBottom();
+                    await Task.Yield();
                 }
-
-                if (HostEnvironment.IsDevelopment())
-                    await Task.Delay(8);
-                else
-                    await Task.Delay(4);
             }
         }
-
-        _isTyping = false;
-        _disableInput = false;
-        StateHasChanged();
-        await Task.Delay(50);
-        await _textField.FocusAsync();
-        await ScrollToBottom();
+        catch (Exception ex)
+        {
+            aiMsg.Text = "An error occurred while getting a response.";
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            aiMsg.IsComplete = true;
+            _isTyping = false;
+            _disableInput = false;
+            StateHasChanged();
+            await ScrollToBottom();
+        }
     }
 
     [JSInvokable]
@@ -235,28 +247,215 @@
     {
         await Task.Delay(100);
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
-    }
-
-    private MarkupString FormatMessage(string text)
+    }      
+    
+    private MarkupString FormatMessage(string text, bool isComplete)
     {
         if (string.IsNullOrWhiteSpace(text)) return new MarkupString("");
 
-        // 1. Links
-        var formatted = System.Text.RegularExpressions.Regex.Replace(
-            text,
-            @"(https?://[^\s]+)",
-            "<a href=\"$1\" target=\"_blank\" style=\"color: #1E90FF; text-decoration: underline; font-weight: 600;\">$1</a>"
+        // Step 1: Strip out unclosed tags at the end of the string to prevent flashing
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"<[^>]*$", "");
+
+        // Step 2: Escape special HTML characters
+        var formatted = System.Net.WebUtility.HtmlEncode(text);
+
+        // Step 3: Strip out any leaked XML tags
+        formatted = formatted.Replace("&lt;contact_data&gt;", "").Replace("&lt;/contact_data&gt;", "");
+
+        // Step 4: Repair smashed text formatting
+        // 4.0. Directly fix escaped C# characters generated by the LLM
+        formatted = formatted.Replace("C\\#", "C#").Replace("c\\#", "c#");
+
+        // 4.1. Use a robust negative lookbehind to strictly protect C# from being parsed as a heading
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"(?<![Cc]\s*)\s*#(?=\s)",
+            "\n#"
         );
 
-        // 2. Surgical Diamond Swap
-        // Only replace the "*" if it's NOT already preceded by a diamond.
-        // Also, strip out any diamonds the AI tried to "type" itself to prevent doubles.
-        formatted = formatted.Replace("🔹", "").Replace("*", "🔹");
-    
-        // 3. Remove trailing diamonds or weird formatting the AI hallucinated
-        formatted = formatted.Trim();
+        // 4.2. Repair smashed jobs text and separate consecutive roles onto new lines
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"\)\s*#", ")\n#");
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"(?<=\))\s*-\s*(?=[A-Z][a-z])", "\n-");
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"(?<=\))\s*(?=-\s*[A-Z])", "\n");
 
-        return new MarkupString(formatted);
+        // 4.3. Repair conversational bullet points smashed against punctuation AND parentheses
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"(?<=[.:)])\s*([\*-])\s*", "\n$1 ");
+
+        // 4.4. Sentence fixer ignores line breaks (\n) to protect your contact lines
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"(?<=[a-z])\s*([.!?])\s*(?=[A-Z])(?! [^\n]*\n)",
+            "$1 "
+        );
+
+        // 4.6. Fix numbered lists and inline phone numbers smashed directly against sentence text
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"(?<=[a-zA-Z.:)])\s*(\d+\.\s+)", "\n$1");
+
+        // 4.7. Fix parenthetical text running together into consecutive listed lines
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"(?=\))\s*(?=\d+\.)", "\n");
+
+        // 4.8. Match individual numbered lines but completely ignore four-digit years and decimals
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"^\s*(?!\d{4}\.)(?!\d+\.\d)(\d+\..+?)(?=\n|$)",
+            "<div style=\"margin-bottom: 12px; margin-top: 4px;\">$1</div>",
+            System.Text.RegularExpressions.RegexOptions.Multiline
+        );
+
+        // 4.9. Skip highlights if this text is the skills list
+        bool isSkillsList = text.Contains("Core Tech") || text.Contains("Azure & DevOps");
+        if (!isSkillsList)
+        {
+            string[] keywords = new string[] {
+            "SignalR", "Entity Framework", "C#", "ASP.NET Core", "LINQ", ".NET Core", "Azure", "SQL", "MVC",
+            "TypeScript", "Angular", "Azure DevOps", "C#.NET", "JavaScript", "Agile", "C# .NET Core",
+            "RESTful APIs", "Microservices", "Unit Testing", "Dependency Injection", "Design Patterns", 
+            "Continuous Integration", "Continuous Deployment", "Docker", "Kubernetes", "Azure SQL",
+            "Azure Functions", "Azure Logic Apps", "Azure Service Bus", "Azure Event Grid", "Azure Key Vault",
+            "Azure Application Insights", "Azure Monitor", "Azure Blob Storage", "Azure Cosmos DB",
+            "Azure Active Directory", "Azure API Management", "Azure Cognitive Services",
+            "Azure Kubernetes Service", "Azure Container Instances", "Azure Virtual Machines",
+            "Azure Virtual Network", "Azure Load Balancer", "YAML Pipelines", "CI/CD", "Scrum", "Kanban",
+            "Jira", "TFS", "Git", "GitHub", "GitLab", "Active Directory", "OAuth", "OpenID Connect", "JWT",
+            "SAML", "SSO", "IdentityServer", "ASP.NET Identity", "ADFS", "LDAP", "OAuth2", "OpenID", "SAML2",
+            "SSO Integration", "Identity Management", "SCCM", "PowerShell", "Windows Server", "IIS",
+            "SQL Server", "SSRS", "SSIS", "SSAS", "Visual Studio", "VS Code", "ReSharper", "NuGet", "NUnit",
+            "xUnit", "MSTest", "Selenium", "Postman", "Swagger", "Fiddler", "Wireshark", "JMeter",
+            "Load Testing", "Performance Testing", "Security Testing", "Penetration Testing",
+            "Vulnerability Assessment", "OWASP", "CIS Benchmarks", "NIST", "ISO 27001", "SOC 2", "HIPAA",
+            "GDPR", "PCI DSS", "FISMA", "SOX Compliance", "ITIL", "COBIT", "ISO 20000", "ISO 22301",
+            "Business Continuity", "Disaster Recovery", "Risk Management", "Incident Response",
+            "Change Management", "Configuration Management", "Release Management", "Problem Management",
+            "Service Level Agreements", "Key Performance Indicators", "Metrics", "Reporting", "Dashboards",
+            "Business Intelligence", "Data Warehousing", "ETL", "Data Mining", "Data Analytics",
+            "Machine Learning", "Artificial Intelligence", "Deep Learning", "Natural Language Processing",
+            "Computer Vision", "Robotics", "IoT", "Blockchain", "Cryptography", "Quantum Computing",
+            "Augmented Reality", "Virtual Reality", "Mixed Reality", "3D Modeling", "Game Development",
+            "Mobile Development", "iOS", "Android", "React Native", "Flutter", "Xamarin",
+            "Progressive Web Apps", "PWA", "WebAssembly", "Blazor", "gRPC", "WebSockets", "REST",
+            "GraphQL", "SOAP", "JSON", "XML", "YAML", "CSV", "HTML", "CSS", "SASS", "LESS", "Bootstrap",
+            "Tailwind CSS", "Material Design", "Responsive Design", "Accessibility", "WCAG", "ARIA",
+            "SEO", "Performance Optimization", "Cross-Browser Compatibility", "Cross-Platform Development",
+            "Cloud Computing", "AWS", "Google Cloud Platform", "Serverless Architecture", "Edge Computing",
+            "Fog Computing", "Containerization", "Orchestration", "DevSecOps", "Site Reliability Engineering",
+            "Observability", "Logging", "Monitoring", "Alerting", "Tracing", "Metrics Collection",
+            "Distributed Systems", "Event-Driven Architecture", "Message Queues", "Pub/Sub", "Streaming Data",
+            "Real-Time Processing", "Batch Processing", "Data Lakes", "Data Pipelines", "ETL Processes",
+            "Data Governance", "Data Quality", "Master Data Management", "Data Cataloging", "Data Lineage",
+            "Data Privacy", "Kendo UI", "Syncfusion", "Telerik", "DevExpress", "Component Libraries", "UI Frameworks",
+            "jQuery", "React", "Vue.js", "AngularJS", "Ember.js", "Backbone.js", "Knockout.js", "Responsive UI",
+            "Single Page Applications", "SOLID Principles", "Clean Code", "Refactoring", "Code Reviews",
+            "Pair Programming", "TDD", "BDD", "Agile Methodologies", "Lean", "XP", "SDLC", "Waterfall",
+            "DevOps Practices", "Infrastructure as Code", "Monitoring and Logging", ".NET Framework", ".NET 5",
+            ".NET 6", ".NET 7", "VB.NET", "F#", "ASP.NET", "Razor Pages", "Entity Framework Core", "Web API",
+            "RESTful Services", "Microservices Architecture", "Middleware", "Routing", "Authentication and Authorization",
+            "JWT Tokens", "Web Forms", "Lambda Expressions", "Delegates", "Events", "Generics", "Collections",
+            "Data Structures", "App Services", "Azure Storage", "Azure SQL Database", "Cosmos DB", "HTML5", "CSS3",
+            "Node.js", "Express.js", "MongoDB", "PostgreSQL", "MySQL", "SQLite", "Redis", "code analysis",
+            "static code analysis", "dynamic code analysis", "profiling", "performance tuning", "memory management", "garbage collection"
+        };
+
+            foreach (var kw in keywords)
+            {
+                string pattern = kw.EndsWith("#")
+                    ? @"\b" + System.Text.RegularExpressions.Regex.Escape(kw) + @"(?! [a-zA-Z0-9])(?![^<]*>)"
+                    : @"\b" + System.Text.RegularExpressions.Regex.Escape(kw) + @"\b(?![^<]*>)";
+
+                formatted = System.Text.RegularExpressions.Regex.Replace(
+                    formatted,
+                    pattern,
+                    $"<b style=\"color: #7DD3FC; font-weight: bold;\">{kw}</b>",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                );
+            }
+        }
+
+        // 4.10. Highlight bold Markdown items in Ice Blue (#E0F2FE)
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"\*\*(.*?)\*\*",
+            "<span style=\"color: #E0F2FE; font-weight: bold;\">$1</span>"
+        );
+
+        // 4.11: Insert structural breaks for phone-only messages so they format like full contact info
+        if (formatted.Contains("905-926-2398") && !formatted.Contains("David W. Turner"))
+        {
+            formatted = "David W. Turner\nOshawa, Ontario\n" + formatted;
+        }
+
+        // 4.12: Explicitly force summary text following colons to move to a new line
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"(?<=\w):(?=[A-Z])",
+            ":\n"
+        );
+
+        // 4.13: Ensure "Some of my key skills include:" sits exactly 2 lines below the preceding paragraph
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"(?<=[a-zA-Z.:)])\s*(Some of my key skills include:)",
+            "\n\n$1",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        );
+
+        // 4.14: Push closing conversational call-to-action hooks onto a new line if smashed after a parenthesis
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"(?<=\))\s*(Would you prefer to see my skills, experience, or contact info\?)",
+            "\n\n$1",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        );
+
+        // 4.15: Push "Here's a brief overview" onto a new line if smashed against previous paragraph words
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"(?<=[a-zA-Z])\s*\.?\s*(Here's a brief overview of my experience:)",
+            ".\n\n$1",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        );
+
+        // Step 5: Convert links into anchor tags
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"\[([^\]]+)\]\((https?://[^\s\)]+)\)",
+            "<a href=\"$2\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$1</a>"
+        );
+
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"(?<!href=\x22|href=\')https?://[^\s<]+",
+            "<a href=\"$0\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$0</a>"
+        );
+
+        // Step 6: Handle the Heading Row -> Sky Blue Accent (#7DD3FC)
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"^#\s+(.+)$",
+            "<div style=\"color: #7DD3FC; font-size: 1.05em; font-weight: bold; margin-top: 8px; margin-bottom: 4px;\">$1</div>",
+            System.Text.RegularExpressions.RegexOptions.Multiline
+        );
+
+        // FIX Step 7: Put the dash at the very end of the brackets to make it match exactly instead of forming a range
+        formatted = System.Text.RegularExpressions.Regex.Replace(
+            formatted,
+            @"^\s*[\*▪-]\s*(.+)$",
+            "<div style=\"color: #E0F2FE; margin-left: 26px; margin-bottom: 6px; font-size: 0.95em; line-height: 1.4;\">▪ $1</div>",
+            System.Text.RegularExpressions.RegexOptions.Multiline
+        );
+
+        // Step 8: Convert all line endings to <br /> and preserve double spaces
+        formatted = formatted.Replace("\r\n", "\n").Replace("\r", "\n");
+        formatted = formatted.Replace("\n\n", "<div style=\"height: 18px;\"></div>");
+        formatted = formatted.Replace("\n", "<br />");
+
+        // Step 9: Remove any double breaks introduced around our custom divs
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"(</div>)<br\s*/?>", "$1");
+        formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"<br\s*/?>(<div)", "$1");
+
+        // Step 10: Apply global wrapper with Crisp White contrast (#F8FAFC)
+        var finalHtml = $"<div style=\"color: #F8FAFC; line-height: 1.6; font-size: 0.98em;\">{formatted.Trim()}</div>";
+
+        return new MarkupString(finalHtml);
     }
 }
 

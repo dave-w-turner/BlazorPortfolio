@@ -2,6 +2,7 @@ using CorporatePortfolio.Components;
 using CorporatePortfolio.HostedService;
 using CorporatePortfolio.Services;
 using CorporatePortfolio.Services.DTO;
+using Microsoft.Extensions.Caching.Memory;
 using MudBlazor.Services;
 using System.Text;
 using Xceed.Words.NET;
@@ -20,6 +21,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddTransient(provider =>
 {
@@ -46,13 +48,14 @@ builder.Services.AddTransient((provider) =>
 builder.Services.AddSingleton(provider =>
 {
     var httpClient = provider.GetRequiredService<HttpClient>();
-    httpClient.Timeout = TimeSpan.FromMinutes(1);
+    httpClient.Timeout = TimeSpan.FromMinutes(2);
 
     return new ChatbotService(
         httpClient, 
         provider.GetRequiredService<IHostEnvironment>().IsDevelopment(), 
         provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty,
-        provider.GetRequiredService<ResumeService>().GetResumeText(provider.GetRequiredService<IHostEnvironment>().IsDevelopment()).Result);
+        provider.GetRequiredService<ResumeService>(),
+        provider.GetRequiredService<IMemoryCache>());
 });
 
 builder.Services.AddHostedService((provider) =>
