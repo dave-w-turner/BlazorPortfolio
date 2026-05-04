@@ -8,6 +8,22 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="AIInstructions.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="AIInstructions.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="DavidTurner_Resume.docx" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="DavidTurner_Resume.docx" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CorporatePortfolio.Client\CorporatePortfolio.Client.csproj" />
     <PackageReference Include="Blazor.Bootstrap" Version="3.5.0" />
     <PackageReference Include="DocX" Version="5.0.0" />
