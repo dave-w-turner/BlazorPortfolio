@@ -12,7 +12,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="AIInstructions.txt" />
+    <Content Include="AIInstructions.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -20,7 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="DavidTurner_Resume.docx" />
+    <Content Include="DavidTurner_Resume.docx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
