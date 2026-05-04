@@ -1,10 +1,8 @@
 using CorporatePortfolio.Components;
-using CorporatePortfolio.HostedService;
 using CorporatePortfolio.Services;
 using CorporatePortfolio.Services.DTO;
 using Microsoft.Extensions.Caching.Memory;
 using MudBlazor.Services;
-using System.Text;
 using Xceed.Words.NET;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,11 +34,10 @@ builder.Services.AddTransient((provider) =>
     var httpClient = httpClientFactory.CreateClient();
 
     if (!provider.GetRequiredService<IHostEnvironment>().IsDevelopment())
-        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(
-            Encoding.ASCII.GetBytes((provider.GetRequiredService<IConfiguration>()["OllamaServiceCreds"] ?? string.Empty).Trim())));
+        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", provider.GetRequiredService<IConfiguration>()["Groq:ApiKey"]);
 
-    httpClient.BaseAddress = new Uri($"{provider.GetRequiredService<IConfiguration>()["OllamaServiceUrl"]}" ?? string.Empty);
-    httpClient.DefaultRequestHeaders.Add("User-Agent", "C# App/1.0");
+    httpClient.BaseAddress = new Uri($"{provider.GetRequiredService<IConfiguration>()["OllamaServiceUrl"]}" ?? string.Empty);   
+    httpClient.Timeout = TimeSpan.FromSeconds(30);
 
     return httpClient;
 });
@@ -57,15 +54,6 @@ builder.Services.AddSingleton(provider =>
         provider.GetRequiredService<ResumeService>(),
         provider.GetRequiredService<IMemoryCache>());
 });
-
-builder.Services.AddHostedService((provider) =>
-{
-    var modelName = provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty;
-    var httpClient = provider.GetRequiredService<HttpClient>();
-    httpClient.Timeout = TimeSpan.FromMinutes(10);
-    return new OllamaWarmupService(httpClient, modelName);
-});
-
 
 builder.Services.AddScoped<ChatState>();
 
