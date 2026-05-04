@@ -101,6 +101,9 @@ app.UseStaticFiles();
 app.UseBlazorFrameworkFiles();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode(options => 
+    {
+        options.DisableWebSocketCompression = true;
+    });
 
 app.Run();
