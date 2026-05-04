@@ -4,7 +4,7 @@
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.FileProviders;
     using System.Net.Http.Json;
-
+    using System.Text.Json;
 
     public class ChatbotService(HttpClient http, bool isDevelopment, string ollamaModel, ResumeService resumeService, IMemoryCache memoryCache)
     {
@@ -91,7 +91,7 @@
                 : systemContent;
 
             // 3. Build the Message Collection (Single system message used here)
-            var messages = new List<object>
+            var messages = new List<dynamic>
             {
                 new { role = "system", content = systemContent }
             };
@@ -112,44 +112,125 @@
             // 5. Add the Current Question
             messages.Add(new { role = "user", content = question });
 
-            // 6. Send to Ollama
-            var response = await http.PostAsJsonAsync("api/chat", new
-            {
-                model = _ollamaModel,
-                messages,
-                stream = true,
-                options = new
-                {
-                    num_ctx = isDevelopment ? 4096 : 2048,
-                    temperature = 0.0,
-                    repeat_penalty = 1.1,
-                    num_predict = 250,
-                    top_p = isDevelopment ? 0.9 : 0.4,
-                    top_k = isDevelopment ? 40 : 20,
-                    num_thread = isDevelopment ? 4 : 2,
-                    seed = isDevelopment ? (int?)null : 42
-                },
-            }, new System.Text.Json.JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
+            object payload;
 
-            return StreamResponse(response);
+            if (isDevelopment)
+            {
+                //Ollama-specific payload structure
+                payload = new
+                {
+                    model = _ollamaModel,
+                    messages,
+                    stream = true,
+                    options = new
+                    {
+                        num_ctx = 4096,
+                        num_batch = 256,
+                        temperature = 0.0,
+                        repeat_penalty = 1.1,
+                        num_predict = 250,
+                        top_p = 0.9,
+                        top_k = 40,
+                        num_thread = 4
+                    }
+                };
+            }
+            else
+            {
+                var cleanMessages = messages.Select(m => new {
+                    role = m.role,
+                    content = m.content
+                }).ToList();
+
+                //Grok-specific payload structure
+                payload = new
+                {
+                    model = _ollamaModel,
+                    messages = cleanMessages,
+                    stream = true,
+                    temperature = 0.0,
+                    max_tokens = 250
+                };
+            }                   
+
+            var request = new HttpRequestMessage(HttpMethod.Post, isDevelopment ? "api/chat" : "chat/completions")
+            {
+                Content = JsonContent.Create(payload)
+            };
+
+            // 2. Use ResponseHeadersRead
+            var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+            if (!isDevelopment && !response.IsSuccessStatusCode)
+            {
+                // This string will tell you EXACTLY which field Groq hates
+                var errorBody = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Groq Error: {errorBody}");
+            }
+            else
+                response.EnsureSuccessStatusCode();
+
+            // 3. Return the IAsyncEnumerable directly
+            // Do NOT read the stream here. If you want to log, do it inside StreamResponse.
+            if (isDevelopment)
+                return StreamResponseOllama(response);
+            else
+                return StreamResponseGrok(response);
         }
 
-        private static async IAsyncEnumerable<string?> StreamResponse(HttpResponseMessage response)
+        private static async IAsyncEnumerable<string?> StreamResponseOllama(HttpResponseMessage response)
         {
-            using var stream = await response.Content.ReadAsStreamAsync();
-            using var reader = new StreamReader(stream);
-
-            while (await reader.ReadLineAsync() is { } line)
+            // The 'using' here ensures the connection stays open until the loop is finished
+            using (response)
+            using (var stream = await response.Content.ReadAsStreamAsync())
+            using (var reader = new StreamReader(stream))
             {
-                if (!string.IsNullOrWhiteSpace(line))
+                while (await reader.ReadLineAsync() is { } line)
                 {
-                    var chunk = System.Text.Json.JsonSerializer.Deserialize<OllamaResponse>(line);
-                    if (chunk?.message?.content != null)
+                    if (!string.IsNullOrWhiteSpace(line))
                     {
-                        yield return chunk.message.content;
+                        // Optional: Log to console here if you need to see it on the server
+                        // Console.WriteLine($"DEBUG: {line}");
+
+                        var chunk = System.Text.Json.JsonSerializer.Deserialize<OllamaResponse>(line);
+                        if (chunk?.message?.content != null)
+                        {
+                            yield return chunk.message.content;
+                        }
                     }
                 }
             }
+        }
+
+        private static async IAsyncEnumerable<string?> StreamResponseGrok(HttpResponseMessage response)
+        {
+            using (response)
+            using (var stream = await response.Content.ReadAsStreamAsync())
+            using (var reader = new StreamReader(stream))
+            {
+                while (await reader.ReadLineAsync() is { } line)
+                {
+                    // Groq streams start with "data: " and end with "data: [DONE]"
+                    if (line.StartsWith("data: ") && !line.Contains("[DONE]"))
+                    {
+                        var json = line.Substring(6); // Strip "data: " prefix
+                        var chunk = JsonSerializer.Deserialize<GroqResponse>(json);
+
+                        var content = chunk?.choices?[0]?.delta?.content;
+                        if (!string.IsNullOrEmpty(content))
+                        {
+                            yield return content;
+                        }
+                    }
+                }
+            }
+        }
+
+        public class GroqResponse
+        {
+            public List<Choice> choices { get; set; }
+            public class Choice { public Delta delta { get; set; } }
+            public class Delta { public string content { get; set; } }
         }
 
         private class OllamaResponse

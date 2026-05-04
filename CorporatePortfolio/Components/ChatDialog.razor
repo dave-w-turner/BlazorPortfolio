@@ -59,36 +59,20 @@
                                         <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></div>
                                     </div>
                                 }
-                                @* Target the streaming state to prevent raw text from wrapping and collapsing *@
-                                else if (!msg.IsUser && !msg.IsComplete && !string.IsNullOrWhiteSpace(msg.Text))
+                                @* Target the streaming state or completed bot message *@
+                                else if (!msg.IsUser)
                                 {
-                                    @* We slightly bumped the font-size up to 1.02em to make it easily readable *@
+                                    @* Use a consistent container for all bot text *@
                                     <div style="color: #F8FAFC; line-height: 1.6; font-size: 1.02em; white-space: pre-wrap; word-break: break-word;">
-                                        @msg.Text
+                                        @((MarkupString)FormatMessage(msg.Text, msg.IsComplete))
                                     </div>
                                 }
-                                @* Completed bot or user message rendering *@
+                                @* User message rendering *@
                                 else
                                 {
-                                    @if (!string.IsNullOrWhiteSpace(msg.Text))
-                                    {
-                                        @if (msg.IsComplete && !msg.IsUser)
-                                        {
-                                            @((MarkupString)FormatMessage(msg.Text, msg.IsComplete))
-                                        }
-                                        else
-                                        {
-                                            <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">
-                                                @msg.Text
-                                            </MudText>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">
-                                            &nbsp;
-                                        </MudText>
-                                    }
+                                    <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">
+                                        @msg.Text
+                                    </MudText>
                                 }
                             </MudPaper>
                         </div>
@@ -331,10 +315,21 @@
     {
         if (string.IsNullOrWhiteSpace(text)) return new MarkupString("");
 
-        // Step 1: Strip out unclosed tags at the end of the string to prevent flashing
+        // Step 1: Strip out unclosed HTML tags to prevent UI flashing
         text = System.Text.RegularExpressions.Regex.Replace(text, @"<[^>]*$", "");
 
-        // Step 2: Escape special HTML characters
+        // Step 1.1: If streaming, temporarily "close" bold tags so they render live
+        if (!isComplete)
+        {
+            // If there's an odd number of '**', append one for rendering purposes only
+            int boldOccurrences = Regex.Matches(text, @"\*\*").Count;
+            if (boldOccurrences % 2 != 0)
+            {
+                text += "**";
+            }
+        }
+
+        // Step 2: Escape special HTML characters (Keep your original logic)
         var formatted = System.Net.WebUtility.HtmlEncode(text);
 
         // Step 3: Strip out any leaked XML tags
@@ -530,8 +525,10 @@
         formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"(</div>)<br\s*/?>", "$1");
         formatted = System.Text.RegularExpressions.Regex.Replace(formatted, @"<br\s*/?>(<div)", "$1");
 
-        // Step 10: Apply global wrapper with matching size to prevent jumping
+        // Step 10: Final Wrapper
+        // Ensure the font-size matches the wrapper in the Razor markup above
         var finalHtml = $"<div style=\"color: #F8FAFC; line-height: 1.6; font-size: 1.02em;\">{formatted.Trim()}</div>";
+    
         return new MarkupString(finalHtml);
     }
 }
@@ -813,5 +810,19 @@
         40% { 
             transform: scale(1.0);
         }
+    }
+
+    /* Add a blinking cursor to the last message while it is NOT complete */
+    .streaming-active::after {
+        content: "▋";
+        display: inline-block;
+        vertical-align: middle;
+        animation: blink 1s step-start infinite;
+        color: #38BDF8;
+        margin-left: 2px;
+    }
+
+    @@keyframes blink {
+        50% { opacity: 0; }
     }
 </style>
