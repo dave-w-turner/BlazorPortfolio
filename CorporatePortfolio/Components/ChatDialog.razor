@@ -186,6 +186,8 @@
             connectionMessage.IsComplete = true;
             _disableInput = false;
             StateHasChanged();
+
+            await _textField.FocusAsync();
         }
     }
 
@@ -308,6 +310,8 @@
             _disableInput = false;
             StateHasChanged();
             await ScrollToBottom();
+
+            await _textField.FocusAsync(); 
         }
     }
 
@@ -853,10 +857,10 @@
             left: auto !important;
         
             /* 2. Forces balanced, square proportions */
-            width: 440px !important;
+            width: 500px !important;
             height: 540px !important;
             min-width: 440px !important;
-            max-width: 440px !important;
+            max-width: 500px !important;
             max-height: 72vh !important;
         
             /* 3. Disables centered flexbox alignments */
@@ -905,5 +909,24 @@
             max-height: calc(72vh - 125px) !important;
             overflow-y: auto !important;
         }
+    }
+
+    /* Target the specific class you see in the inspector */
+    .chat-dark .mud-input-control.mud-disabled {
+        background-color: rgba(0, 0, 0, 0.4) !important; /* Darken the background */
+        opacity: 0.6 !important;
+        cursor: not-allowed !important;
+    }
+
+    /* Dim the text, placeholder, and icon inside the disabled container */
+    .chat-dark .mud-disabled input, 
+    .chat-dark .mud-disabled .mud-icon-root {
+        color: rgba(255, 255, 255, 0.2) !important;
+        -webkit-text-fill-color: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* Hide the border when disabled to make it look 'collapsed' */
+    .chat-dark .mud-disabled .mud-input-outlined-border {
+        border-color: rgba(255, 255, 255, 0.05) !important;
     }
 </style>
