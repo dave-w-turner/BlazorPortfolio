@@ -832,27 +832,24 @@
         50% { opacity: 0; }
     }
 
-/* ===================================================
-   DESKTOP STYLING (Screen width > 600px)
-   =================================================== */
-   @@media (min-width: 601px) {
-        /* 1. Force the dialog container to position exactly where it belongs */
+    /* ===================================================
+       DESKTOP STYLING (Screen width > 600px)
+       =================================================== */
+    @@media (min-width: 601px) {
         body .mud-dialog-container .mud-dialog.chat-dark {
             position: fixed !important;
         
-            /* Clear gap 130px above the toggle button */
-            bottom: 130px !important;
+            /* 💡 Clamps clearance: min 112px, scales at 8.5vh, max 130px */
+            bottom: clamp(112px, 8.5vh, 130px) !important; 
             right: 40px !important;
             top: auto !important;
             left: auto !important;
         
-            /* 2. Hardcode the exact width and height so it never shrinks */
             width: 430px !important;
             height: 520px !important;
             min-width: 430px !important;
             min-height: 520px !important;
         
-            /* 3. Strip MudBlazor centering entirely */
             transform: none !important;
             margin: 0 !important;
             z-index: 3500 !important;
