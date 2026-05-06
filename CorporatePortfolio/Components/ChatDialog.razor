@@ -126,7 +126,9 @@
     private MudTextField<string> _textField = default!;
 
     // Let our global CSS handle ALL positioning and sizes so it never shrinks
-    private string _customStyle => "z-index: 3500 !important;";
+    private string _customStyle => State.HasPosition
+        ? $"position: fixed; margin: 0; top: {State.Top}; left: {State.Left}; width: {State.Width}; height: {State.Height}; max-width: none; z-index: 3500 !important;"
+        : "z-index: 3500 !important;";
 
     // 2. Chat Variables
     private List<ChatMessage> _messages = new();
@@ -832,53 +834,61 @@
         50% { opacity: 0; }
     }
 
-    /* ===================================================
-       DESKTOP STYLING (Screen width > 600px)
-       =================================================== */
-    @@media (min-width: 601px) {
+/* ===================================================
+   DESKTOP VIEW (Screen width > 600px)
+   =================================================== */
+   @@media (min-width: 601px) {
+    /* Target the dialog container explicitly to disable centered flex layouts */
         body .mud-dialog-container .mud-dialog.chat-dark {
             position: fixed !important;
         
-            /* 💡 Clamps clearance: min 112px, scales at 8.5vh, max 130px */
-            bottom: clamp(112px, 8.5vh, 130px) !important; 
+            /* 1. Places it exactly where it belongs above the purple toggle button */
+            bottom: clamp(100px, 9.5vh, 125px) !important;
             right: 40px !important;
             top: auto !important;
             left: auto !important;
         
-            width: 430px !important;
-            height: 520px !important;
-            min-width: 430px !important;
-            min-height: 520px !important;
+            /* 2. Forces balanced, square proportions */
+            width: 440px !important;
+            height: 540px !important;
+            min-width: 440px !important;
+            max-width: 440px !important;
+            max-height: 72vh !important;
         
+            /* 3. Disables centered flexbox alignments */
             transform: none !important;
             margin: 0 !important;
             z-index: 3500 !important;
             border-radius: 12px !important;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5) !important;
         }
 
         body .mud-dialog-container .mud-dialog.chat-dark #chat-container {
-            height: calc(520px - 140px) !important;
-            max-height: calc(520px - 140px) !important;
+            height: calc(100% - 130px) !important;
+            max-height: calc(540px - 135px) !important;
             overflow-y: auto !important;
         }
     }
 
-    @@media (max-width: 600px) {
+/* ===================================================
+   MOBILE/COMACT VIEW (Screen width > 600px)
+   =================================================== */
+   @@media (max-width: 600px) {
         body .mud-dialog-container .mud-dialog.chat-dark {
             position: fixed !important;
         
-            /* 1. Set the exact position in the viewport */
-            top: 42% !important;
+            /* Centered in small viewports to leave room for the header */
+            top: 52% !important;
             left: 50% !important;
-            transform: translate(-50%, -42%) !important;
+            transform: translate(-50%, -52%) !important;
             bottom: auto !important;
             right: auto !important;
         
-            /* 2. Responsive mobile boundaries */
-            width: 90vw !important;
-            height: 70vh !important;
+            /* Mobile responsive boundaries */
+            width: 92vw !important;
+            height: 72vh !important;
             max-width: 440px !important;
-            max-height: 580px !important;
+            max-height: 560px !important;
         
             margin: 0 !important;
             border-radius: 16px !important;
@@ -887,8 +897,8 @@
         }
 
         body .mud-dialog-container .mud-dialog.chat-dark #chat-container {
-            height: calc(70vh - 120px) !important;
-            max-height: calc(70vh - 120px) !important;
+            height: calc(72vh - 125px) !important;
+            max-height: calc(72vh - 125px) !important;
             overflow-y: auto !important;
         }
     }
