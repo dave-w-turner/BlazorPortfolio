@@ -23,81 +23,132 @@
     <script src="_content/Blazor.Bootstrap/blazor.bootstrap.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script>
-window.initChatDrag = (dotNetHelper) => {
-    const dialog = document.querySelector('.mud-dialog.chat-dark');
-    const header = document.querySelector('.mud-dialog-title');
-    if (!dialog || !header) return;
+        window.initChatDrag = (dotNetHelper) => {
+            const dialog = document.querySelector('.mud-dialog.chat-dark');
+            const header = document.querySelector('.mud-dialog-title');
+            if (!dialog || !header) return;
 
-    if (window.innerWidth <= 600) {
-        header.style.cursor = 'default';
-        return;
-    }
+            // 1. BOUNDARY RESET ON RESIZE
+            function handleResize() {
+                if (!dialog) return;
 
-    header.style.cursor = 'move';
+                // Mobile Viewport (600px or less)
+                if (window.innerWidth <= 600) {
+                    if (header) header.style.cursor = 'default';
+                    resetToDefault();
+                    return;
+                }
 
-    header.onmousedown = (e) => {
-        if (window.innerWidth <= 600) return;
-        e = e || window.event;
-        e.preventDefault();
+                // Desktop Viewport
+                if (header) header.style.cursor = 'move';
 
-        let startX = e.clientX;
-        let startY = e.clientY;
-        let hasMoved = false;
-
-        document.onmousemove = (moveEvent) => {
-            moveEvent = moveEvent || window.event;
-            moveEvent.preventDefault();
-
-            if (!hasMoved) {
-                const rect = dialog.getBoundingClientRect();
-
-                dialog.style.setProperty('margin', '0', 'important');
-                dialog.style.setProperty('transform', 'none', 'important');
-                dialog.style.setProperty('position', 'fixed', 'important');
-                
-                dialog.style.setProperty('top', rect.top + 'px', 'important');
-                dialog.style.setProperty('left', rect.left + 'px', 'important');
-
-                dialog.style.setProperty('bottom', 'auto', 'important');
-                dialog.style.setProperty('right', 'auto', 'important');
-                dialog.style.setProperty('z-index', '3500', 'important');
-
-                hasMoved = true;
-            }
-
-            const deltaX = startX - moveEvent.clientX;
-            const deltaY = startY - moveEvent.clientY;
-
-            startX = moveEvent.clientX;
-            startY = moveEvent.clientY;
-
-            // 1. Calculate and clamp the new Top position
-            let newTop = dialog.offsetTop - deltaY;
-            const maxTop = window.innerHeight - 60; // Keeps header in view at the bottom
-            newTop = Math.max(0, Math.min(newTop, maxTop));
-
-            // 2. Calculate and clamp the new Left position
-            let newLeft = dialog.offsetLeft - deltaX;
+                // Boundary Check: If the dragged position overflows a smaller window, reset it back
+                if (dialog.style.top && dialog.style.top !== 'auto') {
+                    const rect = dialog.getBoundingClientRect();
             
-            // 3. Keep the dialog from being dragged off the left or right edges
-            const maxLeft = window.innerWidth - 60; // 60px ensures the left edge of the header remains reachable
-            newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                    if (rect.right > window.innerWidth || rect.bottom > window.innerHeight || rect.left < 0 || rect.top < 0) {
+                        resetToDefault();
 
-            dialog.style.setProperty('top', newTop + "px", 'important');
-            dialog.style.setProperty('left', newLeft + "px", 'important');
-        };
+                        // Erase local state dimensions to revert to fallback positioning
+                        if (dotNetHelper) {
+                            dotNetHelper.invokeMethodAsync('SaveDimensions', 'auto', 'auto', '440px', '540px');
+                        }
+                    }
+                }
+            }
 
-        document.onmouseup = () => {
-            document.onmouseup = null;
-            document.onmousemove = null;
+            // Helper to clear manual coordinates and fall back to our CSS media queries
+            function resetToDefault() {
+                dialog.style.removeProperty('top');
+                dialog.style.removeProperty('left');
+                dialog.style.removeProperty('bottom');
+                dialog.style.removeProperty('right');
+                dialog.style.removeProperty('width');
+                dialog.style.removeProperty('height');
+                dialog.style.removeProperty('margin');
+                dialog.style.removeProperty('transform');
+                dialog.style.removeProperty('position');
+            }
 
-            if (hasMoved && dotNetHelper) {
-                dotNetHelper.invokeMethodAsync('SaveDimensions', 
-                    dialog.style.top, dialog.style.left, dialog.style.width, dialog.style.height);
+            // Attach listener for browser window resizing
+            window.removeEventListener('resize', handleResize);
+            window.addEventListener('resize', handleResize);
+            handleResize(); // Invoke immediately on load
+
+            // 2. DESKTOP DRAGGING MECHANICS
+            header.onmousedown = (e) => {
+                if (window.innerWidth <= 600) return;
+
+                e = e || window.event;
+                e.preventDefault();
+
+                let startX = e.clientX;
+                let startY = e.clientY;
+                let hasMoved = false;
+
+                document.onmousemove = (moveEvent) => {
+                    moveEvent = moveEvent || window.event;
+                    moveEvent.preventDefault();
+
+                    // Setup direct fixed tracking only after first move to prevent jumps
+                    if (!hasMoved) {
+                        const rect = dialog.getBoundingClientRect();
+
+                        dialog.style.setProperty('margin', '0', 'important');
+                        dialog.style.setProperty('transform', 'none', 'important');
+                        dialog.style.setProperty('position', 'fixed', 'important');
+                
+                        dialog.style.setProperty('top', rect.top + 'px', 'important');
+                        dialog.style.setProperty('left', rect.left + 'px', 'important');
+
+                        dialog.style.setProperty('bottom', 'auto', 'important');
+                        dialog.style.setProperty('right', 'auto', 'important');
+                        dialog.style.setProperty('z-index', '3500', 'important');
+
+                        hasMoved = true;
+                    }
+
+                    const deltaX = startX - moveEvent.clientX;
+                    const deltaY = startY - moveEvent.clientY;
+
+                    startX = moveEvent.clientX;
+                    startY = moveEvent.clientY;
+
+                    // Compute Top positioning with boundary clamp
+                    let newTop = dialog.offsetTop - deltaY;
+                    const maxTop = window.innerHeight - 60; // Leaves the header in view at the bottom
+                    newTop = Math.max(0, Math.min(newTop, maxTop));
+
+                    // Compute Left positioning with boundary clamp
+                    let newLeft = dialog.offsetLeft - deltaX;
+                    const maxLeft = window.innerWidth - 60; // Leaves left edge of header in view
+                    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+
+                    dialog.style.setProperty('top', newTop + "px", 'important');
+                    dialog.style.setProperty('left', newLeft + "px", 'important');
+                };
+
+                document.onmouseup = () => {
+                    document.onmouseup = null;
+                    document.onmousemove = null;
+
+                    if (hasMoved && dotNetHelper) {
+                        dotNetHelper.invokeMethodAsync('SaveDimensions', 
+                            dialog.style.top, dialog.style.left, dialog.style.width, dialog.style.height);
+                    }
+                };
+            };
+        }
+
+        // Global scrolling helper function
+        window.scrollToBottom = (elementId) => {
+            const element = document.getElementById(elementId);
+            if (element) {
+                requestAnimationFrame(() => {
+                    element.scrollTop = element.scrollHeight;
+                });
             }
         };
-    };
-}
-</script>
+    </script>
 </body>
 </html>
