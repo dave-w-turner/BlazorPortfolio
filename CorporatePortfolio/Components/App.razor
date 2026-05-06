@@ -22,74 +22,94 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
     <script src="_content/Blazor.Bootstrap/blazor.bootstrap.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script>
-        window.initChatDrag = (dotNetHelper) => {
-            const dialog = document.querySelector('.mud-dialog');
-            const header = document.querySelector('.mud-dialog-title');
-            if (!dialog || !header) return;
+<script>
+window.initChatDrag = (dotNetHelper) => {
+    const dialog = document.querySelector('.mud-dialog.chat-dark');
+    const header = document.querySelector('.mud-dialog-title');
+    if (!dialog || !header) return;
 
+    function handleResize() {
+        if (window.innerWidth <= 600) {
+            header.style.cursor = 'default';
+            // Clear desktop coordinates completely on mobile view
+            dialog.style.removeProperty('top');
+            dialog.style.removeProperty('left');
+            dialog.style.removeProperty('bottom');
+            dialog.style.removeProperty('right');
+            dialog.style.removeProperty('width');
+            dialog.style.removeProperty('height');
+            dialog.style.removeProperty('margin');
+            dialog.style.removeProperty('transform');
+            dialog.style.removeProperty('position');
+        } else {
             header.style.cursor = 'move';
-    
-            header.onmousedown = (e) => {
-                e = e || window.event;
-                e.preventDefault();
-
-                // 1. PIN THE POSITION IMMEDIATELY
-                // Get exactly where the box is relative to the viewport right now
-                const rect = dialog.getBoundingClientRect();
-        
-                // Apply those coordinates as fixed pixels BEFORE changing anything else
-                dialog.style.top = rect.top + 'px';
-                dialog.style.left = rect.left + 'px';
-        
-                // 2. Lock size and remove MudBlazor's auto-margins
-                dialog.style.width = rect.width + 'px';
-                dialog.style.height = rect.height + 'px';
-                dialog.style.position = 'fixed';
-                dialog.style.margin = '0';
-                dialog.style.maxWidth = 'none';
-
-                // 3. Set up the start coordinates for the move
-                let startX = e.clientX;
-                let startY = e.clientY;
-
-                document.onmousemove = (moveEvent) => {
-                    let deltaX = startX - moveEvent.clientX;
-                    let deltaY = startY - moveEvent.clientY;
-            
-                    startX = moveEvent.clientX;
-                    startY = moveEvent.clientY;
-
-                    dialog.style.top = (dialog.offsetTop - deltaY) + "px";
-                    dialog.style.left = (dialog.offsetLeft - deltaX) + "px";
-                };
-
-                document.onmouseup = () => {
-                    document.onmouseup = null;
-                    document.onmousemove = null;
-            
-                    if (dotNetHelper) {
-                        dotNetHelper.invokeMethodAsync('SaveDimensions', 
-                            dialog.style.top, 
-                            dialog.style.left, 
-                            dialog.style.width, 
-                            dialog.style.height);
-                    }
-                };
+            // If returning to maximized desktop without a dragged position, restore fallback bounds
+            if (!dialog.style.top || dialog.style.top === 'auto') {
+                dialog.style.removeProperty('top');
+                dialog.style.removeProperty('left');
             }
         }
+    }
 
-        window.scrollToBottom = (elementId) => {
-            const element = document.getElementById(elementId);
-            if (element) {
-                // Use requestAnimationFrame for smoother performance 
-                // especially with fast Ollama streaming
-                requestAnimationFrame(() => {
-                    element.scrollTop = element.scrollHeight;
-                });
+    window.addEventListener('resize', handleResize);
+    handleResize(); 
+
+    header.onmousedown = (e) => {
+        if (window.innerWidth <= 600) return;
+
+        e = e || window.event;
+        e.preventDefault();
+
+        let startX = e.clientX;
+        let startY = e.clientY;
+        let hasMoved = false;
+
+        document.onmousemove = (moveEvent) => {
+            moveEvent = moveEvent || window.event;
+            moveEvent.preventDefault();
+
+            if (!hasMoved) {
+                const rect = dialog.getBoundingClientRect();
+
+                dialog.style.setProperty('margin', '0', 'important');
+                dialog.style.setProperty('transform', 'none', 'important');
+                dialog.style.setProperty('position', 'fixed', 'important');
+                
+                dialog.style.setProperty('top', rect.top + 'px', 'important');
+                dialog.style.setProperty('left', rect.left + 'px', 'important');
+
+                dialog.style.setProperty('bottom', 'auto', 'important');
+                dialog.style.setProperty('right', 'auto', 'important');
+
+                hasMoved = true;
+            }
+
+            const deltaX = startX - moveEvent.clientX;
+            const deltaY = startY - moveEvent.clientY;
+
+            startX = moveEvent.clientX;
+            startY = moveEvent.clientY;
+
+            dialog.style.setProperty('top', (dialog.offsetTop - deltaY) + "px", 'important');
+            dialog.style.setProperty('left', (dialog.offsetLeft - deltaX) + "px", 'important');
+        };
+
+        document.onmouseup = () => {
+            document.onmouseup = null;
+            document.onmousemove = null;
+
+            if (hasMoved && dotNetHelper) {
+                dotNetHelper.invokeMethodAsync('SaveDimensions', 
+                    dialog.style.top, dialog.style.left, dialog.style.width, dialog.style.height);
             }
         };
-    </script>
+    };
+}
+</script>
+
+
+
+
 </body>
 
 </html>

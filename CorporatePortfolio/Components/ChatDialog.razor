@@ -125,10 +125,8 @@
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
     private MudTextField<string> _textField = default!;
 
-    // 1. State & UI Properties
-    private string _customStyle => State.HasPosition
-        ? $"position: fixed; margin: 0; top: {State.Top}; left: {State.Left}; width: {State.Width}; height: {State.Height}; max-width: none; z-index: 3000;"
-        : "width: 600px; height: 600px; z-index: 3000;";
+    // Let our global CSS handle ALL positioning and sizes so it never shrinks
+    private string _customStyle => "z-index: 3500 !important;";
 
     // 2. Chat Variables
     private List<ChatMessage> _messages = new();
@@ -187,6 +185,18 @@
             _disableInput = false;
             StateHasChanged();
         }
+    }
+
+    // Small helper method to check viewport bounds on the fly
+    private bool IsMobileViewport()
+    {
+        // If the saved horizontal coordinate is larger than the screen width, drop explicit positioning
+        if (string.IsNullOrEmpty(State.Left)) return false;
+        if (int.TryParse(State.Left.Replace("px", ""), out int leftValue))
+        {
+            return leftValue > 600; // Returns true if the coordinates cannot fit in a mobile screen
+        }
+        return false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -716,22 +726,18 @@
         align-items: center;
         justify-content: flex-start;
         gap: 14px;
-        margin: 18px 0 18px 52px; 
-        padding: 12px 24px;
     
-        /* Premium dark glassmorphism with an integrated glowing aura */
+        /* 1. Reduced left margin from 52px to move it further to the left */
+        margin: 18px 0 18px 12px; 
+        padding: 12px 20px;
+    
         background: linear-gradient(135deg, rgba(15, 23, 42, 0.65), rgba(30, 41, 59, 0.45));
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-    
-        /* Glowing sky-blue borders */
         border: 1px solid rgba(56, 189, 248, 0.35);
         border-radius: 28px;
-    
-        /* Layered drop shadows for depth and a soft glow */
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37),
                     0 0 15px rgba(56, 189, 248, 0.15);
-                
         white-space: nowrap;
         width: fit-content;
     }
@@ -824,5 +830,81 @@
 
     @@keyframes blink {
         50% { opacity: 0; }
+    }
+
+/* ===================================================
+   DESKTOP STYLING (Screen width > 600px)
+   =================================================== */
+   @@media (min-width: 601px) {
+        /* 1. Force the dialog container to position exactly where it belongs */
+        body .mud-dialog-container .mud-dialog.chat-dark {
+            position: fixed !important;
+        
+            /* Clear gap 130px above the toggle button */
+            bottom: 130px !important;
+            right: 40px !important;
+            top: auto !important;
+            left: auto !important;
+        
+            /* 2. Hardcode the exact width and height so it never shrinks */
+            width: 430px !important;
+            height: 520px !important;
+            min-width: 430px !important;
+            min-height: 520px !important;
+        
+            /* 3. Strip MudBlazor centering entirely */
+            transform: none !important;
+            margin: 0 !important;
+            z-index: 3500 !important;
+            border-radius: 12px !important;
+        }
+
+        body .mud-dialog-container .mud-dialog.chat-dark #chat-container {
+            height: calc(520px - 140px) !important;
+            max-height: calc(520px - 140px) !important;
+            overflow-y: auto !important;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        body .mud-dialog-container .mud-dialog.chat-dark {
+            position: fixed !important;
+        
+            /* 1. Set the exact position in the viewport */
+            top: 42% !important;
+            left: 50% !important;
+            transform: translate(-50%, -42%) !important;
+            bottom: auto !important;
+            right: auto !important;
+        
+            /* 2. Responsive mobile boundaries */
+            width: 90vw !important;
+            height: 70vh !important;
+            max-width: 440px !important;
+            max-height: 580px !important;
+        
+            margin: 0 !important;
+            border-radius: 16px !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+            z-index: 3500 !important;
+        }
+
+        body .mud-dialog-container .mud-dialog.chat-dark #chat-container {
+            height: calc(70vh - 120px) !important;
+            max-height: calc(70vh - 120px) !important;
+            overflow-y: auto !important;
+        }
+    }
+
+    /* Adjust the bottom technology footer alignment */
+    .footer-text, .fade-up div {
+        display: flex;
+        justify-content: flex-start;
+    
+        /* 1. Add specific left margin to mirror desktop dialog alignment */
+        margin-left: calc(100% - 650px) !important;
+        gap: 8px;
+        color: #94A3B8;
+        font-size: 0.95rem;
     }
 </style>

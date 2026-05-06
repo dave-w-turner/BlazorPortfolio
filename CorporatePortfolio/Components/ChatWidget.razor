@@ -11,6 +11,26 @@
 @code {
     private IDialogReference? _chatReference;
 
+    @code {
+        private async Task OpenChatAsync()
+        {
+            var options = new DialogOptions
+            {
+                MaxWidth = MaxWidth.False,
+                FullWidth = false,
+                FullScreen = false,
+                Position = DialogPosition.Custom, // Allows us to override the wrapper completely
+                BackgroundClass = "desktop-chat-override",
+                BackdropClick = true,
+                CloseButton = true,
+                CloseOnEscapeKey = true,
+                CloseOnNavigation = false
+            };
+
+            await DialogService.ShowAsync<ChatDialog>("David Turner's AI Assistant", options);
+        }
+    }
+
     private async Task ToggleChatWindow()
     {
         if (_chatReference != null)
@@ -25,11 +45,12 @@
             {
                 MaxWidth = MaxWidth.Small,
                 FullWidth = false,
+                FullScreen = false,
                 Position = DialogPosition.BottomRight,
                 BackdropClick = true,
                 CloseButton = true,
                 CloseOnEscapeKey = true,
-                CloseOnNavigation = true
+                CloseOnNavigation = false
             };
 
             // Capture the reference when opening
