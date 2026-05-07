@@ -371,6 +371,113 @@ h1:focus {
             color: #94a3b8;
         }
 
+/* Project Container */
+.project-list {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    margin-top: 30px;
+}
+
+/* The Wide Project Card */
+.project-wide {
+    display: flex;
+    flex-direction: column;
+    padding: 30px;
+    border-radius: 30px 8px 30px 8px; /* Leaf shape */
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(125, 211, 252, 0.1);
+    padding-bottom: 10px;
+}
+
+    .project-header h3 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #7DD3FC;
+        margin: 0;
+    }
+
+.project-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end; /* Keeps button and tags aligned at the bottom */
+    margin-top: 20px;
+}
+
+.view-source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+    .view-source:hover {
+        color: #7DD3FC;
+        background: rgba(125, 211, 252, 0.05);
+        border-color: rgba(125, 211, 252, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .view-source i {
+        width: 16px;
+    }
+
+.project-status {
+    font-size: 0.75rem;
+    font-family: 'Consolas', monospace;
+    color: rgba(125, 211, 252, 0.6);
+    text-transform: uppercase;
+}
+
+.project-body p {
+    margin-bottom: 15px;
+    line-height: 1.7;
+    color: #cbd5e1;
+    font-size: 1rem;
+}
+
+/* Tech Tags at the bottom */
+.project-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+    .project-tags span {
+        color: #7DD3FC;
+        padding: 4px 12px;
+        border-radius: 8px 2px 8px 2px; /* Smaller version of the leaf */
+        background: rgba(125, 211, 252, 0.05);
+        border: 1px solid rgba(125, 211, 252, 0.2);
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+
+        .project-tags span:hover {
+            background: rgba(125, 211, 252, 0.15);
+            border-color: #7DD3FC;
+        }
+
 body {
     margin: 50px;
     font-family: 'Segoe UI', sans-serif;
@@ -582,4 +689,55 @@ hr, .separator-line {
     background: linear-gradient(to right, transparent, #7DD3FC, transparent);
     margin: 40px 0;
     opacity: 0.3;
+}
+
+.project-meta-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Right-aligns date and button */
+    gap: 8px;
+}
+
+    .project-meta-stack .date {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #f8fafc;
+    }
+
+.project-body ul {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0;
+}
+
+.project-body li {
+    position: relative;
+    padding-left: 20px;
+    margin-bottom: 10px;
+    line-height: 1.6;
+    color: #cbd5e1;
+    font-size: 0.95rem;
+}
+
+    .project-body li::before {
+        content: "▪"; /* Professional square bullet */
+        position: absolute;
+        left: 0;
+        color: #7DD3FC;
+    }
+
+
+.view-source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(125, 211, 252, 0.05);
+    border: 1px solid rgba(125, 211, 252, 0.3);
+    border-radius: 12px 3px 12px 3px;
+    color: #7DD3FC;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
 }

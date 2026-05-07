@@ -1,15 +1,45 @@
-﻿<div class="section" id="projects">
-    <h2>Projects & Platforms</h2>
+﻿@using CorporatePortfolio.Services
+@using CorporatePortfolio.Services.DTO
+@inject ChatbotService chatService
 
-    <div class="grid">
-        <div class="customcard project">
-            <h3>AI Chatbot Platform</h3>
-            <p>Conversational AI powered by local LLMs using Ollama.</p>
-        </div>
+<div class="section" id="projects">
+    <h2>Projects</h2>
 
-        <div class="customcard project">
-            <h3>Automation Engine</h3>
-            <p>Custom workflow system supporting parallel execution and logic flows.</p>
-        </div>
+    <div class="project-list">
+        @foreach (var project in resumeService.GetProjects().Result)
+        {
+            <div class="customcard project-wide">
+                <div class="project-header">
+                    <h3>@project.Title</h3>
+                    
+                    <!-- Updated: Stacked Date and Button -->
+                    <div class="project-meta-stack">
+                        <span class="date">@project.Date</span>
+                        @if (!string.IsNullOrEmpty(project.SourceUrl))
+                        {
+                            <a href="@project.SourceUrl" target="_blank" class="view-source">
+                                <i data-lucide="github"></i> View Source
+                            </a>
+                        }
+                    </div>
+                </div>
+
+                <div class="project-body">
+                    <ul>
+                        @foreach (var detail in project.Details)
+                        {
+                            <li>@((MarkupString)chatService.FormatMessage(detail))</li>
+                        }
+                    </ul>
+                </div>
+
+                <div class="project-tags">
+                    @foreach (var tag in project.Tags)
+                    {
+                        <span>@tag</span>
+                    }
+                </div>
+            </div>
+        }
     </div>
 </div>
