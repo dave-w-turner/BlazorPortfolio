@@ -13,12 +13,14 @@ namespace CorporatePortfolio.Services
 
             // Group experiences by Company Name to avoid duplicates
             var experienceGroups = new Dictionary<string, List<string>>();
+            var projects = false;
 
             foreach (var bm in _document.Bookmarks)
             {
                 var isExperience = bm.Name.StartsWith("Experience_");
                 var isContactInfo = bm.Name.Equals("Contact_Info", StringComparison.OrdinalIgnoreCase);
                 var isCompetencies = bm.Name.Equals("Competencies", StringComparison.OrdinalIgnoreCase);
+                var isProject = bm.Name.StartsWith("Project_", StringComparison.OrdinalIgnoreCase);
                 var currentBmSb = new StringBuilder();
 
                 var startTag = _document.Xml.Descendants()
@@ -32,11 +34,13 @@ namespace CorporatePortfolio.Services
                 var currentParagraph = bm.Paragraph;
 
                 var expParagraphCounter = 0;
+                var projParagraphCounter = 0;
                 var companyName = string.Empty;
                 var roleDetails = string.Empty;
+                var projectDetailsSb = new StringBuilder();
 
-                
-                if (!isExperience && !isContactInfo && !isCompetencies)
+
+                if (!isExperience && !isContactInfo && !isCompetencies && !isProject)
                     currentBmSb.Append($"# {bm.Name.ToUpper()}\r\n");
 
                 if (isContactInfo)
@@ -44,6 +48,12 @@ namespace CorporatePortfolio.Services
 
                 if (isCompetencies)
                     currentBmSb.AppendLine("<competencies_data>");
+
+                if (isProject && !projects)
+                {
+                    currentBmSb.AppendLine("#PROJECTS");
+                    projects = true;
+                }
 
                 while (currentParagraph != null)
                 {
@@ -83,6 +93,13 @@ namespace CorporatePortfolio.Services
                             }
                             expParagraphCounter++;
                         }
+                        else if (isProject)
+                        {
+                            currentBmSb.AppendLine($"{(projParagraphCounter == 0 ? "- " : "  * ")}{text}");
+
+                            if (projParagraphCounter == 0)
+                                projParagraphCounter++;
+                        }
                         else
                         {
                             currentBmSb.Append($"{text}\r\n");
@@ -121,6 +138,9 @@ namespace CorporatePortfolio.Services
                 {
                     documentTextSb.Append(currentBmSb.ToString() + "\r\n");
                 }
+
+                if (!isProject)
+                    projects = false;
             }
 
             // Append the consolidated EXPERIENCE section exactly how the AI needs it
