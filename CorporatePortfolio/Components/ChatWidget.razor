@@ -3,7 +3,15 @@
 @inject IDialogService DialogService
 
 <div class="chat-launcher-container">
-    <MudFab Color="Color.Primary"
+    @if (showHint)
+    {
+        <div class="chat-hint fade-in-up">
+            <span>Click here to chat with David Turner...</span>
+            <button class="close-hint" @onclick="() => showHint = false">×</button>
+        </div>
+    }
+    <MudFab Class="chat-toggle"
+            Color="Color.Primary"
             StartIcon="@(_chatReference == null ? Icons.Material.Filled.Chat : Icons.Material.Filled.Close)"
             OnClick="ToggleChatWindow" />
 </div>
@@ -12,6 +20,16 @@
     private IDialogReference? _chatReference;
 
     @code {
+        private bool showHint = true;
+
+        protected override async Task OnInitializedAsync()
+        {
+            // Automatically hide the hint after 8 seconds if the user hasn't clicked it
+            await Task.Delay(8000);
+            showHint = false;
+            StateHasChanged();
+        }
+
         private async Task OpenChatAsync()
         {
             var options = new DialogOptions
