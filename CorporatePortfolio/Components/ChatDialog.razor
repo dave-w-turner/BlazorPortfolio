@@ -23,10 +23,11 @@
             {
                 @if (msg.IsConnecting)
                 {
-                    @* Premium system-style connection indicator centered in the window *@
-                    <div class="connecting-system-alert connecting-entry">
-                        <div class="pulse-glow"></div>
-                        <span class="connecting-text-shimmer">Connecting with David Turner...</span>
+                    @* The class handles the slide-in and the slide-out via the boolean *@
+                    <div class="connecting-status-bar @(_isExiting ? "fade-out-down" : "fade-in-down")">
+                        <div class="connecting-dot-glow"></div>
+                        <span class="connecting-text">Connecting with David Turner...</span>
+                        <div class="scanner-sweep"></div>
                     </div>
                 }
                 else
@@ -81,10 +82,10 @@
                 }
             }
 
-            @* The typing indicator displays below the loop ONLY when the AI is processing the first chunk *@
-            @if (_isTyping && _messages.LastOrDefault()?.IsUser == true)
+            @* Show bubbles if _isTyping is true AND (User just spoke OR we are starting the chat) *@
+            @if (_isTyping && (_messages.LastOrDefault()?.IsUser == true || _messages.Count == 0))
             {
-                <div style="display: flex; flex-direction: row;" class="mb-6 gap-3">
+                <div style="display: flex; flex-direction: row;" class="bubble-entrance mb-6 gap-3">
                     <MudAvatar Size="Size.Medium" Elevation="2">
                         <MudImage Src="@_avatarUrl" />
                     </MudAvatar>
@@ -138,56 +139,65 @@
     private bool _disableInput = false;
     private const string _avatarUrl = "images/my-profile-pic.jpg";
     private const string _userAvatarUrl = "images/user-profile-pic.png";
+    private bool _isExiting = false;
 
     // 3. Lifecycle & Initialization
     protected override async Task OnInitializedAsync()
-    {       
+    {
         if (!_messages.Any())
         {
-            _isTyping = true;
             _disableInput = true;
+            _isExiting = false;
+
+            // PHASE 1: The Connection Bar
+            var connectionBar = new ChatMessage { IsConnecting = true };
+            _messages.Add(connectionBar);
             StateHasChanged();
 
-            var connectionMessage = new ChatMessage 
-            { 
-                Text = "Connecting with David Turner...", 
-                IsUser = false, 
-                UserName = "David", 
-                AvatarUrl = _avatarUrl, 
-                IsComplete = false,
-                IsConnecting = true 
+            await Task.Delay(4500); // Initial delay
+
+            // PHASE 2: Transition Out
+            _isExiting = true;
+            StateHasChanged();
+            await Task.Delay(400); // Let CSS slide-out finish
+
+            // PHASE 3: The "Thinking" Dots
+            _messages.Remove(connectionBar); // List is now empty
+            _isExiting = false;
+            _isTyping = true;                // Razor now sees Count == 0 and shows bubbles
+            StateHasChanged();
+
+            await Task.Delay(2500); // 2.5s of pure bouncing dots
+
+            // PHASE 4: The Greeting
+            var greetingMsg = new ChatMessage
+            {
+                Text = "",
+                IsUser = false,
+                UserName = "David",
+                AvatarUrl = _avatarUrl,
+                IsComplete = false
             };
-            _messages.Add(connectionMessage);
-            StateHasChanged();
+            _messages.Add(greetingMsg);
 
-            // 1. Connection Delay
-            await Task.Delay(4500);
-
-            connectionMessage.IsConnecting = false;
-            connectionMessage.Text = ""; 
-            _isTyping = false;
-            StateHasChanged();
-
-            // 2. Extended pause to give Llama 3.2 time to load on B2as_v2
-            await Task.Delay(2500); 
-
-            // 3. Natural token-like streaming
             string[] chunks = new string[] { "How ", "are you ", "today?" };
-            var random = new Random();
+            bool firstWord = true;
 
             foreach (var chunk in chunks)
             {
-                connectionMessage.Text += chunk;
+                if (firstWord)
+                {
+                    _isTyping = false; // Bubbles vanish as text arrives
+                    firstWord = false;
+                }
+                greetingMsg.Text += chunk;
                 StateHasChanged();
-
-                int randomDelay = random.Next(160, 280);
-                await Task.Delay(randomDelay); 
+                await Task.Delay(new Random().Next(160, 280));
             }
 
-            connectionMessage.IsComplete = true;
+            greetingMsg.IsComplete = true;
             _disableInput = false;
             StateHasChanged();
-
             await _textField.FocusAsync();
         }
     }
@@ -328,316 +338,3 @@
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
     }      
 }
-
-<style>
-.radar-signal {
-    position: relative;
-    width: 10px;
-    height: 10px;
-    background-color: #7DD3FC; /* Sky Blue Accent */
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.radar-signal::before,
-.radar-signal::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    border: 2px solid #7DD3FC;
-    animation: radarWave 1.8s infinite ease-out;
-    opacity: 0;
-}
-
-.radar-signal::after {
-    animation-delay: 0.9s;
-}
-
-@@keyframes radarWave {
-    0% {
-        width: 10px;
-        height: 10px;
-        opacity: 0.8;
-    }
-    100% {
-        width: 32px;
-        height: 32px;
-        opacity: 0;
-    }
-}
-
-.connecting-text {
-    color: #7DD3FC !important;
-    font-size: 0.9rem;
-    font-weight: 500;
-    letter-spacing: 0.3px;
-    animation: textFade 1.8s infinite ease-in-out;
-}
-
-@@keyframes textFade {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-}
-
-    .chat-dark {
-        background-color: #27272f !important;
-        color: white !important; /* Force overall text to white */
-        z-index: 3000 !important;
-    }
-
-        /* 1. Fix Title and Icon Visibility */
-        .chat-dark .mud-dialog-title,
-        .chat-dark .mud-dialog-title .mud-text,
-        .chat-dark .mud-icon-root {
-            color: white !important;
-        }
-
-        /* 2. Fix Textbox Background and Text Color */
-        .chat-dark .mud-input-control {
-            background-color: #32333d !important; /* Slightly lighter than window bg */
-            border-radius: 4px;
-        }
-
-        .chat-dark .mud-input-root {
-            color: white !important;
-        }
-
-        /* 3. Fix Placeholder Visibility (Very Important) */
-        .chat-dark .mud-input-outlined::placeholder,
-        .chat-dark .mud-input-outlined::-webkit-input-placeholder {
-            color: rgba(255, 255, 255, 0.5) !important;
-            opacity: 1 !important;
-        }
-
-        /* 4. Fix Input Border Color */
-        .chat-dark .mud-input-outlined-border {
-            border-color: rgba(255, 255, 255, 0.2) !important;
-        }
-
-        /* 5. Fix the Typing Indicator dots */
-        .chat-dark .typing-dot {
-            width: 8px;
-            height: 8px;
-            /* Force the dots to be white so they pop against #27272f */
-            background-color: #FFFFFF !important;
-            border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-
-        /* 1. Target the MudPaper containing David's text */
-        .mud-paper:not(.user-message) .mud-typography-body1 {
-            line-height: 1.6;
-        }
-
-        /* 2. Style the bullets */
-        /* Note: This logic works best if we use the Regex helper to wrap bullets in a span,
-           but for a quick CSS-only 'look better' fix, we can style the text block */
-        .mud-paper {
-            transition: all 0.2s ease-in-out;
-        }
-
-        /* Optional: Add a slight border-left to David's messages to make them pop */
-        .mud-paper:not(.user-message) {
-            border-left: 4px solid #1E90FF;
-        }
-
-    /* This creates a clean "hanging indent" for your list items */
-    .mud-typography-body1 {
-        display: block;
-        text-align: left;
-        line-height: 1.6;
-    }
-
-    /* Optional: Add a slight glow to David's message bubble */
-    .mud-paper:not(.user-message) {
-        box-shadow: 0 0 10px rgba(30, 144, 255, 0.1) !important;
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
-    }
-
-    /* Fade-in and slight slide-up animation for incoming real text */
-    .message-fade-in {
-        animation: messageScaleEntry 0.35s cubic-bezier(0.1, 0.9, 0.2, 1);
-    }
-
-    @@keyframes messageScaleEntry {
-        0% {
-            opacity: 0;
-            transform: scale(0.94) translateY(4px);
-        }
-        100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-        }
-    }
-
-    .connecting-bubble-container {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        height: 24px;
-        white-space: nowrap;
-        min-width: 295px;
-    }
-
-    /* A modern, high-tech glowing pulse */
-    .pulse-glow {
-        position: relative;
-        width: 8px;
-        height: 8px;
-        background-color: #38BDF8; /* Vibrant Sky Blue */
-        border-radius: 50%;
-        flex-shrink: 0;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
-    }
-
-    .pulse-glow::after {
-        content: "";
-        position: absolute;
-        top: -6px;
-        left: -6px;
-        right: -6px;
-        bottom: -6px;
-        border-radius: 50%;
-        border: 2px solid rgba(56, 189, 248, 0.4);
-        animation: glowRing 1.8s infinite ease-out;
-    }
-
-    .connecting-system-alert {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 14px;
-    
-        /* 1. Reduced left margin from 52px to move it further to the left */
-        margin: 18px 0 18px 12px; 
-        padding: 12px 20px;
-    
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.65), rgba(30, 41, 59, 0.45));
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(56, 189, 248, 0.35);
-        border-radius: 28px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37),
-                    0 0 15px rgba(56, 189, 248, 0.15);
-        white-space: nowrap;
-        width: fit-content;
-    }
-
-    /* Vibrating soft beacon effect */
-    .pulse-glow {
-        position: relative;
-        width: 8px;
-        height: 8px;
-        background-color: #38BDF8;
-        border-radius: 50%;
-        flex-shrink: 0;
-        box-shadow: 0 0 12px 2px rgba(56, 189, 248, 0.8);
-    }
-
-    .pulse-glow::after {
-        content: "";
-        position: absolute;
-        top: -6px;
-        left: -6px;
-        right: -6px;
-        bottom: -6px;
-        border-radius: 50%;
-        border: 1.5px solid rgba(56, 189, 248, 0.5);
-        animation: glowRing 1.8s infinite ease-out;
-    }
-
-    @@keyframes glowRing {
-        0% { transform: scale(0.6); opacity: 1; }
-        100% { transform: scale(2); opacity: 0; }
-    }
-
-    /* Beautiful color-shifting text shimmer */
-    .connecting-text-shimmer {
-        font-size: 0.9rem;
-        font-weight: 600;
-        letter-spacing: 0.8px;
-        background: linear-gradient(
-            110deg, 
-            #94A3B8 20%, 
-            #38BDF8 40%, 
-            #06B6D4 60%, 
-            #94A3B8 80%
-        );
-        background-size: 200% auto;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: shimmerSlide 2s infinite linear;
-    }
-
-    @@keyframes shimmerSlide {
-        0% { background-position: 100% 0; }
-        100% { background-position: -100% 0; }
-    }
-
-    /* Smooth fade and slide-up entry for the connecting bubble */
-    .connecting-entry {
-        animation: connectingFadeInUp 0.45s cubic-bezier(0.1, 0.9, 0.2, 1);
-    }
-
-    @@keyframes connectingFadeInUp {
-        0% {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        100% {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @@keyframes bounce {
-        0%, 80%, 100% { 
-            transform: scale(0);
-        } 
-        40% { 
-            transform: scale(1.0);
-        }
-    }
-
-    /* Add a blinking cursor to the last message while it is NOT complete */
-    .streaming-active::after {
-        content: "▋";
-        display: inline-block;
-        vertical-align: middle;
-        animation: blink 1s step-start infinite;
-        color: #38BDF8;
-        margin-left: 2px;
-    }
-
-    @@keyframes blink {
-        50% { opacity: 0; }
-    }
-
-    .scroll-locked {
-        overflow: auto;
-    }
-
-    /* Target the specific class you see in the inspector */
-    .chat-dark .mud-input-control.mud-disabled {
-        background-color: rgba(0, 0, 0, 0.4) !important; /* Darken the background */
-        opacity: 0.6 !important;
-        cursor: not-allowed !important;
-    }
-
-    /* Dim the text, placeholder, and icon inside the disabled container */
-    .chat-dark .mud-disabled input, 
-    .chat-dark .mud-disabled .mud-icon-root {
-        color: rgba(255, 255, 255, 0.2) !important;
-        -webkit-text-fill-color: rgba(255, 255, 255, 0.2) !important;
-    }
-
-    /* Hide the border when disabled to make it look 'collapsed' */
-    .chat-dark .mud-disabled .mud-input-outlined-border {
-        border-color: rgba(255, 255, 255, 0.05) !important;
-    }
-</style>

@@ -244,26 +244,46 @@
                 RegexOptions.Multiline
             );
 
+            // A. Markdown Links [Text](URL)
+            formatted = Regex.Replace(
+                formatted,
+                @"\[([^\]]+)\]\s*\((https?://[^)]+)\)",
+                "<a href=\"$2\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$1</a>",
+                RegexOptions.IgnoreCase
+            );
+
+            // B. Raw URLs 
+            // The lookbehind (?<!href=\x22|href=\'|\[) ensures we don't 
+            // double-link the ones we just created in step A.
+            formatted = Regex.Replace(
+                formatted,
+                @"(?<!href=\x22|href=\'|\[)https?://[^\s<\"" \)]+",
+                "<a href=\"$0\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$0</a>",
+                RegexOptions.IgnoreCase
+            );
+
+            formatted = Regex.Replace(
+                formatted,
+                @"\((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{4}.*?\)",
+                "<span style=\"color: #94A3B8; font-size: 0.9em; font-weight: normal;\">$0</span>"
+            );
+
             // 4.9. Skip highlights if this text is the skills list
-            bool isSkillsList = text.Contains("Core Tech") || text.Contains("Azure & DevOps");
             var sortedKeywords = resumeService.GetTagList().Result.OrderByDescending(k => k.Length).ToList();
 
-            if (!isSkillsList)
+            foreach (var kw in sortedKeywords)
             {
-                foreach (var kw in sortedKeywords)
-                {
-                    string escapedKw = System.Text.RegularExpressions.Regex.Escape(kw);
+                string escapedKw = Regex.Escape(kw);
 
-                    // Using the "Gold Standard" boundary fix from before
-                    string pattern = @"(?<![a-zA-Z0-9])" + escapedKw + @"(?![a-zA-Z0-9])(?![^<]*>)";
+                // Using the "Gold Standard" boundary fix from before
+                string pattern = @"(?<!^#\s.*)(?<![a-zA-Z0-9])" + escapedKw + @"(?![a-zA-Z0-9])(?![^<]*>)";
 
-                    formatted = Regex.Replace(
-                        formatted,
-                        pattern,
-                        $"<b style=\"color: #7DD3FC; font-weight: bold;\">{kw}</b>",
-                        RegexOptions.IgnoreCase
-                    );
-                }
+                formatted = Regex.Replace(
+                    formatted,
+                    pattern,
+                    $"<b style=\"color: #7DD3FC; font-weight: bold;\">{kw}</b>",
+                    RegexOptions.IgnoreCase | RegexOptions.Multiline // Multiline is key here!
+                );
             }
 
             // 4.10. Highlight bold Markdown items in Ice Blue (#E0F2FE)
@@ -310,28 +330,15 @@
                 RegexOptions.IgnoreCase
             );
 
-            // Step 5: Convert links into anchor tags
-            formatted = Regex.Replace(
-                formatted,
-                @"\[([^\]]+)\]\((https?://[^\s\)]+)\)",
-                "<a href=\"$2\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$1</a>"
-            );
-
-            formatted = Regex.Replace(
-                formatted,
-                @"(?<!href=\x22|href=\')https?://[^\s<]+",
-                "<a href=\"$0\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$0</a>"
-            );
-
-            // Step 6: Handle the Heading Row -> Sky Blue Accent (#7DD3FC)
+            // Step 5: Handle the Heading Row -> White
             formatted = Regex.Replace(
                 formatted,
                 @"^#\s+(.+)$",
-                "<div style=\"color: #7DD3FC; font-size: 1.05em; font-weight: bold; margin-top: 8px; margin-bottom: 4px;\">$1</div>",
+                "<div style=\"color: #FFFFFF; font-size: 1.05em; font-weight: bold; margin-top: 8px; margin-bottom: 4px;\">$1</div>",
                 RegexOptions.Multiline
             );
 
-            // FIX Step 7: Put the dash at the very end of the brackets to make it match exactly instead of forming a range
+            // FIX Step 6: Put the dash at the very end of the brackets to make it match exactly instead of forming a range
             formatted = Regex.Replace(
                 formatted,
                 @"^\s*[\*▪-]\s*(.+)$",
@@ -339,16 +346,26 @@
                 RegexOptions.Multiline
             );
 
-            // Step 8: Convert all line endings to <br /> and preserve double spaces
+            // Step 7: Convert all line endings to <br /> and preserve double spaces
             formatted = formatted.Replace("\r\n", "\n").Replace("\r", "\n");
             formatted = formatted.Replace("\n\n", "<div style=\"height: 18px;\"></div>");
             formatted = formatted.Replace("\n", "<br />");
 
-            // Step 9: Remove any double breaks introduced around our custom divs
+            formatted = Regex.Replace(
+                formatted,
+                @"^\s*-\s+(.+)$",
+                @"<div style=""display: flex; gap: 8px; margin-left: 15px; margin-bottom: 6px; line-height: 1.4; color: #CBD5E1;"">
+                    <span style=""color: #7DD3FC;"">•</span>
+                    <span>$1</span>
+                </div>",
+                RegexOptions.Multiline
+            );
+
+            // Step 8: Remove any double breaks introduced around our custom divs
             formatted = Regex.Replace(formatted, @"(</div>)<br\s*/?>", "$1");
             formatted = Regex.Replace(formatted, @"<br\s*/?>(<div)", "$1");
 
-            // Step 10: Final Wrapper
+            // Step 9: Final Wrapper
             // Ensure the font-size matches the wrapper in the Razor markup above
             var finalHtml = $"<div style=\"color: #F8FAFC; line-height: 1.6; font-size: 1.02em;\">{formatted.Trim()}</div>";
 
