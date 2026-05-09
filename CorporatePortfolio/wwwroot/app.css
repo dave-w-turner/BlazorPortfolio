@@ -336,18 +336,22 @@ h1:focus {
         margin-bottom: 30px;
     }
 
-    #built-with .grid {
+    #built-with .tech-grid {
         display: flex;
         flex-wrap: wrap;
+        flex-direction: row !important;
         justify-content: center;
         align-items: center;
         gap: 40px;
+        margin-top: 40px !important;
+        padding-bottom: 20px !important;
+        width: 100% !important;
     }
 
     #built-with .tech-card {
-        display: flex;
+        display: inline-flex !important;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         background: none;
         border: none;
         padding: 0;
@@ -817,7 +821,41 @@ hr, .separator-line {
     align-items: center;
     gap: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.5s ease;
 }
+
+    .chat-hint.visible {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    /* The state when showHint is false */
+    .chat-hint.visible {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }   
+
+    /* Your existing fade-in for when it first appears */
+    .chat-hint.fade-in-up {
+        animation: fadeInUp 0.5s ease forwards;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 
     .chat-hint span {
         color: #7DD3FC; /* Highlighting the text in your brand blue */
@@ -1003,4 +1041,158 @@ hr, .separator-line {
 #connect .connect-buttons i {
     width: 20px;
     height: 20px;
+}
+
+/* ===================================================
+   DESKTOP VIEW (Screen width > 600px)
+   =================================================== */
+@media (min-width: 601px) {
+    /* 1. THE OUTER BOX - Increase height to 85% of screen */
+    body .mud-dialog-container .mud-dialog.chat-dark {
+        position: fixed !important;
+        bottom: 120px !important;
+        right: 60px !important;
+        width: 600px !important;
+        height: 50vh !important; /* Forces it to fill most of the screen height */
+        max-height: 90vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        transform: none !important;
+        margin: 0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5) !important;
+    }
+
+        /* 2. THE INTERNAL WRAPPER - This is usually why it stays 'short' */
+        body .mud-dialog-container .mud-dialog.chat-dark .mud-dialog-content {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 !important; /* This forces the content to fill the 85vh */
+            height: 100% !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        /* 3. THE MESSAGE AREA - Pushes the input box to the bottom */
+        body .mud-dialog-container .mud-dialog.chat-dark #chat-container {
+            flex-grow: 1 !important;
+            overflow-y: auto !important;
+            padding: 20px !important;
+            height: auto !important;
+        }
+
+    /* 4. THE INPUT AREA - Full width and pinned */
+    .chatbox {
+        width: 100% !important;
+        padding: 15px !important;
+        background: rgba(255, 255, 255, 0.03) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+
+        /* 5. THE ELLIPSIS FIX (Global Input) */
+        .chatbox input {
+            min-width: 0 !important; /* Allows the input to shrink in flexbox */
+            flex: 1 1 0% !important; /* Forces it to fill space but be shrinkable */
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            padding-right: 8px !important;
+        }
+
+        /* Ensure the container is actually a flexbox */
+        .chatbox .mud-input-slot {
+            display: flex !important;
+            min-width: 0 !important;
+        }
+}
+
+/* ===================================================
+   MOBILE/COMACT VIEW (Screen width > 600px)
+   =================================================== */
+@media (max-width: 600px) {
+    body .mud-dialog-container .mud-dialog.chat-dark {
+        position: fixed !important;
+        /* Anchored above the toggle button */
+        bottom: 105px !important;
+        right: 15px !important;
+        left: auto !important;
+        top: auto !important;
+        /* 1. INCREASED HEIGHT */
+        width: 92vw !important;
+        /* Force a minimum height so it doesn't look like a sliver when empty */
+        min-height: 400px !important;
+        /* Allow it to grow significantly taller */
+        height: 60vh !important;
+        max-height: 80vh !important;
+        transform: none !important;
+        margin: 0 !important;
+        border-radius: 20px !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+        body .mud-dialog-container .mud-dialog.chat-dark #chat-container {
+            /* 2. EXPAND THE SCROLLABLE AREA */
+            /* This allows the message area to fill the new height */
+            flex: 1 !important;
+            /* Calculation: Total height (70vh) minus header/footer (~150px) */
+            height: calc(70vh - 150px) !important;
+            max-height: calc(80vh - 150px) !important;
+            overflow-y: auto !important;
+            padding: 10px !important;
+        }
+
+    /* 1. Reset the container to a clean 2-column grid */
+    #built-with .tech-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 15px !important;
+        justify-items: center;
+        margin: 0 auto !important;
+        width: 100%;
+    }
+
+    /* 2. Style the individual cards for vertical alignment */
+    #built-with .tech-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+        justify-items: center;
+        width: 100%;
+    }
+
+    #built-with .tech-card {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        width: 165px !important; /* Uniform card width */
+        gap: 8px !important;
+        height: 52px !important; /* Fixed height for symmetry */
+        padding: 0 12px !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 12px !important;
+    }
+
+        #built-with .tech-card img {
+            /* THE CRITICAL FIX: Force all icons into a 28px width box */
+            width: 28px !important;
+            height: 24px !important;
+            margin-right: 12px !important; /* Fixed gap creates the straight vertical spine */
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        #built-with .tech-card span {
+            font-size: 0.8rem !important;
+            white-space: nowrap;
+            text-align: left !important;
+            color: #e2e8f0 !important;
+        }
+
+    /* 3. Center the intro paragraph */
+    #built-with p {
+        text-align: center !important;
+        width: 100% !important;
+        margin: 0 auto 20px auto !important;
+    }
 }

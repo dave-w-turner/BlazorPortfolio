@@ -1,0 +1,81 @@
+/* 1. Base Dialog & Header Colors */
+.chat-dark {
+    background-color: #27272f !important;
+    color: white !important;
+    z-index: 3000 !important;
+}
+
+    .chat-dark .mud-dialog-title,
+    .chat-dark .mud-dialog-title .mud-text,
+    .chat-dark .mud-icon-root {
+        color: white !important;
+    }
+
+    /* 2. Textbox Background and Root Colors */
+    .chat-dark .mud-input-control {
+        background-color: #32333d !important;
+        border-radius: 4px;
+    }
+
+    .chat-dark .mud-input-root {
+        color: white !important;
+    }
+
+    .chat-dark .mud-input-outlined-border {
+        border-color: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* 3. THE TRUNCATION FIX: Placeholder and Input Behavior */
+    /* Target the placeholder across all browsers */
+    .chat-dark .mud-input-outlined::placeholder,
+    .chat-dark .mud-input-outlined::-webkit-input-placeholder {
+        color: rgba(255, 255, 255, 0.5) !important;
+        opacity: 1 !important;
+        text-overflow: ellipsis !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+    }
+
+/* 1. Target the actual input and force it to be shrinkable */
+.mud-input > input {
+    min-width: 0 !important; /* REQUIRED: Tells flexbox this can shrink to zero */
+    flex: 1 1 0% !important; /* REQUIRED: Tells it to only take leftover space */
+
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    /* Ensure a small gap so the dots aren't touching the arrow */
+    padding-right: 8px !important;
+}
+
+/* 2. Target the placeholder directly (some browsers need this) */
+    .mud-input > input::placeholder {
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+    }
+
+/* 3. Lock the Send icon's size so the text doesn't crush it */
+.mud-input > .mud-input-adornment-end {
+    flex-shrink: 0 !important;
+    margin-left: 4px;
+}
+
+/* 4. Typing Indicator Dots */
+.chat-dark .typing-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #FFFFFF !important;
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+@keyframes bounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+    }
+
+    40% {
+        transform: scale(1.0);
+    }
+}
