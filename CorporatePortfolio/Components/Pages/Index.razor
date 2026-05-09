@@ -26,17 +26,6 @@
     <div class="connect-card">
         <h2>Let's Connect</h2>
         <p>Currently open to discussing Enterprise Architecture, AI Integrations, and Lead DevOps opportunities.</p>
-@*         <div class="connect-buttons">
-            <a href="mailto:dave.w.turner@outlook.com" class="btn-primary">
-                <i data-lucide="mail"></i> Email Me
-            </a>
-            <a href="https://www.linkedin.com/in/david-turner-3b631635/" target="_blank" class="btn-secondary">
-                <i data-lucide="bi bi-linkedin"></i> LinkedIn
-            </a>
-            <a href="https://github.com/dave-w-turner/" target="_blank" class="btn-secondary">
-                <i data-lucide="bi bi-github"></i> GitHub
-            </a>
-        </div> *@
         <div class="connect-buttons">
             <a href="mailto:dave.w.turner@outlook.com" class="btn-primary">
                 <i data-lucide="mail"></i> Email Me
@@ -59,8 +48,7 @@
         Architected in <b style="color: #7DD3FC;">Visual Studio 2026</b> using a modern AI-first stack.
     </p>
     
-    <div class="grid">
-        <div class="grid">
+    <div class="tech-grid">
             <div class="tech-card">
                 <img src="images/Visual_Studio_Icon_2026.svg" alt="Visual Studio 2026" />
                 <span>VS 2026</span>
@@ -85,7 +73,6 @@
                 <img src="images/azuredevopslogo.svg" alt="Azure DevOps" />
                 <span>Azure DevOps</span>
             </div>
-        </div>
     </div>
 </div>
 
@@ -108,11 +95,3 @@
         });
     });
 </script>
-
-@code {
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        // Re-runs the icon scanner to pick up the LinkedIn and GitHub tags
-        await JSRuntime.InvokeVoidAsync("lucide.createIcons");
-    }
-}
