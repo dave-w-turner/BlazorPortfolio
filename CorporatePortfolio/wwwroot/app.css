@@ -42,11 +42,26 @@ h1:focus {
 }
 
 .hero {
-    height: 40vh;
-    display: inline;
-    align-items: center;
-    justify-content: center;
+    min-height: 40vh; /* Use min-height so it can grow if needed */
+    width: 100vw; /* Force full width of the screen */
+    margin-left: calc(50% - 50vw);
+    display: flex !important;
+    flex-direction: column;
+    align-items: center; /* Centers horizontally */
+    justify-content: center; /* Centers vertically */
+    padding: 40px 0; /* Vertical spacing */
+    margin: 0;
+}
+
+/* Update this to ensure the inner content box is centered */
+.hero-content {
+    width: 100%;
+    max-width: 800px; /* Keeps text from getting too wide on desktop */
+    display: flex;
+    flex-direction: column; /* Stacks items vertically */
+    align-items: center; /* Dead center horizontal alignment */
     text-align: center;
+    margin: 0 auto; /* Backup centering */
 }
 
 .section {
@@ -502,8 +517,15 @@ h1:focus {
             border-color: #7DD3FC;
         }
 
+html {
+    margin: 0 !important;
+    padding: 0;
+}
+
 body {
-    margin: 50px;
+    margin: 0px;
+    padding: 0px;
+    overflow-x: hidden;
     font-family: 'Segoe UI', sans-serif;
     background: linear-gradient(135deg, #0f172a, #020617);
     color: white;
@@ -526,10 +548,12 @@ p {
     box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }*/
 
+/* Ensure the container holding the circle doesn't have an offset */
 .profile-container {
     display: flex;
     justify-content: center;
-    margin-bottom: 20px;
+    width: 100%;
+    margin-bottom: 25px;
 }
 
 .profile-placeholder {
@@ -546,24 +570,47 @@ p {
     box-shadow: 0 10px 30px rgba(99,102,241,0.4);
     position: relative;
     overflow: hidden;
+    margin: 0 auto; /* Extra insurance for centering */
+    will-change: transform, box-shadow;
+    animation: floatAndGlow 4s ease-in-out infinite;
 }
 
+    /* Stable pulse animation that won't glitch or flash white */
     .profile-placeholder::after {
         content: '';
         position: absolute;
+        top: -50%;
+        left: -50%;
         width: 200%;
         height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.2), transparent);
-        animation: shimmer 4s infinite linear;
+        background: linear-gradient( 45deg, transparent 45%, rgba(255, 255, 255, 0.1) 50%, transparent 55% );
+        animation: shimmerSweep 6s infinite;
     }
 
-@keyframes shimmer {
+    .profile-placeholder span {
+        display: inline-block;
+        animation: fadeInUp 0.8s ease-out 0.5s both; /* Starts 0.5s after the circle fades in */
+    }
+
+@keyframes floatAndGlow {
+    0%, 100% {
+        transform: translateY(0);
+        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+    }
+
+    50% {
+        transform: translateY(-12px); /* Floats up */
+        box-shadow: 0 20px 50px rgba(139, 92, 246, 0.7); /* Glow expands */
+    }
+}
+
+@keyframes shimmerSweep {
     0% {
-        transform: translate(-50%, -50%);
+        transform: translateX(-100%) translateY(-100%);
     }
 
     100% {
-        transform: translate(50%, 50%);
+        transform: translateX(100%) translateY(100%);
     }
 }
 
