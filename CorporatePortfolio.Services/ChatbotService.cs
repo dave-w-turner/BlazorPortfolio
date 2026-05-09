@@ -247,17 +247,15 @@
             // A. Markdown Links [Text](URL)
             formatted = Regex.Replace(
                 formatted,
-                @"\[([^\]]+)\]\s*\((https?://[^)]+)\)",
+                @"\[([^\]]+)\]\s*\(((?:https?://|/)[^)]*)\)", // Changed + to * to allow empty/single slash
                 "<a href=\"$2\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$1</a>",
                 RegexOptions.IgnoreCase
             );
 
             // B. Raw URLs 
-            // The lookbehind (?<!href=\x22|href=\'|\[) ensures we don't 
-            // double-link the ones we just created in step A.
             formatted = Regex.Replace(
                 formatted,
-                @"(?<!href=\x22|href=\'|\[)https?://[^\s<\"" \)]+",
+                @"(?<!href=\x22|href=\'|\[|<)https?://[^\s<\"" \)]+|(?<=\s|^)/(?![^<>]*>)[^\s<\"" \)]*",
                 "<a href=\"$0\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$0</a>",
                 RegexOptions.IgnoreCase
             );

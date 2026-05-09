@@ -23,7 +23,7 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddTransient(provider =>
 {
-    DocX document = DocX.Load("DavidTurner_Resume.docx");
+    DocX document = DocX.Load("wwwroot/DavidTurner_Resume.docx");
     return new ResumeService(document);
 });
 

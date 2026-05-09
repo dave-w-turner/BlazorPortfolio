@@ -227,7 +227,7 @@ namespace CorporatePortfolio.Services
         public async Task<List<string>> GetTagList()
         {
             return [
-                 "SignalR", "Entity Framework", "C#", "ASP.NET Core", "LINQ", ".NET Core", "Azure", "SQL", "MVC",
+                 "SignalR", "Entity Framework", "C#", "ASP.NET Core", "LINQ", ".NET Core", ".NET", "Azure", "SQL", "MVC",
                 "TypeScript", "Angular", "Azure DevOps", "C#.NET", "JavaScript", "Agile", "C# .NET Core",
                 "RESTful APIs", "Microservices", "Unit Testing", "Dependency Injection", "Design Patterns",
                 "Continuous Integration", "Continuous Deployment", "Docker", "Kubernetes", "Azure SQL",
