@@ -31,24 +31,6 @@
             showHint = false;
             StateHasChanged();
         }
-
-        private async Task OpenChatAsync()
-        {
-            var options = new DialogOptions
-            {
-                MaxWidth = MaxWidth.False,
-                FullWidth = false,
-                FullScreen = false,
-                Position = DialogPosition.Custom, // Allows us to override the wrapper completely
-                BackgroundClass = "desktop-chat-override",
-                BackdropClick = true,
-                CloseButton = true,
-                CloseOnEscapeKey = true,
-                CloseOnNavigation = false
-            };
-
-            await DialogService.ShowAsync<ChatDialog>("David Turner's AI Assistant", options);
-        }
     }
 
     private async Task ToggleChatWindow()
@@ -69,7 +51,7 @@
                 FullWidth = false,
                 FullScreen = false,
                 Position = DialogPosition.BottomRight,
-                BackdropClick = true,
+                BackdropClick = false,
                 CloseButton = true,
                 CloseOnEscapeKey = true,
                 CloseOnNavigation = false

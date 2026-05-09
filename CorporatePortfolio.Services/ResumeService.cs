@@ -274,7 +274,8 @@ namespace CorporatePortfolio.Services
                 "Node.js", "Express.js", "MongoDB", "PostgreSQL", "MySQL", "SQLite", "Redis", "code analysis",
                 "static code analysis", "dynamic code analysis", "profiling", "performance tuning", "memory management",
                 "garbage collection", "Razor", "App Service", "Ollama", "LLM", "Llama 3.2", ".NET 10 (LTS)", "Groq",
-                "DevOps"
+                "DevOps", "AD", "Generative AI", "AI Vision", "SmartSimple", "CRM", "CRM Dynamics", "MS Test",
+                "Angular 2.0", "Windows", "Linux", "Ubuntu", "Fedora", "Redhat", "Kali", "Llama3.2", "Model Training"
              ];
         }
 

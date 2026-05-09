@@ -1,3 +1,419 @@
+.radar-signal {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    background-color: #7DD3FC; /* Sky Blue Accent */
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+    .radar-signal::before,
+    .radar-signal::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        border: 2px solid #7DD3FC;
+        animation: radarWave 1.8s infinite ease-out;
+        opacity: 0;
+    }
+
+    .radar-signal::after {
+        animation-delay: 0.9s;
+    }
+
+@@keyframes radarWave {
+    0% {
+        width: 10px;
+        height: 10px;
+        opacity: 0.8;
+    }
+
+    100% {
+        width: 32px;
+        height: 32px;
+        opacity: 0;
+    }
+}
+
+.connecting-text {
+    color: #7DD3FC !important;
+    font-size: 0.9rem;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    animation: textFade 1.8s infinite ease-in-out;
+}
+
+@@keyframes textFade {
+    0%, 100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.chat-dark {
+    background-color: #27272f !important;
+    color: white !important; /* Force overall text to white */
+    z-index: 3000 !important;
+}
+
+    /* 1. Fix Title and Icon Visibility */
+    .chat-dark .mud-dialog-title,
+    .chat-dark .mud-dialog-title .mud-text,
+    .chat-dark .mud-icon-root {
+        color: white !important;
+    }
+
+    /* 2. Fix Textbox Background and Text Color */
+    .chat-dark .mud-input-control {
+        background-color: #32333d !important; /* Slightly lighter than window bg */
+        border-radius: 4px;
+    }
+
+    .chat-dark .mud-input-root {
+        color: white !important;
+    }
+
+    /* 3. Fix Placeholder Visibility (Very Important) */
+    .chat-dark .mud-input-outlined::placeholder,
+    .chat-dark .mud-input-outlined::-webkit-input-placeholder {
+        color: rgba(255, 255, 255, 0.5) !important;
+        opacity: 1 !important;
+    }
+
+    /* 4. Fix Input Border Color */
+    .chat-dark .mud-input-outlined-border {
+        border-color: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* 5. Fix the Typing Indicator dots */
+    .chat-dark .typing-dot {
+        width: 8px;
+        height: 8px;
+        /* Force the dots to be white so they pop against #27272f */
+        background-color: #FFFFFF !important;
+        border-radius: 50%;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+/* 1. Target the MudPaper containing David's text */
+.mud-paper:not(.user-message) .mud-typography-body1 {
+    line-height: 1.6;
+}
+
+/* 2. Style the bullets */
+/* Note: This logic works best if we use the Regex helper to wrap bullets in a span,
+           but for a quick CSS-only 'look better' fix, we can style the text block */
+.mud-paper {
+    transition: all 0.2s ease-in-out;
+}
+
+    /* Optional: Add a slight border-left to David's messages to make them pop */
+    .mud-paper:not(.user-message) {
+        border-left: 4px solid #1E90FF;
+    }
+
+/* This creates a clean "hanging indent" for your list items */
+.mud-typography-body1 {
+    display: block;
+    text-align: left;
+    line-height: 1.6;
+}
+
+/* Optional: Add a slight glow to David's message bubble */
+.mud-paper:not(.user-message) {
+    box-shadow: 0 0 10px rgba(30, 144, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Fade-in and slight slide-up animation for incoming real text */
+.message-fade-in {
+    animation: messageScaleEntry 0.35s cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+
+@@keyframes messageScaleEntry {
+    0% {
+        opacity: 0;
+        transform: scale(0.94) translateY(4px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.connecting-bubble-container {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: 24px;
+    white-space: nowrap;
+    min-width: 295px;
+}
+
+.connecting-pill-container {
+    position: absolute;
+    top: 50%; /* Center vertically */
+    left: 50%; /* Center horizontally */
+    transform: translate(-50%, -50%); /* Offset by its own size to be exact */
+    width: auto; /* Let it fit the content */
+    z-index: 10; /* Ensure it stays on top */
+    margin: 0; /* Remove any previous margins */
+}
+
+.connecting-status-bar {
+    /* 1. Remove all absolute/sticky positioning */
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    /* 2. Force Height and Spacing */
+    height: 50px;
+    width: 100%;
+    margin-bottom: 20px;
+    /* 3. Aesthetics */
+    background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.08), transparent);
+    border-bottom: 1px solid rgba(125, 211, 252, 0.1);
+    position: relative;
+    overflow: hidden;
+    animation: fadeInDown 0.5s ease-out forwards;
+}
+
+/* Entrance: Slide in from the top */
+.fade-in-down {
+    animation: fadeInDown 0.5s ease-out forwards;
+}
+
+/* Exit: Slide further down and out */
+.fade-out-down {
+    animation: fadeOutDown 0.4s ease-in forwards;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOutDown {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+}
+
+/* For the Chat Bubbles entering after the bar is gone */
+.bubble-entrance {
+    animation: fadeInUp 0.5s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.connecting-dot-glow {
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    background-color: #FFFFFF;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #7DD3FC;
+}
+
+.connecting-text {
+    color: #CBD5E1;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    white-space: nowrap; /* Forces one line */
+}
+
+/* Ensure the scanner sweep covers the fixed height */
+.scanner-sweep {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.1), transparent);
+    animation: sweep-line 2.5s infinite linear;
+}
+
+.name-highlight {
+    color: #FFFFFF;
+    font-weight: 700;
+}
+
+@keyframes led-pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.7;
+        box-shadow: 0 0 8px #7DD3FC;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+        box-shadow: 0 0 15px #7DD3FC, 0 0 25px #7DD3FC;
+    }
+}
+
+@keyframes sweep-line {
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 200%;
+    }
+}
+
+@keyframes pill-breath {
+    0%, 100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+    /* Just a 2% grow to make it feel "alive" */
+}
+
+.connecting-system-alert {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    /* 1. Reduced left margin from 52px to move it further to the left */
+    margin: 18px 0 18px 12px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.65), rgba(30, 41, 59, 0.45));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 28px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 15px rgba(56, 189, 248, 0.15);
+    white-space: nowrap;
+    width: fit-content;
+}
+
+/* Beautiful color-shifting text shimmer */
+.connecting-text-shimmer {
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    background: linear-gradient( 110deg, #94A3B8 20%, #38BDF8 40%, #06B6D4 60%, #94A3B8 80% );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmerSlide 2s infinite linear;
+}
+
+@@keyframes shimmerSlide {
+    0% {
+        background-position: 100% 0;
+    }
+
+    100% {
+        background-position: -100% 0;
+    }
+}
+
+/* Smooth fade and slide-up entry for the connecting bubble */
+.connecting-entry {
+    animation: connectingFadeInUp 0.45s cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+
+@@keyframes connectingFadeInUp {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@@keyframes bounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+    }
+
+    40% {
+        transform: scale(1.0);
+    }
+}
+
+/* Add a blinking cursor to the last message while it is NOT complete */
+.streaming-active::after {
+    content: "▋";
+    display: inline-block;
+    vertical-align: middle;
+    animation: blink 1s step-start infinite;
+    color: #38BDF8;
+    margin-left: 2px;
+}
+
+@@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+.scroll-locked {
+    overflow: auto;
+}
+
+/* Target the specific class you see in the inspector */
+.chat-dark .mud-input-control.mud-disabled {
+    background-color: rgba(0, 0, 0, 0.4) !important; /* Darken the background */
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+}
+
+/* Dim the text, placeholder, and icon inside the disabled container */
+.chat-dark .mud-disabled input,
+.chat-dark .mud-disabled .mud-icon-root {
+    color: rgba(255, 255, 255, 0.2) !important;
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Hide the border when disabled to make it look 'collapsed' */
+.chat-dark .mud-disabled .mud-input-outlined-border {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
 /* 1. Base Dialog & Header Colors */
 .chat-dark {
     background-color: #27272f !important;
