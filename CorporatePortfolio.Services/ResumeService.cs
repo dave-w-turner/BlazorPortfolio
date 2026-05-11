@@ -1,7 +1,6 @@
 ﻿using CorporatePortfolio.Services.DTO;
-using System.Collections.Immutable;
-using System.Net.WebSockets;
 using System.Text;
+using Xceed.Document.NET;
 using Xceed.Words.NET;
 
 namespace CorporatePortfolio.Services
@@ -163,6 +162,62 @@ namespace CorporatePortfolio.Services
             return documentTextSb.ToString().Trim();
         }
 
+        public async Task<List<ExperienceData>> GetExperience()
+        {
+            var experienceBms = _document.Bookmarks.Where(bm => bm.Name.StartsWith("Experience_") && !bm.Name.EndsWith("_Details")).ToList();
+            List<ExperienceData> experiences = [];
+
+            foreach (var experienceBm in experienceBms)
+            {
+                var startTag = _document.Xml.Descendants()
+                    .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
+                                         (x.Attribute("name")?.Value == experienceBm.Name ||
+                                          x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == experienceBm.Name)));
+
+                if (startTag == null) continue;
+
+                string? bookmarkId = startTag.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value;
+                var currentParagraph = experienceBm.Paragraph;
+                ExperienceData? experience = null;
+
+                while (currentParagraph != null)
+                {
+                    var text = currentParagraph.Text.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        experience ??= new ExperienceData
+                        {
+                            CompanyName = text.Split('–')[0].Trim(),
+                            LocationName = text.Split('–').Length > 1 ? text.Split('–')[1].Trim() : string.Empty,
+                            Title = currentParagraph.NextParagraph?.Text.Trim() ?? string.Empty,
+                            Date = currentParagraph.NextParagraph?.NextParagraph?.Text.Trim() ?? string.Empty,
+                        };
+
+                        var experienceDetailsBm = _document.Bookmarks.FirstOrDefault(bm => bm.Name == $"{experienceBm.Name}_Details");
+                        var experienceParagraph = experienceDetailsBm?.Paragraph;
+
+                        while (experienceParagraph != null && !string.IsNullOrWhiteSpace(experienceParagraph.Text))
+                        {
+                            experience?.Details.Add(experienceParagraph.Text.Trim());
+                            experienceParagraph = experienceParagraph.NextParagraph;
+                        }
+
+                        currentParagraph = currentParagraph.NextParagraph?.NextParagraph?.NextParagraph;
+
+                        if (string.IsNullOrWhiteSpace(experienceParagraph?.Text))
+                            break;                        
+                    }
+                }
+
+                if (experience != null)
+                    experiences.Add(experience);
+            }
+
+            return experiences;
+        }
+
+
         public async Task<List<ProjectData>> GetProjects()
         {
             var projectBms = _document.Bookmarks.Where(bm => bm.Name.StartsWith("Project_")).ToList();
@@ -177,7 +232,7 @@ namespace CorporatePortfolio.Services
 
                 if (startTag == null) continue;
 
-                string bookmarkId = startTag.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value;
+                string? bookmarkId = startTag.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value;
                 var currentParagraph = projectBm.Paragraph;
                 var paragraphCount = 0;
                 ProjectData? project = null;
@@ -207,11 +262,11 @@ namespace CorporatePortfolio.Services
                         }          
                     }
 
+                    currentParagraph = currentParagraph.NextParagraph;
+
                     if (currentParagraph.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
                         x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bookmarkId)))
                         break;
-
-                    currentParagraph = currentParagraph.NextParagraph;
                 }
 
                 if (project != null)
@@ -224,7 +279,7 @@ namespace CorporatePortfolio.Services
             return projects;
         }
 
-        public async Task<List<string>> GetTagList()
+        public static async Task<List<string>> GetTagList()
         {
             return [
                  "SignalR", "Entity Framework", "C#", "ASP.NET Core", "LINQ", ".NET Core", ".NET", "Azure", "SQL", "MVC",
@@ -279,7 +334,7 @@ namespace CorporatePortfolio.Services
              ];
         }
 
-        private async Task<List<string>> GetTagsFromProject(string text)
+        private static async Task<List<string>> GetTagsFromProject(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return [];
 

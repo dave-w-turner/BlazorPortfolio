@@ -267,7 +267,7 @@
             );
 
             // 4.9. Skip highlights if this text is the skills list
-            var sortedKeywords = resumeService.GetTagList().Result.OrderByDescending(k => k.Length).ToList();
+            var sortedKeywords = ResumeService.GetTagList().Result.OrderByDescending(k => k.Length).ToList();
 
             foreach (var kw in sortedKeywords)
             {
