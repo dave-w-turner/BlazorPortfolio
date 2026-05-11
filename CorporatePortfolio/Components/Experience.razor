@@ -1,13 +1,13 @@
 ﻿@using CorporatePortfolio.Services
 @using CorporatePortfolio.Services.DTO
 
-<div class="section fade-up" id="experience">
+<div class="section" id="experience">
     <h2>Experience Highlights</h2>
 
     <div class="timeline">
-        @foreach (var experience in resumeService.GetExperience().Result)
+        @foreach (var experience in experiences)
         {
-            <div class="timeline-item">
+            <div class="timeline-item @(experiences.IndexOf(experience) == 0 ? "fade-in" : "fade-up")">
                 <div class="timeline-dot"></div>
                 <div class="customcard">
                     <h3><i data-lucide="briefcase"></i> @experience.Title - @experience.CompanyName (@experience.Date)</h3>
@@ -21,3 +21,17 @@
         }
     </div>
 </div>
+
+@code {
+    List<ExperienceData> experiences = [];
+
+    private async Task LoadExperience()
+    {
+        experiences = await resumeService.GetExperience();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExperience();
+    }
+}

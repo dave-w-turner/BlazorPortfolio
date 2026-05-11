@@ -1307,3 +1307,23 @@ hr, .separator-line {
         margin: 0 auto 20px auto !important;
     }
 }
+
+/* Targets h2 titles inside a div with the class "section" */
+.section h2 {
+    color: #E0E0E0; /* Light grey/off-white for high contrast */
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: capitalize;
+    /* Optional: subtle glow to help text pop on dark themes */
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+/* For other elements not standing out (e.g., secondary text or labels) */
+.section p, .section .expertise-label {
+    color: #B0B0B0; /* Medium grey for secondary content */
+}
+
+/* Interactive elements or highlights */
+.section .highlight {
+    color: #FFFFFF; /* Pure white for maximum visibility */
+}
