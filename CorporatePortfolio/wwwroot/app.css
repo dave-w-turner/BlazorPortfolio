@@ -127,6 +127,7 @@ h1:focus {
 
 .glow:hover {
     box-shadow: 0 0 20px rgba(99,102,241,0.6);
+    color:white;
 }
 
 .timeline {
@@ -232,14 +233,13 @@ h1:focus {
 #experience .timeline {
     position: relative;
     padding-left: 60px; /* Increased from 45px to clear the dots entirely */
-    margin-top: 40px;
 }
 
     #experience .timeline::before {
         content: '';
         position: absolute;
         left: 20px; /* Aligned with the center of the dots in the new gutter */
-        top: 35px;
+        top: 40px;
         bottom: 0;
         width: 2px;
         background: linear-gradient(to bottom, #7DD3FC 0%, rgba(125, 211, 252, 0.05) 100%);
@@ -264,6 +264,10 @@ h1:focus {
     display: block; /* Removes flex so absolute positioning works reliably */
     margin-bottom: 40px;
     top: 2em;
+}
+
+#experience h2 {
+    padding-bottom: 0px;
 }
 
 /* 4. THE EXPERIENCE CARDS */
@@ -328,6 +332,7 @@ h1:focus {
         position: relative;
         padding-left: 28px !important; /* Forces consistent indent */
         margin-bottom: 14px;
+        margin-left: 15px;
         color: #cbd5e1;
         line-height: 1.7;
         font-size: 0.95rem;
@@ -372,13 +377,31 @@ h1:focus {
 }
 
 #projects .customcard {
-    border-radius: 30px 5px 30px 5px; /* The "Leaf" shape */
-    padding: 25px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    height: 100%;
-    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    margin-left: 10px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: calc(100% - 10px); /* Ensures it doesn't crowd the right edge */
+    padding: 40px 10px 40px 40px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 20px 5px 20px 5px; /* Signature leaf shape */
+    margin-bottom: 50px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    /* Subtle inner glow on the top edge only */
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+    position: relative; /* This acts as the anchor for the icon */
 }
+
+    #projects .customcard:hover {
+        border-color: rgba(125, 211, 252, 0.3);
+        background: rgba(255, 255, 255, 0.04);
+        transform: translateX(5px); /* Subtle interactive nudge */
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 15px rgba(125, 211, 252, 0.1); /* Subtle theme-colored glow */
+    }
+
 
     #projects .customcard h3 {
         color: #7DD3FC;
@@ -389,15 +412,172 @@ h1:focus {
     #projects .customcard p {
         font-size: 0.9rem;
         line-height: 1.5;
-        color: #94a3b8;
+        color: rgb(203, 213, 225);
+        line-height: 1.7;
+        font-size: 0.95rem;
     }
 
-    #projects .customcard:hover {
-        transform: translateY(-8px);
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(125, 211, 252, 0.4);
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+#projects .project-body ul {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0;
+}
+
+#projects .project-body li {
+    position: relative;
+    padding-left: 30px;
+    margin-bottom: 10px;
+    margin-left: 15px;
+    line-height: 1.6;
+    color: #cbd5e1;
+    font-size: 0.95rem;
+}
+
+    #projects .project-body li::before {
+        content: ">";
+        position: absolute;
+        left: 0;
+        top: 4px; /* Adjust this for pixel-perfect vertical alignment */
+        color: #7DD3FC;
+        font-weight: 900;
+        font-size: 1.1rem; /* Bumps the size back up to match text */
+        line-height: 1;
+        opacity: 0.8;
+        transition: transform 0.3s ease, color 0.3s ease;
+        display: inline-block; /* Required for transform to work */
     }
+
+/* Project Container */
+#projects .project-list {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    margin-top: 30px;
+}
+
+/* The Wide Project Card */
+#projects .project-wide {
+    display: flex;
+    flex-direction: column;
+    padding: 30px;
+    border-radius: 30px 8px 30px 8px; /* Leaf shape */
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#projects .project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(125, 211, 252, 0.1);
+    padding-bottom: 10px;
+}
+
+    #projects .project-header h3 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #7DD3FC;
+        margin: 0;
+    }
+
+#projects .project-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end; /* Keeps button and tags aligned at the bottom */
+    margin-top: 20px;
+}
+
+#projects .view-source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+    #projects .view-source:hover {
+        color: #7DD3FC;
+        background: rgba(125, 211, 252, 0.05);
+        border-color: rgba(125, 211, 252, 0.3);
+        transform: translateY(-2px);
+    }
+
+    #projects .view-source i {
+        width: 16px;
+    }
+
+#projects .project-status {
+    font-size: 0.75rem;
+    font-family: 'Consolas', monospace;
+    color: rgba(125, 211, 252, 0.6);
+    text-transform: uppercase;
+}
+
+#projects .customcard:hover li::before {
+    transform: translateX(4px); /* Moves bullet 4px to the right */
+    color: #ffffff; /* Brightens the bullet on hover */
+    opacity: 1; /* Optional: makes it pop against the blue */
+}
+
+/* Ensure these don't get bullets */
+#projects .customcard .subtitle,
+#projects .customcard li:empty {
+    padding-left: 0 !important;
+}
+
+    #projects .customcard .subtitle::before {
+        content: none !important;
+    }
+
+/* Tech Tags at the bottom */
+#projects .project-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+    #projects .project-tags span {
+        color: #7DD3FC;
+        padding: 4px 12px;
+        border-radius: 8px 2px 8px 2px; /* Smaller version of the leaf */
+        background: rgba(125, 211, 252, 0.05);
+        border: 1px solid rgba(125, 211, 252, 0.2);
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+
+        #projects .project-tags span:hover {
+            background: rgba(125, 211, 252, 0.15);
+            border-color: #7DD3FC;
+        }
+
+
+#projects .view-source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(125, 211, 252, 0.05);
+    border: 1px solid rgba(125, 211, 252, 0.3);
+    border-radius: 12px 3px 12px 3px;
+    color: #7DD3FC;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
 
 /* --- Technical Footer Section --- */
 #built-with {
@@ -472,113 +652,6 @@ h1:focus {
             font-size: 0.8rem;
             font-family: 'Consolas', monospace;
             color: #94a3b8;
-        }
-
-/* Project Container */
-.project-list {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-    margin-top: 30px;
-}
-
-/* The Wide Project Card */
-.project-wide {
-    display: flex;
-    flex-direction: column;
-    padding: 30px;
-    border-radius: 30px 8px 30px 8px; /* Leaf shape */
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.project-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    border-bottom: 1px solid rgba(125, 211, 252, 0.1);
-    padding-bottom: 10px;
-}
-
-    .project-header h3 {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        color: #7DD3FC;
-        margin: 0;
-    }
-
-.project-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end; /* Keeps button and tags aligned at the bottom */
-    margin-top: 20px;
-}
-
-.view-source {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #94a3b8;
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 500;
-    padding: 8px 16px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    transition: all 0.3s ease;
-}
-
-    .view-source:hover {
-        color: #7DD3FC;
-        background: rgba(125, 211, 252, 0.05);
-        border-color: rgba(125, 211, 252, 0.3);
-        transform: translateY(-2px);
-    }
-
-    .view-source i {
-        width: 16px;
-    }
-
-.project-status {
-    font-size: 0.75rem;
-    font-family: 'Consolas', monospace;
-    color: rgba(125, 211, 252, 0.6);
-    text-transform: uppercase;
-}
-
-.project-body p {
-    margin-bottom: 15px;
-    line-height: 1.7;
-    color: #cbd5e1;
-    font-size: 1rem;
-}
-
-/* Tech Tags at the bottom */
-.project-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 20px;
-}
-
-    .project-tags span {
-        color: #7DD3FC;
-        padding: 4px 12px;
-        border-radius: 8px 2px 8px 2px; /* Smaller version of the leaf */
-        background: rgba(125, 211, 252, 0.05);
-        border: 1px solid rgba(125, 211, 252, 0.2);
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        transition: all 0.3s ease;
-    }
-
-        .project-tags span:hover {
-            background: rgba(125, 211, 252, 0.15);
-            border-color: #7DD3FC;
         }
 
 html {
@@ -839,43 +912,7 @@ hr, .separator-line {
         color: #f8fafc;
     }
 
-.project-body ul {
-    list-style: none;
-    padding: 0;
-    margin: 15px 0;
-}
 
-.project-body li {
-    position: relative;
-    padding-left: 20px;
-    margin-bottom: 10px;
-    line-height: 1.6;
-    color: #cbd5e1;
-    font-size: 0.95rem;
-}
-
-    .project-body li::before {
-        content: "▪"; /* Professional square bullet */
-        position: absolute;
-        left: 0;
-        color: #7DD3FC;
-    }
-
-
-.view-source {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    background: rgba(125, 211, 252, 0.05);
-    border: 1px solid rgba(125, 211, 252, 0.3);
-    border-radius: 12px 3px 12px 3px;
-    color: #7DD3FC;
-    font-size: 0.8rem;
-    font-weight: 700;
-    text-decoration: none;
-    transition: all 0.2s ease;
-}
 
 .chat-toggle {
     color: white;
