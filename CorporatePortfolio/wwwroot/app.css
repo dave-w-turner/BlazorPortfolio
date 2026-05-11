@@ -53,6 +53,12 @@ h1:focus {
     margin: 0;
 }
 
+    .hero h1 {
+        color: #FFFFFF; /* Matches the 'Core Expertise' brightness */
+        font-weight: 700;
+        letter-spacing: -0.02em; /* Gives it a modern, premium feel */
+    }
+
 /* Update this to ensure the inner content box is centered */
 .hero-content {
     width: 100%;
