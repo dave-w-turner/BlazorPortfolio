@@ -2,6 +2,7 @@
 using System.Text;
 using Xceed.Document.NET;
 using Xceed.Words.NET;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace CorporatePortfolio.Services
 {
@@ -180,35 +181,39 @@ namespace CorporatePortfolio.Services
                 var currentParagraph = experienceBm.Paragraph;
                 ExperienceData? experience = null;
 
-                while (currentParagraph != null)
+                var text = currentParagraph.Text.Trim();
+
+                experience ??= new ExperienceData
                 {
-                    var text = currentParagraph.Text.Trim();
+                    CompanyName = text.Split('–')[0].Trim(),
+                    LocationName = text.Split('–').Length > 1 ? text.Split('–')[1].Trim() : string.Empty,
+                    Title = currentParagraph.NextParagraph?.Text.Trim() ?? string.Empty,
+                    Date = currentParagraph.NextParagraph?.NextParagraph?.Text.Trim() ?? string.Empty,
+                };
 
-                    if (!string.IsNullOrWhiteSpace(text))
+                var experienceDetailsBm = _document.Bookmarks.FirstOrDefault(bm => bm.Name == $"{experienceBm.Name}_Details");
+                var experienceParagraph = experienceDetailsBm?.Paragraph;
+                var experienceBmId = experienceDetailsBm != null ? _document.Xml.Descendants()
+                    .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
+                                         (x.Attribute("name")?.Value == experienceDetailsBm.Name ||
+                                          x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == experienceDetailsBm.Name)))
+                    ?.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value : null;
+
+                while ((!experienceParagraph?.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
+                         x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == experienceBmId))) ?? false)
+                {
+                    if (experienceParagraph != null)
                     {
-                        experience ??= new ExperienceData
-                        {
-                            CompanyName = text.Split('–')[0].Trim(),
-                            LocationName = text.Split('–').Length > 1 ? text.Split('–')[1].Trim() : string.Empty,
-                            Title = currentParagraph.NextParagraph?.Text.Trim() ?? string.Empty,
-                            Date = currentParagraph.NextParagraph?.NextParagraph?.Text.Trim() ?? string.Empty,
-                        };
+                        experience?.Details.Add(experienceParagraph.Text.Trim());
+                        experienceParagraph = experienceParagraph.NextParagraph;
 
-                        var experienceDetailsBm = _document.Bookmarks.FirstOrDefault(bm => bm.Name == $"{experienceBm.Name}_Details");
-                        var experienceParagraph = experienceDetailsBm?.Paragraph;
-
-                        while (experienceParagraph != null && !string.IsNullOrWhiteSpace(experienceParagraph.Text))
-                        {
+                        if (experienceParagraph?.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
+                         x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == experienceBmId)) ?? false)
                             experience?.Details.Add(experienceParagraph.Text.Trim());
-                            experienceParagraph = experienceParagraph.NextParagraph;
-                        }
-
-                        currentParagraph = currentParagraph.NextParagraph?.NextParagraph?.NextParagraph;
-
-                        if (string.IsNullOrWhiteSpace(experienceParagraph?.Text))
-                            break;                        
                     }
                 }
+
+                currentParagraph = currentParagraph?.NextParagraph?.NextParagraph?.NextParagraph;
 
                 if (experience != null)
                     experiences.Add(experience);
