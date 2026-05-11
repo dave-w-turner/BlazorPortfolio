@@ -238,39 +238,94 @@ h1:focus {
 /* 1. THE TIMELINE CONTAINER */
 #experience .timeline {
     position: relative;
-    padding-left: 60px; /* Increased from 45px to clear the dots entirely */
+    padding-top: 10px;
 }
 
-    #experience .timeline::before {
-        content: '';
-        position: absolute;
-        left: 20px; /* Aligned with the center of the dots in the new gutter */
-        top: 40px;
-        bottom: 0;
-        width: 2px;
-        background: linear-gradient(to bottom, #7DD3FC 0%, rgba(125, 211, 252, 0.05) 100%);
-        z-index: 1;
-    }
+#experience .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: -100px; /* Extends up to meet the previous segment */
+    bottom: -100px; /* Extends down to meet the next segment */
+    width: 2px;
+    background: rgba(125, 211, 252, 0.1); /* Muted base color */
+    z-index: 1;
+    transition: all 0.4s ease;
+}
+
+#experience .timeline-item:hover::before {
+    background: #7DD3FC;
+    box-shadow: 0 0 15px rgba(125, 211, 252, 0.8);
+    z-index: 2; /* Brings the glowing part to the front */
+}
+
+/* 3. Sync the Dot and Card movement */
+#experience .timeline-item:hover .timeline-dot,
+#experience .timeline-item:hover .customcard {
+    transform: translateX(8px); /* Slightly more pronounced nudge */
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
 
 /* 3. THE TIMELINE DOTS - NOW ALIGNED TO TITLE */
 #experience .timeline-dot {
     position: absolute;
-    left: -25px;
-    top: 0.8em;
-    width: 14px;
-    height: 14px;
-    background: #7DD3FC;
-    border-radius: 50%;
-    box-shadow: 0 0 10px rgba(125, 211, 252, 0.5);
-    z-index: 2;
+    /* Flush on the line (Line is at left: 20px) */
+    left: 23px;
+    top: 0;
+    width: auto; /* Let it fit the content */
+    min-width: 100px; /* Optional: keeps them consistent */
+    padding: 4px 10px;
+    color: #FFFFFF;
+    box-shadow: 0 0 12px rgba(125, 211, 252, 0.4);
+    padding: 6px 12px;
+    font-weight: 700; /* Bold text makes a huge difference */
+    font-size: 0.85rem;
+    z-index: 5;
+    transition: all 0.3s ease;
+    background: #1e293b;
+    border-radius: 4px;
+    /* Remove any old translateX that might be centering it */
+    transform: none;
+    box-shadow: 0 0 10px rgba(125, 211, 252, 0.2);
 }
 
 #experience .timeline-item {
     position: relative;
-    display: block; /* Removes flex so absolute positioning works reliably */
-    margin-bottom: 40px;
-    top: 2em;
+    padding-bottom: 40px; /* Space between roles */
+    margin-bottom: 0; /* Ensure segments connect */
+    display: block;
 }
+
+    #experience .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 20px; /* Center of your dots */
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, rgba(125, 211, 252, 0.2) 0%, rgba(125, 211, 252, 0.05) 100%);
+        z-index: 1; /* Behind the dot */
+        transition: all 0.4s ease;
+    }
+
+    #experience .timeline-item:hover::before {
+        background: #7DD3FC;
+        box-shadow: 0 0 15px rgba(125, 211, 252, 0.8);
+        z-index: 2; /* Bring the "lit" segment to the front */
+    }
+
+    #experience .timeline-item:hover .timeline-dot,
+    #experience .timeline-item:hover .customcard {
+        transform: translateX(8px);
+    }
+
+    /* Apply the nudge to both elements when the item is hovered */
+    #experience .timeline-item:hover .customcard,
+    #experience .timeline-item:hover .timeline-dot {
+        transform: translateX(5px);
+        border-color: rgba(125, 211, 252, 0.5); /* Optional: brightens both borders */
+    }
+
 
 #experience h2 {
     padding-bottom: 0px;
@@ -278,11 +333,12 @@ h1:focus {
 
 /* 4. THE EXPERIENCE CARDS */
 #experience .customcard {
-    top: 2em;
+    top: 3.4em;
     margin-left: 10px !important;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    left: 30px;
     width: calc(100% - 10px); /* Ensures it doesn't crowd the right edge */
     padding: 40px 10px 40px 40px;
     backdrop-filter: blur(8px);
