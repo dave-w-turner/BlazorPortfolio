@@ -8,9 +8,9 @@
         @foreach (var experience in experiences)
         {
             <div class="timeline-item @(experiences.IndexOf(experience) == 0 ? "fade-in" : "fade-up")">
-                <div class="timeline-dot"></div>
+                <div class="timeline-dot">@experience.Date</div>
                 <div class="customcard">
-                    <h3><i data-lucide="briefcase"></i> @experience.Title - @experience.CompanyName (@experience.Date)</h3>
+                    <h3><i data-lucide="briefcase"></i> @experience.Title - @experience.CompanyName</h3>
 
                     @foreach(var detail in experience.Details)
                     {
