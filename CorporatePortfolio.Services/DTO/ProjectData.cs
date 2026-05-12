@@ -1,4 +1,7 @@
-﻿namespace CorporatePortfolio.Services.DTO
+﻿using Microsoft.AspNetCore.Components;
+using Xceed.Document.NET;
+
+namespace CorporatePortfolio.Services.DTO
 {
     public class ProjectData
     {
@@ -6,6 +9,7 @@
         public string Date { get; set; }
         public string SourceUrl { get; set; }
         public List<string> Details { get; set; } = [];
+        public List<MarkupString> DetailsFormatted { get; set; } = [];
         public List<string> Tags { get; set; } = [];
     }
 }

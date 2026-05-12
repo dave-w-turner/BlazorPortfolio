@@ -56,6 +56,7 @@ builder.Services.AddSingleton(provider =>
 });
 
 builder.Services.AddScoped<ChatState>();
+builder.Services.AddScoped<AppState>();
 
 builder.WebHost.UseStaticWebAssets();
 

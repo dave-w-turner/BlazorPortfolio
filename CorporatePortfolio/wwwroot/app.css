@@ -97,21 +97,13 @@ h1:focus {
 .fade-up {
     opacity: 0;
     transform: translateY(40px);
-    transition: all 0.8s ease;
+    transition: all 2.5s ease;
     will-change: transform, opacity;
 }
 
     .fade-up.visible {
         opacity: 1;
         transform: translateY(0);
-    }
-
-    .fade-up:nth-child(1) {
-        animation-delay: 0.1s;
-    }
-
-    .fade-up:nth-child(2) {
-        animation-delay: 0.2s;
     }
 
 @keyframes fadeIn {

@@ -1,14 +1,44 @@
 ﻿@using CorporatePortfolio.Services
 @using CorporatePortfolio.Services.DTO
+@using System.Text
 @inject ResumeService resumeService
+@inject IJSRuntime JS
+@inject AppState State
+@rendermode InteractiveServer
 
 <div class="section" id="skills">
     <h2>Core Expertise</h2>
 
     <div class="grid">
-        @foreach (var competency in resumeService.GetCompetencies().Result)
+        @foreach (var competency in competencies)
         {
-            <div class="customcard glow"><i data-lucide="@competency.Icon"></i> @competency.Name</div>
+            <div class="customcard glow" @onclick="(() => OnSkillClick(competency.Name))"><i data-lucide="@competency.Icon"></i> @competency.Name</div>
         }
     </div>
 </div>
+
+@code {
+    private List<CompetencyData> competencies = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        competencies = await resumeService.GetCompetencies();
+    }
+
+    private async Task OnSkillClick(string skillName)
+    {
+        var experienceMarkup = new Dictionary<string, MarkupString>();
+
+        for (int a = 0; a < State.Experiences.Count; a++)
+            for (int b = 0; b < State.Experiences[a].Details.Count; b++)
+                State.Experiences[a].Details[b] = (await ChatbotService.FormatMessage(State.Experiences[a].Details[b], true, skillName)).Value;
+
+        State.NotifyStateChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // This tells Lucide to look for any new <i> tags and convert them
+        await JS.InvokeVoidAsync("lucide.createIcons");
+    }
+}

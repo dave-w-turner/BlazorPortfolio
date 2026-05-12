@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Components;
-
+﻿
 namespace CorporatePortfolio.Services.DTO
 {
-    public class ChatMessage
+    public class ChatMessageRequest
     {
         public string Text { get; set; } = "";
         public bool IsUser { get; set; }
@@ -10,7 +9,6 @@ namespace CorporatePortfolio.Services.DTO
         public string AvatarUrl { get; set; } = "";
         public bool IsComplete { get; set; } = true; // Default to true
         public bool IsConnecting { get; set; }
-        public MarkupString FormattedText { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }
