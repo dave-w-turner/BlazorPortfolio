@@ -1469,6 +1469,38 @@ hr, .separator-line {
             margin-bottom: 12px !important;
             width: calc(100% - 20px) !important;
         }
+
+    body .mud-dialog-container .mud-dialog.chat-dark,
+    .mud-dialog {
+        position: fixed !important;
+        /* 1. COMPLETELY WIPE DESKTOP LEAF MARGIN OFFSETS */
+        top: 42% !important;
+        left: 48% !important;
+        right: auto !important;
+        bottom: auto !important;
+        margin: 0 !important; /* Drops the 75px margin penalty instantly */
+        /* 2. DEAD-CENTER HORIZONTAL & VERTICAL ALIGNMENT SCREEN LOCK */
+        transform: translate(-50%, -50%) !important;
+        /* 3. FLUID CONTENT SCALE BOUNDARIES */
+        width: calc(90% - 32px) !important; /* 16px safety perimeter cushion on sides */
+        max-width: 600px !important; /* Prevents looking bloated on wider viewports */
+        height: 75% !important; /* Caps vertical height safely to dodge address bars */
+        /* 4. MODAL VISUAL POLISH OVERLAYS */
+        border: 1px solid rgba(125, 211, 252,    0.15) !important; /* Radiant brand-blue rim profile */
+        border-radius: 16px !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
+        z-index: 9999 !important;
+    }
+
+        /* 5. CONTENT CONTAINER OVERFLOW SECURITY CRADLE */
+        body .mud-dialog-container .mud-dialog.chat-dark .mud-dialog-content {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 !important;
+            height: 100% !important;
+            padding: 16px !important; /* Roomy, clean breathing space */
+            overflow: hidden !important;
+        }
 }
 
 
@@ -1633,3 +1665,92 @@ hr, .separator-line {
     transform: translateX(-50%) scale(1.4) !important;
     box-shadow: 0 0 20px #7DD3FC, 0 0 40px rgba(125, 211, 252, 0.6) !important;
 }
+
+    body .mud-dialog-container .mud-dialog.chat-dark {
+        will-change: transform, opacity;
+        animation: mobileModalPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+    }
+
+    @keyframes mobileModalPop {
+        from {
+            opacity: 0;
+            transform: translate(-50%, -40%) scale(0.96); /* Elegant pop-up scale physics */
+        }
+
+        to {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+    }
+
+/* ===================================================
+🛡️ PREMIUM LAYER STACKING PRIORITY ENGINE
+=================================================== */
+
+/* 1. Ensure the floating button stays anchored underneath open windows */
+.chat-launcher-container,
+.chat-toggle {
+    z-index: 1000 !important; /* Lowers layout priority slightly */
+}
+
+/* 2. Forces the dark chat window to layer cleanly ON TOP of the button */
+body .mud-dialog-container .mud-dialog.chat-dark,
+.chat-popup {
+    /* Raising this above 1000 means it will physically hide the button behind its background */
+    z-index: 2000 !important;
+    /* Premium visual addition: crisp drop shadow so it elevates off the background elements */
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 20px rgba(125, 211, 252, 0.05) !important;
+}
+
+/* 3. Small Screen View Layout Buffer */
+@media (max-width: 991px) {
+    body .mud-dialog-container .mud-dialog.chat-dark {
+        /* Gives the box a microscopic lift away from the screen base so the hidden button doesn't bleed through edges */
+        bottom: 16px !important;
+    }
+}
+
+/* ===================================================================
+📱 FLOATING MICRO-SCREEN VIEW OVERRIDE (Screens under 601px wide)
+=================================================================== */
+@media (max-width: 600px) {
+    /* 1. RAISES THE CHAT DIALOG ABOVE THE TOGGLE BUTTON TRACK */
+    body .mud-dialog-container .mud-dialog.chat-dark,
+    .mud-dialog,
+    .chat-popup {
+        position: relative !important;
+        /* THE CRITICAL FLOATING HOVER LOCK */
+        left: 12px !important; /* Sleek 12px padding gap from the left browser rim */
+        right: 12px !important; /* Sleek 12px padding gap from the right browser rim */
+        top: 10px !important;
+        margin: 0 !important; /* Disables conflicting 75px layout penalties */
+        transform: none !important;
+        /* 2. DYNAMIC AUTO-RESYNC BOUNDARIES */
+        width: calc(100% - 24px) !important; /* Forces total width to respect the 12px side gaps */
+        max-width: 100% !important;
+        height: 80% !important; /* Constrains height slightly so it doesn't hit the screen roof */
+        /* 3. DESIGN POLISH */
+        border-radius: 14px !important; /* Full rounded corners since it floats in open space */
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        z-index: 9999 !important; /* Higher priority lets it layer over lower layout nodes */
+    }
+
+    /* 4. RESTORE HIGH-PRIORITY STACKING INDEX FOR THE TOGGLE ICON BUTTON */
+    .chat-launcher-container,
+    .chat-toggle {
+        position: fixed !important;
+        bottom: 16px !important; /* Places the toggle cleanly inside its base base slot */
+        right: 16px !important;
+        z-index: 10000 !important; /* CRITICAL: Must be higher than 9999 so it floats ON TOP of things */
+    }
+
+    /* 5. ADD INTERNAL ROOM FOR THE MESSAGE CONTAINER SCROLL TRACK */
+    body .mud-dialog-container .mud-dialog.chat-dark .mud-dialog-content {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 !important;
+        height: 100% !important;
+        overflow: hidden !important;
+    }
+}
+
