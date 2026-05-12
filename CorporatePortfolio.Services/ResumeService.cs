@@ -388,7 +388,7 @@ namespace CorporatePortfolio.Services
                 var s when s.Contains("c#") => "code",
                 var s when s.Contains("azure") || s.Contains("devops") => "cloud",
                 var s when s.Contains("automation") => "cpu",
-                var s when s.Contains("responsive ui") => "monitor-smartphone",
+                var s when s.Contains("responsive ui") => "window-dock",
                 _ => string.Empty
             };
         }
