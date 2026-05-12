@@ -240,6 +240,7 @@
         if (string.IsNullOrWhiteSpace(_userInput) || _isTyping) return;
 
         var userText = _userInput;
+        _messages.Add(new ChatMessage { Text = userText, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl, IsComplete = true });
         
         _userInput = "";
         await ScrollToBottom();
@@ -253,7 +254,7 @@
         var chatRequest = new ChatRequest
         {
             Question = userText,
-            History = _messages.TakeLast(10).ToList().Select(m => new ChatMessageRequest
+            History = _messages.Take(_messages.Count - 1).TakeLast(10).Select(m => new ChatMessageRequest
             {
                 AvatarUrl = m.AvatarUrl,
                 IsComplete = m.IsComplete,
@@ -263,9 +264,7 @@
                 Timestamp = m.Timestamp,
                 UserName = m.UserName
             }).ToList()
-        };
-
-        _messages.Add(new ChatMessage { Text = userText, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl, IsComplete = true });
+        };        
 
         var request = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/chat")
         {
