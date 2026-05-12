@@ -12,7 +12,7 @@
     <div class="grid">
         @foreach (var competency in competencies)
         {
-            <div class="customcard glow" @onclick="(() => OnSkillClick(competency.Name))"><i data-lucide="@competency.Icon"></i> @competency.Name</div>
+            <div class="customcard glow" @onclick="(() => OnSkillClick(competency.Name))"><i class="bi bi-@competency.Icon"></i> @competency.Name</div>
         }
     </div>
 </div>
@@ -48,6 +48,7 @@
     {
         if (firstRender)
         {
+            await Task.Delay(50);
             // Triggers icon conversion and binds scroll animations safely
             await JS.InvokeVoidAsync("initScrollAnimations");
         }

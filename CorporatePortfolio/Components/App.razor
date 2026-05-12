@@ -153,12 +153,6 @@
         };
 
         window.initScrollAnimations = () => {
-            // 1. SAFE ICON INITIALIZATION
-            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
-                lucide.createIcons();
-            }
-
-            // 2. ANIMATION SCROLL TARGET OPTIONS
             const observerOptions = {
                 root: null,
                 rootMargin: '0px',
@@ -181,33 +175,6 @@
             };
 
             bindTargets();
-
-            // 3. MUTATION ENGINE SENSORS
-            const pageObserver = new MutationObserver((mutations) => {
-                let structuralChange = false;
-        
-                for (const mutation of mutations) {
-                    if (mutation.addedNodes.length > 0 || mutation.type === 'attributes') {
-                        structuralChange = true;
-                        break;
-                    }
-                }
-
-                if (structuralChange) {
-                    // Converts icons inserted during late Blazor patches
-                    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
-                        lucide.createIcons();
-                    }
-                    bindTargets();
-                }
-            });
-
-            pageObserver.observe(document.body, { 
-                childList: true, 
-                subtree: true,
-                attributes: true,        
-                attributeFilter: ['class'] 
-            });
         };
 
 
