@@ -788,13 +788,32 @@ p {
     color: #ccc;
 }
 
-/*.profile-img {
-    width: 140px;
-    height: 140px;
+.profile-img {
+    width: 180px;
+    height: 180px;
     border-radius: 50%;
     object-fit: cover;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-}*/
+    /* 1. THE CORRECTION: Lowering this to 15% pulls the photo DOWN */
+    object-position: center 15%;
+    /* 2. SCALE LOCK: Keeping the zoom level */
+    transform: scale(1.1);
+    /* Premium Styling */
+    margin: 0 auto;
+    display: block;
+    border: 3px solid rgba(125, 211, 252, 0.4);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.3), 0 15px 45px rgba(0, 0, 0, 0.6);
+    /* 3. ANIMATION SYNC */
+    will-change: transform;
+    animation: floatAndGlow 4s ease-in-out infinite;
+}
+
+    /* Add a hover effect to make it feel interactive */
+    .profile-img:hover {
+        transform: scale(1.05) translateY(-5px);
+        box-shadow: 0 0 35px rgba(125, 211, 252, 0.6);
+        border-color: #7DD3FC;
+        cursor: pointer;
+    }
 
 /* Ensure the container holding the circle doesn't have an offset */
 .profile-container {
@@ -804,51 +823,27 @@ p {
     margin-bottom: 25px;
 }
 
-.profile-placeholder {
-    width: 140px;
-    height: 140px;
+.profile-glow-ring {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6, #7DD3FC);
     border-radius: 50%;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 14px;
-    font-weight: 500;
-    box-shadow: 0 10px 30px rgba(99,102,241,0.4);
-    position: relative;
-    overflow: hidden;
-    margin: 0 auto; /* Extra insurance for centering */
-    will-change: transform, box-shadow;
-    animation: floatAndGlow 4s ease-in-out infinite;
+    z-index: -1;
+    filter: blur(15px);
+    opacity: 0.6;
+    animation: floatAndGlow 4s ease-in-out infinite; /* Syncs with the photo */
 }
-
-    /* Stable pulse animation that won't glitch or flash white */
-    .profile-placeholder::after {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient( 45deg, transparent 45%, rgba(255, 255, 255, 0.1) 50%, transparent 55% );
-        animation: shimmerSweep 6s infinite;
-    }
-
-    .profile-placeholder span {
-        display: inline-block;
-        animation: fadeInUp 0.8s ease-out 0.5s both; /* Starts 0.5s after the circle fades in */
-    }
 
 @keyframes floatAndGlow {
     0%, 100% {
-        transform: translateY(0);
-        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        transform: scale(1.1) translateY(0px);
     }
 
     50% {
-        transform: translateY(-12px); /* Floats up */
-        box-shadow: 0 20px 50px rgba(139, 92, 246, 0.7); /* Glow expands */
+        transform: scale(1.1) translateY(-12px);
     }
 }
 
