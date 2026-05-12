@@ -1,5 +1,7 @@
-﻿@inherits LayoutComponentBase
+﻿@using CorporatePortfolio.Services.DTO
+@inherits LayoutComponentBase
 @inject IDialogService DialogService
+@inject AppState State
 <MudLayout>
     <MudMainContent>
         @Body
@@ -26,4 +28,9 @@
         // This ensures the dark variables only apply inside our chat window
         PseudoCss = { Scope = ".chat-dark" }
     };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await State.InitializeAsync();
+    }
 }

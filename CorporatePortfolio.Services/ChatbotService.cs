@@ -17,7 +17,7 @@
         private DateTime _lastReadTime = DateTime.MinValue;
         private readonly string _filePath = "AIInstructions.txt";
 
-        public async Task<IAsyncEnumerable<string?>> Ask(string question, List<ChatMessage> history)
+        public async Task<IAsyncEnumerable<string?>> Ask(string question, List<ChatMessageRequest> history)
         {
             if (string.IsNullOrEmpty(_ollamaModel)) throw new Exception("Ollama model is not specified.");
 
@@ -180,7 +180,7 @@
                 return StreamResponseGrok(response);
         }
 
-        public MarkupString FormatMessage(string text, bool isComplete = true)
+        public static async Task<MarkupString> FormatMessage(string text, bool isComplete = true, string? specificKeyword = null)
         {
             if (string.IsNullOrWhiteSpace(text)) return new MarkupString("");
 
@@ -267,7 +267,12 @@
             );
 
             // 4.9. Skip highlights if this text is the skills list
-            var sortedKeywords = ResumeService.GetTagList().Result.OrderByDescending(k => k.Length).ToList();
+            var sortedKeywords = (await ResumeService.GetTagList()).OrderByDescending(k => k.Length).ToList();
+
+            if (specificKeyword != null)
+            {
+                sortedKeywords = [.. sortedKeywords.Where(k => k.Equals(specificKeyword, StringComparison.OrdinalIgnoreCase))];
+            }
 
             foreach (var kw in sortedKeywords)
             {
