@@ -27,18 +27,29 @@
 
     private async Task OnSkillClick(string skillName)
     {
-        var experienceMarkup = new Dictionary<string, MarkupString>();
-
+        // 1. Highlight the text (Your existing logic)
         for (int a = 0; a < State.Experiences.Count; a++)
-            for (int b = 0; b < State.Experiences[a].Details.Count; b++)
-                State.Experiences[a].Details[b] = (await ChatbotService.FormatMessage(State.Experiences[a].Details[b], true, skillName)).Value;
+        {
+            for (int b = 0; b < State.Experiences[a].DetailsFormatted.Count; b++)
+            {
+                State.Experiences[a].DetailsFormatted[b] =
+                    await ChatbotService.FormatMessage(State.Experiences[a].Details[b], true, skillName);
+            }
+        }
 
+        // 2. Refresh the UI text highlights
         State.NotifyStateChanged();
+
+        // 3. ADD THIS: This triggers the scroll event in Experience.razor
+        State.SelectSkill(skillName);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // This tells Lucide to look for any new <i> tags and convert them
-        await JS.InvokeVoidAsync("lucide.createIcons");
+        if (firstRender)
+        {
+            // Triggers icon conversion and binds scroll animations safely
+            await JS.InvokeVoidAsync("initScrollAnimations");
+        }
     }
 }

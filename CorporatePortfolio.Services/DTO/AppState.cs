@@ -6,6 +6,7 @@ namespace CorporatePortfolio.Services.DTO
     {
         // Initialize as an empty list so components don't crash while loading
         public List<ExperienceData> Experiences { get; private set; } = [];
+        public event Action<string>? OnSkillSelected;
 
         public event Action? ExperiencesOnChange;
 
@@ -18,6 +19,11 @@ namespace CorporatePortfolio.Services.DTO
                     exp.DetailsFormatted.Add(new MarkupString(detail));
 
             NotifyStateChanged();
+        }
+
+        public void SelectSkill(string skillName)
+        {
+            OnSkillSelected?.Invoke(skillName);
         }
 
         public void NotifyStateChanged() => ExperiencesOnChange?.Invoke();

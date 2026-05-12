@@ -31,3 +31,16 @@
         </div>
     </div>
 </div>
+
+@inject IJSRuntime JS
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(300); // 300ms delay
+            await JS.InvokeVoidAsync("initScrollAnimations");
+        }
+    }
+}
