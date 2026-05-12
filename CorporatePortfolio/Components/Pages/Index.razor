@@ -2,35 +2,20 @@
 @inject IJSRuntime JSRuntime
 @using CorporatePortfolio.Services
 
-<link href="https://unpkg.com/lucide@latest/dist/umd/lucide.js" rel="preload" as="script">
-<script src="https://unpkg.com/lucide@latest"></script>
-
-<div class="fade-up" style="transition-delay: 0.2s;">
-    <Header />
-    <Skills />    
-    <Experience />
-    <Projects />
-</div>
-
+<Header />
+<Skills />
+<Experience />
+<Projects />
 <LetsConnect />
 <Footer />
 
-<script>
-    lucide.createIcons();   
-</script>
-
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add("visible");
-                }
-            });
-        }, { threshold: 0.2 });
-        
-        document.querySelectorAll('.fade-up').forEach(el => {
-            observer.observe(el);
-        });
-    });
-</script>
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Safely initialize animations through a re-callable system window function
+            await JSRuntime.InvokeVoidAsync("initScrollAnimations");
+        }
+    }
+}
