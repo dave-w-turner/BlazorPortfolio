@@ -1,8 +1,9 @@
-﻿<div class="hero fade-in">
+﻿@using ImageMagick
+<div class="hero fade-in">
     <div class="hero-content">
         <div class="profile-container" style="position: relative; display: inline-block;">
             <div class="profile-glow-ring"></div>
-            <img src="/images/headshots/headshot_primary.png" class="profile-img" alt="Profile Picture" />
+            <img src="@currentHeadShot" class="profile-img" alt="Profile Picture" />
         </div>
         <h1>David Turner</h1>
         <p class="subtitle">Senior Software Developer • Enterprise Systems • Cloud & Automation</p>
@@ -18,3 +19,28 @@
         </div>
     </div>
 </div>
+
+@code {
+    private List<MagickImage> headShots = [];
+    private string? currentHeadShot;
+        
+    protected override async Task OnInitializedAsync()
+    {
+        using var headshot_primary = new MagickImage("wwwroot/images/headshots/headshot_primary.png");
+        headShots.Add(headshot_primary);
+
+        foreach (var file in Directory.GetFiles("wwwroot/images/headshots/").Where(f => f.Contains("headshot_alt_")))
+        {
+            using var headshot = new MagickImage(file);
+            headShots.Add(headshot);
+        }
+
+        headShots.AddRange(await ImageSplitter.SplitGridImage("wwwroot/images/headshots/headshot_grid_1.png", 3, 4));
+        headShots.AddRange(await ImageSplitter.SplitGridImage("wwwroot/images/headshots/headshot_grid_2.png", 4, 3));
+
+        byte[] imageBytes = headShots[Random.Shared.Next(headShots.Count)].ToByteArray(MagickFormat.Png);
+
+        string base64String = Convert.ToBase64String(imageBytes);
+        currentHeadShot = $"data:image/png;base64,{base64String}";
+    }
+ }
