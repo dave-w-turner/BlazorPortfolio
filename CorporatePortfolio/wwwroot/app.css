@@ -799,9 +799,11 @@ p {
     transform: scale(1.1);
     /* Premium Styling */
     margin: 0 auto;
+    margin-top: -66px !important;
     display: block;
     border: 3px solid rgba(125, 211, 252, 0.4);
     box-shadow: 0 0 30px rgba(99, 102, 241, 0.3), 0 15px 45px rgba(0, 0, 0, 0.6);
+    object-fit: cover !important;
     /* 3. ANIMATION SYNC */
     will-change: transform;
     animation: floatAndGlow 4s ease-in-out infinite;
@@ -815,28 +817,96 @@ p {
         cursor: pointer;
     }
 
-/* Ensure the container holding the circle doesn't have an offset */
-.profile-container {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    margin-bottom: 25px;
-}
-
 .profile-glow-ring {
     position: absolute;
-    top: -5px;
-    left: -5px;
+    top: -14px;
+    left: 0px;
     right: -5px;
     bottom: -5px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6, #7DD3FC);
-    border-radius: 50%;
+    border-radius: 50%; 
     z-index: -1;
-    filter: blur(15px);
-    opacity: 0.6;
-    animation: floatAndGlow 4s ease-in-out infinite; /* Syncs with the photo */
+    filter: blur(1.1px);
+    opacity: .6;
+    scale: 1 !important;
+    animation: auraPulseEngine 4s ease-in-out infinite !important;
+    box-shadow: 0 0 12px rgba(125, 211, 252, 0.65), 0 0 30px rgba(56, 189, 248, 0.45), 0 0 50px rgba(14, 165, 233, 0.25), inset 0 0 10px rgba(125, 211, 252, 0.35) !important;
 }
 
+@keyframes auraPulseEngine {
+    0%, 100% {
+        scale: 1 !important; /* Perfectly default diameter placement */
+        opacity: 0.75 !important; /* Soft ambient emission baseline */
+    }
+
+    50% {
+        scale: 1.08 !important; /* Forces a clear visual breath outward */
+        opacity: 1 !important; /* Surges ring to peak brightness */
+    }
+}
+
+/* ===================================================================
+🧬 UNCONSTRAINED PORTRAIT BOUNDARY TRACKER
+=================================================================== */
+.profile-container-wrapper {
+    position: relative !important;
+    display: block !important;
+    width: 60% !important;
+    height: 140px !important;
+    margin: 0 auto 20px auto !important;
+    z-index: 10 !important;
+}
+
+    h1, .profile-container-wrapper + h1, [class*="name"] {
+        margin-top: 28px !important;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+        letter-spacing: -0.025em !important;
+        color: #ffffff !important;
+    }
+
+
+    .profile-container-wrapper .profile-img {
+        position: absolute !important;
+        top: 50% !important;
+        left: 50% !important;
+        width: 125px !important; /* Reduced from 180px to stop clipping top/bottom */
+        height: 125px !important; /* Kept perfectly square for true circular radius */
+        margin-left: -62.5px !important; /* Half of width for exact alignment */
+        margin-top: -62.5px !important; /* Half of height for exact alignment */
+        border-radius: 50% !important;
+        border: 2px solid rgba(255, 255, 255, 0.1) !important; /* Soft framing border */
+        z-index: 5 !important;
+    }
+
+/* ===================================================================
+✨ STAGE 2: THE NEW AMBIENT BIOLUMINESCENT SHIMMER LOOP
+   Slowly alters the blur density and opacity levels to make the colors 
+   appear to ripple and breathe smoothly behind the photo frame
+=================================================================== */
+@keyframes bioluminescentShimmer {
+    0% {
+        filter: blur(34px) drop-shadow(0 0 10px rgba(125, 211, 252, 0.05)) !important;
+        opacity: 0.50 !important;
+    }
+
+    50% {
+        /* Subtle contraction pulls the light energy closer behind your hairline */
+        filter: blur(28px) drop-shadow(0 0 20px rgba(125, 211, 252, 0.15)) !important;
+        opacity: 0.60 !important; /* Gently blooms brighter at peak phase */
+    }
+
+    100% {
+        /* Expands outward into a softer fog aura */
+        filter: blur(40px) drop-shadow(0 0 5px rgba(125, 211, 252, 0.02)) !important;
+        opacity: 0.45 !important;
+    }
+}
+
+
+
+/* ===================================================================
+👤 LEAVE THE ORIGINAL ANIMATION UNTOUCHED FOR YOUR PORTRAIT PHOTO
+=================================================================== */
+/* This ensures line 807 (.profile-img) keeps its perfect, crisp 1:1 scale ratios */
 @keyframes floatAndGlow {
     0%, 100% {
         transform: scale(1.1) translateY(0px);
@@ -846,6 +916,8 @@ p {
         transform: scale(1.1) translateY(-12px);
     }
 }
+
+
 
 @keyframes shimmerSweep {
     0% {
@@ -1747,4 +1819,19 @@ body .mud-dialog-container .mud-dialog.chat-dark,
         height: 100% !important;
         overflow: hidden !important;
     }
+}
+
+/* ===================================================
+💬 CHAT DIALOG SENDER NAME TEXT LABELS
+=================================================== */
+
+.chat-sender-name {
+    display: block !important;
+    font-size: 0.72rem !important; /* Muted micro-typography text scaling */
+    font-weight: 600 !important;
+    color: #64748b !important; /* Slate gray blends cleanly with dark backdrops */
+    margin-bottom: 5px !important; /* Tiny padding gap right above your bubble borders */
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase; /* Optional: Aggressively neat developer aesthetic */
+    user-select: none !important; /* Prevents selection cursor artifacts when copying text */
 }

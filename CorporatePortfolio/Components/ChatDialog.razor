@@ -45,6 +45,10 @@
                         </MudAvatar>
 
                         <div style="max-width: 75%; display: flex; flex-direction: column; align-items: @(msg.IsUser ? "flex-end" : "flex-start");">
+                            <span class="chat-sender-name">
+                                @(msg.IsUser ? "You" : "David")
+                            </span>
+
                             <MudPaper Class="pa-4 message-fade-in" 
                                       Elevation="1"
                                       Style="@(msg.IsUser ?

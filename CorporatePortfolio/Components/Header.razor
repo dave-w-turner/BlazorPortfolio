@@ -1,7 +1,10 @@
-﻿@using ImageMagick
+﻿@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject IJSRuntime JS
+
 <div class="hero fade-in">
     <div class="hero-content">
-        <div class="profile-container" style="position: relative; display: inline-block;">
+        <div class="profile-container-wrapper">
+            <canvas id="Matrix" style="position: absolute; top: 0; left: 0; z-index: -1; display:none;"></canvas>
             <div class="profile-glow-ring"></div>
             <img src="@currentHeadShot" class="profile-img" alt="Profile Picture" />
         </div>
@@ -21,26 +24,34 @@
 </div>
 
 @code {
-    private List<MagickImage> headShots = [];
+    private List<ImageMagick.MagickImage> headShots = [];
     private string? currentHeadShot;
-        
+
     protected override async Task OnInitializedAsync()
     {
-        using var headshot_primary = new MagickImage("wwwroot/images/headshots/headshot_primary.png");
+        var headshot_primary = new ImageMagick.MagickImage("wwwroot/images/headshots/headshot_primary.png");
         headShots.Add(headshot_primary);
 
         foreach (var file in Directory.GetFiles("wwwroot/images/headshots/").Where(f => f.Contains("headshot_alt_")))
         {
-            using var headshot = new MagickImage(file);
+            var headshot = new ImageMagick.MagickImage(file);
             headShots.Add(headshot);
         }
 
         headShots.AddRange(await ImageSplitter.SplitGridImage("wwwroot/images/headshots/headshot_grid_1.png", 3, 4));
         headShots.AddRange(await ImageSplitter.SplitGridImage("wwwroot/images/headshots/headshot_grid_2.png", 4, 3));
 
-        byte[] imageBytes = headShots[Random.Shared.Next(headShots.Count)].ToByteArray(MagickFormat.Png);
+        byte[] imageBytes = headShots[Random.Shared.Next(headShots.Count)].ToByteArray(ImageMagick.MagickFormat.Png);
 
         string base64String = Convert.ToBase64String(imageBytes);
         currentHeadShot = $"data:image/png;base64,{base64String}";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("startMatrixRain");
+        }
     }
  }
