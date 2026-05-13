@@ -1748,3 +1748,18 @@ body .mud-dialog-container .mud-dialog.chat-dark,
         overflow: hidden !important;
     }
 }
+
+/* ===================================================
+💬 CHAT DIALOG SENDER NAME TEXT LABELS
+=================================================== */
+
+.chat-sender-name {
+    display: block !important;
+    font-size: 0.72rem !important; /* Muted micro-typography text scaling */
+    font-weight: 600 !important;
+    color: #64748b !important; /* Slate gray blends cleanly with dark backdrops */
+    margin-bottom: 5px !important; /* Tiny padding gap right above your bubble borders */
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase; /* Optional: Aggressively neat developer aesthetic */
+    user-select: none !important; /* Prevents selection cursor artifacts when copying text */
+}
