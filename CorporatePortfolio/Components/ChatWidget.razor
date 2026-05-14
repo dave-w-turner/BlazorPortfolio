@@ -31,9 +31,8 @@
             Show();
         }
 
-        // Automatically hide the hint after 8 seconds if the user hasn't clicked it
         await Task.Delay(8000);
-        await HideHint();        
+        await HideHint();
     }
 
     private async Task HideHint()
@@ -62,11 +61,32 @@
                 BackdropClick = false,
                 CloseButton = true,
                 CloseOnEscapeKey = true,
-                CloseOnNavigation = false
+                CloseOnNavigation = false,
+                BackgroundClass = "chat-no-overlay"
             };
 
-            _chatReference = await DialogService.ShowAsync<ChatDialog>("David Turner's AI Assistant", options);
-            var result = await _chatReference.Result;
+            // CORRECTED CONFIGURATION: Use a dictionary parameter mapping layer
+            var parameters = new DialogParameters
+            {
+                { "Class", "chat-dark" }
+            };
+
+            // 1. Pass the parameter dictionary straight to the runtime factory engine
+            _chatReference = await DialogService.ShowAsync<ChatDialog>("David Turner's AI Assistant", parameters, options);
+
+            // 2. Offload the close tracking path to the async background monitor thread loop
+            _ = HandleDialogCloseAsync(_chatReference);
+        }
+    }
+
+    private async Task HandleDialogCloseAsync(IDialogReference dialogRef)
+    {
+        // Await the modal conclusion in the background
+        await dialogRef.Result;
+
+        // Safely check if the reference hasn't been changed by an explicit close toggle tap
+        if (_chatReference == dialogRef)
+        {
             _chatReference = null;
             await InvokeAsync(StateHasChanged);
         }

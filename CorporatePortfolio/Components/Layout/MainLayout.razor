@@ -1,16 +1,18 @@
 ﻿@inherits LayoutComponentBase
 @inject AppState State
 
+@* CRITICAL FIXED SECTION: Explicitly mark layout providers as interactive *@
+<MudThemeProvider @rendermode="InteractiveServer" IsDarkMode="true" Theme="_darkTheme" />
+<MudDialogProvider @rendermode="InteractiveServer" />
+<MudSnackbarProvider @rendermode="InteractiveServer" />
+<MudPopoverProvider @rendermode="InteractiveServer" />
+
 <MudLayout>
     <MudMainContent>
         @Body
-    </MudMainContent>  
+    </MudMainContent>
 
     <ChatWidget />
-
-    <MudThemeProvider />
-    <MudDialogProvider />
-    <MudThemeProvider IsDarkMode="true" Theme="_darkTheme" />
 </MudLayout>
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -20,10 +22,14 @@
 </div>
 
 @code {
-    private MudTheme _darkTheme = new MudTheme()
+    private readonly MudTheme _darkTheme = new()
     {
-        // This ensures the dark variables only apply inside our chat window
-        PseudoCss = { Scope = ".chat-dark" }
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#6366f1",
+            Background = "#020617",
+            Surface = "#0f172a"
+        }
     };
 
     protected override async Task OnInitializedAsync()
