@@ -1,36 +1,45 @@
 ﻿@using MudBlazor
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IDialogService DialogService
+@implements IDisposable
+@inject AppState State
 
 <div class="chat-launcher-container">
-    <div class="chat-hint @(showHint ? "visible" : "fade-out")">
+    <div class="chat-hint @(showHint ? "fade-in-up" : "fade-out")">
         <span>Click here to chat with David Turner...</span>
         <button class="close-hint" @onclick="HideHint">×</button>
     </div>
-    <MudFab Class="@($"chat-toggle {(_chatReference != null ? "chat-active" : "")}")"
-            Color="Color.Primary"
-            StartIcon="@(_chatReference == null ? Icons.Material.Filled.Chat : Icons.Material.Filled.Close)"
-            OnClick="ToggleChatWindow" />
+    @if (State.IsIndexLoaded)
+    {
+        <MudFab Class="@($"chat-toggle {(_chatReference != null ? "chat-active" : "")} fade-in")"
+                Color="Color.Primary"
+                StartIcon="@(_chatReference == null ? Icons.Material.Filled.Chat : Icons.Material.Filled.Close)"
+                OnClick="ToggleChatWindow" />
+    }
 </div>
 
 @code {
     private IDialogReference? _chatReference;
+    private bool showHint = true;
 
-    @code {
-        private bool showHint = true;
+    protected override async Task OnInitializedAsync()
+    {
+        State.IndexLoaded += Show;
 
-        protected override async Task OnInitializedAsync()
+        if (State.IsIndexLoaded)
         {
-            // Automatically hide the hint after 8 seconds if the user hasn't clicked it
-            await Task.Delay(8000);
-            await HideHint();
+            Show();
         }
 
-        private async Task HideHint()
-        {
-            showHint = false;
-            StateHasChanged();
-        }
+        // Automatically hide the hint after 8 seconds if the user hasn't clicked it
+        await Task.Delay(8000);
+        await HideHint();        
+    }
+
+    private async Task HideHint()
+    {
+        showHint = false;
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ToggleChatWindow()
@@ -39,7 +48,6 @@
 
         if (_chatReference != null)
         {
-            // Close the existing window
             _chatReference.Close();
             _chatReference = null;
         }
@@ -57,13 +65,21 @@
                 CloseOnNavigation = false
             };
 
-            // Capture the reference when opening
             _chatReference = await DialogService.ShowAsync<ChatDialog>("David Turner's AI Assistant", options);
-
-            // Listen for when the dialog is closed via its OWN close button
             var result = await _chatReference.Result;
-            _chatReference = null; // Reset reference so icon flips back
-            StateHasChanged();
+            _chatReference = null;
+            await InvokeAsync(StateHasChanged);
         }
+    }
+
+    public void Show()
+    {
+        State.IsIndexLoaded = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        State.IndexLoaded -= Show;
     }
 }

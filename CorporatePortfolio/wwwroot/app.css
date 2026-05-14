@@ -1213,6 +1213,11 @@ hr, .separator-line {
         animation: fadeInUp 0.5s ease forwards;
     }
 
+    .chat-hint.fade-out {
+        opacity: 0;
+        visibility: hidden;
+    }
+
 @keyframes fadeInUp {
     from {
         opacity: 0;
