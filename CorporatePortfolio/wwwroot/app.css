@@ -142,13 +142,18 @@ h1:focus {
 }
 
 #skills .customcard {
-    display: flex;
-    align-items: center; /* Vertically centers the icon and text */
-    justify-content: center; /* Horizontally centers the content */
-    gap: 12px;
-    height: 100%; /* Ensures all cards fill the grid height */
-    min-height: 60px; /* Gives them a consistent base height */
-    /* Keep your existing leaf shape and background */
+    position: relative !important; /* Anchors the hover underline safely inside the box */
+    display: flex !important; /* Activates flex container track layout mechanics */
+    align-items: center !important; /* Dead-centers content vertically */
+    justify-content: center !important; /* Dead-centers content horizontally */
+    flex-direction: row !important; /* Aligns icon and text side-by-side */
+    gap: 12px !important;
+    height: 100% !important; /* Forces consistent cell tracking */
+    min-height: 60px !important;
+    padding: 0 15px !important; /* Adds balanced breathing space on sides */
+    text-align: center !important;
+    line-height: normal !important; /* Normalizes the base typography height */
+    /* Your original leaf design parameters */
     border-radius: 15px 4px 15px 4px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
