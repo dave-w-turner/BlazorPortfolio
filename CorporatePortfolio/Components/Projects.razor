@@ -65,7 +65,7 @@
         {
             for (int i = 0; i < project.Details.Count; i++)
             {
-                project.DetailsFormatted.Add(await ChatbotService.FormatMessage(project.Details[i]));
+                project.DetailsFormatted.Add((await ChatbotService.FormatMessage(project.Details[i])).Text);
             }
         }
         

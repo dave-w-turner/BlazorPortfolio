@@ -199,52 +199,77 @@
         };     
 
         window.startMatrixRain = () => {
-            const canvas = document.getElementById('Matrix');
-            const context = canvas.getContext('2d');
+    const canvas = document.getElementById('Matrix');
+    const context = canvas.getContext('2d');
+    
+    const targetDivs = document.getElementsByClassName('profile-glow-ring');
+    const targetElement = targetDivs[0]; 
 
-            // canvas.width = window.innerWidth;
-            // canvas.height = window.innerHeight;
+    const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+    const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const nums = '0123456789';
+    const alphabet = katakana + latin + nums;
 
-            const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
-            const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-            const nums = '0123456789';
+    const fontSize = 16;
+    let columns = 0;
+    const rainDrops = [];
 
-            const alphabet = katakana + latin + nums;
+    const draw = () => {
+        // ==========================================================================
+        // ✨ THE 1:1 RESOLUTION LOCK (THE ULTIMATE FIX)
+        // Dynamically matches canvas coordinates to your CSS tracking size every frame
+        // This removes layout gaps and prevents characters from looking blurry or faint
+        // ==========================================================================
+        if (targetElement) {
+            const currentWidth = targetElement.offsetWidth || 750;
+            const currentHeight = targetElement.offsetHeight || 140;
 
-            const fontSize = 16;
-            const columns = canvas.width/fontSize;
-
-            const rainDrops = [];
-
-            for( let x = 0; x < columns; x++ ) {
-	            rainDrops[x] = 1;
-            }
-
-            const draw = () => {
-	            context.fillStyle = 'rgba(0, 0, 0, 0.05)';
-	            context.fillRect(0, 0, canvas.width, canvas.height);
-	
-	            context.fillStyle = '#00f0ff';
-	            context.font = fontSize + 'px monospace';
-
-	            for(let i = 0; i < rainDrops.length; i++)
-	            {
-		            const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
-		            context.fillText(text, i*fontSize, rainDrops[i]*fontSize);
-		
-		            if(rainDrops[i]*fontSize > canvas.height && Math.random() > 0.975){
-			            rainDrops[i] = 0;
+            if (canvas.width !== currentWidth || canvas.height !== currentHeight) {
+                canvas.width = currentWidth;
+                canvas.height = currentHeight;
+                
+                // Recalculate columns based on the true expanded screen width
+                columns = Math.floor(canvas.width / fontSize);
+                for (let x = 0; x < columns; x++) {
+                    if (rainDrops[x] === undefined) {
+                        rainDrops[x] = Math.floor(Math.random() * (canvas.height / fontSize));
                     }
-		            rainDrops[i]++;
-	            }
+                }
+            }
+        }
 
-                const dataUrl = canvas.toDataURL(); // Converts canvas to a PNG data string
-                const targetDiv = document.getElementsByClassName('profile-glow-ring');
-                targetDiv[0].style.backgroundImage = `url(${dataUrl})`;
-            };
+        // Base fade background layer configuration
+        context.fillStyle = 'rgba(15, 23, 42, 0.05)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
 
-            setInterval(draw, 30);
-        };
+        // ==========================================================================
+        // 🚀 BRIGHTNESS OPTIMIZATION
+        // Increased alpha up to 0.45 to ensure code drops stand out clearly
+        // ==========================================================================
+        context.fillStyle = 'rgba(125, 211, 252, 0.45)'; 
+        context.font = 'bold ' + fontSize + 'px monospace'; // Bold font helps visibility
+
+        for (let i = 0; i < columns; i++) {
+            const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+            context.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+
+            if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                rainDrops[i] = 0;
+            }
+            rainDrops[i]++;
+        }
+
+        const dataUrl = canvas.toDataURL(); 
+        if (targetElement) {
+            targetElement.style.backgroundImage = `url(${dataUrl})`;
+        }
+    };
+
+    // Run the animation loop
+    setInterval(draw, 33);
+};
+
+
     </script>
     <script src="https://unpkg.com"></script>
 </body>

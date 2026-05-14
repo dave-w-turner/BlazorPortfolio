@@ -9,6 +9,7 @@ namespace CorporatePortfolio.Services.DTO
         public string Title { get; set; }
         public string Date { get; set; }
         public List<string> Details { get; set; } = [];
+        public bool HasKeyword { get; set; } = false;
         public List<MarkupString> DetailsFormatted { get; set; } = [];
     }
 }

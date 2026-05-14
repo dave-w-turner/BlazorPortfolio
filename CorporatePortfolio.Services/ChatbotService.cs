@@ -180,9 +180,11 @@
                 return StreamResponseGrok(response);
         }
 
-        public static async Task<MarkupString> FormatMessage(string text, bool isComplete = true, string? specificKeyword = null)
+        public static async Task<FormattedText> FormatMessage(string text, bool isComplete = true, string? specificKeyword = null, bool applyEnhancedKeywordStyling = false)
         {
-            if (string.IsNullOrWhiteSpace(text)) return new MarkupString("");
+            if (string.IsNullOrWhiteSpace(text)) return new FormattedText("");
+
+            var hasKeyword = false;
 
             // Step 1: Strip out unclosed HTML tags to prevent UI flashing
             text = Regex.Replace(text, @"<[^>]*$", "");
@@ -276,6 +278,9 @@
 
             foreach (var kw in sortedKeywords)
             {
+                if (!hasKeyword && formatted.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                    hasKeyword = true;
+
                 string escapedKw = Regex.Escape(kw);
 
                 // Using the "Gold Standard" boundary fix from before
@@ -284,9 +289,9 @@
                 formatted = Regex.Replace(
                     formatted,
                     pattern,
-                    $"<b style=\"color: #7DD3FC; font-weight: bold;\">{kw}</b>",
+                    $"<b {$"{(applyEnhancedKeywordStyling ? "class=\"keyword-highlight\"" : "style=\"color: #7DD3FC; font-weight: bold;\"")}"}>{kw}</b>",
                     RegexOptions.IgnoreCase | RegexOptions.Multiline // Multiline is key here!
-                );
+                );                
             }
 
             // 4.10. Highlight bold Markdown items in Ice Blue (#E0F2FE)
@@ -372,7 +377,7 @@
             // Ensure the font-size matches the wrapper in the Razor markup above
             var finalHtml = $"<div style=\"color: #F8FAFC; line-height: 1.6; font-size: 1.02em;\">{formatted.Trim()}</div>";
 
-            return new MarkupString(finalHtml);
+            return new FormattedText(finalHtml, hasKeyword);
         }
 
         private static async IAsyncEnumerable<string?> StreamResponseOllama(HttpResponseMessage response)
