@@ -1,19 +1,16 @@
-﻿@using CorporatePortfolio.Services.DTO
-@inherits LayoutComponentBase
-@inject IDialogService DialogService
+﻿@inherits LayoutComponentBase
 @inject AppState State
+
 <MudLayout>
     <MudMainContent>
         @Body
     </MudMainContent>  
-    
+
     <ChatWidget />
 
-    <MudThemeProvider @rendermode="InteractiveServer" />
-    <MudDialogProvider @rendermode="InteractiveServer" />
-
-    @* This second provider forces dark mode on anything with the .chat-dark class *@
-    <MudThemeProvider IsDarkMode="true" Theme="_darkTheme" @rendermode="InteractiveServer" />
+    <MudThemeProvider />
+    <MudDialogProvider />
+    <MudThemeProvider IsDarkMode="true" Theme="_darkTheme" />
 </MudLayout>
 
 <div id="blazor-error-ui" data-nosnippet>

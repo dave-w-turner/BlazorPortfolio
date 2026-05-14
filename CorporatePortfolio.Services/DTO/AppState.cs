@@ -7,7 +7,8 @@ namespace CorporatePortfolio.Services.DTO
         // Initialize as an empty list so components don't crash while loading
         public List<ExperienceData> Experiences { get; private set; } = [];
         public event Action<string>? OnSkillSelected;
-
+        public bool IsIndexLoaded { get; set; } = false;
+        public event Action? IndexLoaded;
         public event Action? ExperiencesOnChange;
 
         public async Task InitializeAsync()
@@ -26,6 +27,10 @@ namespace CorporatePortfolio.Services.DTO
             OnSkillSelected?.Invoke(skillName);
         }
 
-        public void NotifyStateChanged() => ExperiencesOnChange?.Invoke();
+        public void NotifyStateChanged()
+        {
+            ExperiencesOnChange?.Invoke();
+            IndexLoaded?.Invoke();
+        }
     }
 }
