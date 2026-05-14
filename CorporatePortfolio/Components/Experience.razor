@@ -17,12 +17,14 @@
             @foreach (var experience in State.Experiences)
             {
                 var idx = State.Experiences.IndexOf(experience);
-                @* Use a unique ID based on the experience object *@
+                @* Keep the outer structure clean for timeline layout styling *@
                 <div id="@($"exp-{idx}")"
                      class="timeline-item @(State.Experiences.IndexOf(experience) == 0 ? "fade-in" : "fade-up")"
                      style="transition-delay: 0.2s;">
                     <div class="timeline-dot">@experience.Date</div>
-                    <div class="customcard">
+
+                    @* MOVE THE GLOW CLASS HERE *@
+                    <div class="customcard @(experience.HasKeyword ? "glowing-container" : "")">
                         <h3><i class="bi bi-briefcase"></i> @experience.Title - @experience.CompanyName</h3>
                         @foreach (var detail in experience.DetailsFormatted)
                         {
@@ -43,7 +45,7 @@
     {
         State.ExperiencesOnChange += HandleStateChange;
         State.OnSkillSelected += PrepareScroll;
-                       
+
         if (State.Experiences == null || !State.Experiences.Any())
         {
             await State.InitializeAsync();

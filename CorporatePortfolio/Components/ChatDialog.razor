@@ -194,7 +194,7 @@
                     firstWord = false;
                 }
                 greetingMsg.Text += chunk;
-                greetingMsg.FormattedText = await ChatbotService.FormatMessage(greetingMsg.Text);
+                greetingMsg.FormattedText = (await ChatbotService.FormatMessage(greetingMsg.Text)).Text;
                 StateHasChanged();
                 await Task.Delay(new Random().Next(160, 280));
             }
@@ -316,7 +316,7 @@
                     }
 
                     var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, aiMsg.IsComplete);
-                    aiMsg.FormattedText = formattedResult;
+                    aiMsg.FormattedText = formattedResult.Text;
 
                     StateHasChanged();
                     await ScrollToBottom();

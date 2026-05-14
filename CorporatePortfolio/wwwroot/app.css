@@ -277,6 +277,14 @@ h1:focus {
         box-shadow: 0 0 10px rgba(125, 211, 252, 0.5);
     }
 
+    #experience .timeline-item:has(.customcard.glowing-container) .timeline-dot {
+        transform: translateY(-8px) !important; /* Adjust pixel value to push higher or lower */
+        background: rgba(125, 211, 252, 0.25) !important; /* Boost background luminance slightly */
+        border-color: #7DD3FC !important;
+        color: #ffffff !important;
+        box-shadow: 0 0 25px rgba(125, 211, 252, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+    }
+
 #experience .timeline-dot {
     position: absolute;
     left: 20px;
@@ -305,6 +313,11 @@ h1:focus {
 #experience .timeline-item:hover .customcard {
     transform: translateX(8px); /* Slightly more pronounced nudge */
     transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    background: rgba(125, 211, 252, 0.25) !important;
+    border-color: #7DD3FC !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 25px rgba(125, 211, 252, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+    cursor: pointer;
 }
 
 #experience .customcard {
@@ -397,12 +410,20 @@ h1:focus {
     z-index: 5;
 }
 
-    #experience .customcard:hover {
-        border-color: rgba(125, 211, 252, 0.3);
-        background: rgba(255, 255, 255, 0.04);
-        transform: translateX(5px); /* Subtle interactive nudge */
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 15px rgba(125, 211, 252, 0.1); /* Subtle theme-colored glow */
+    /* Resting State for standard cards */
+    #experience .customcard:not(.glowing-container) {
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
+
+        /* Hover State for standard cards only - completely isolated via :not() */
+        #experience .customcard:not(.glowing-container):hover {
+            border-color: rgba(125, 211, 252, 0.3);
+            background: rgba(255, 255, 255, 0.04);
+            transform: translateX(5px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 15px rgba(125, 211, 252, 0.1);
+        }
+
+
 
     #experience .customcard .icon {
         position: absolute;
@@ -479,6 +500,18 @@ h1:focus {
         #experience .customcard .subtitle::before {
             content: none !important;
         }
+
+    #experience .customcard.glowing-container,
+    #experience .timeline-item .customcard.glowing-container,
+    #experience .timeline-item:hover .customcard.glowing-container {
+        border: 2px solid #00d2ff !important;
+        background-color: rgba(20, 32, 55, 0.95) !important;
+        /* Premium high-intensity neon bloom spread */
+        box-shadow: inset 0 0 15px rgba(0, 210, 255, 0.25), 0 0 12px rgba(0, 210, 255, 0.65), 0 0 35px rgba(0, 110, 255, 0.40) !important;
+        /* Overrides the translateX translate nudge and keeps it centered */
+        transform: scale(1.01) translateY(-3px) !important;
+        z-index: 50 !important;
+    }
 
 /* Container for the Projects section */
 #projects .grid {
@@ -823,7 +856,8 @@ p {
     left: 0px;
     right: -5px;
     bottom: -5px;
-    border-radius: 50%; 
+    /* 1. RESTORE YOUR OVAL ENGINE SHAPE RADIUS */
+    border-radius: 50% !important;
     z-index: -1;
     filter: blur(1.1px);
     opacity: .6;
@@ -831,6 +865,7 @@ p {
     animation: auraPulseEngine 4s ease-in-out infinite !important;
     box-shadow: 0 0 12px rgba(125, 211, 252, 0.65), 0 0 30px rgba(56, 189, 248, 0.45), 0 0 50px rgba(14, 165, 233, 0.25), inset 0 0 10px rgba(125, 211, 252, 0.35) !important;
 }
+
 
 @keyframes auraPulseEngine {
     0%, 100% {
@@ -855,6 +890,7 @@ p {
     margin: 0 auto 20px auto !important;
     z-index: 10 !important;
 }
+
 
     h1, .profile-container-wrapper + h1, [class*="name"] {
         margin-top: 28px !important;
@@ -1706,15 +1742,13 @@ hr, .separator-line {
 ✨ BIOLUMINESCENT TIMELINE INTERACTION STATE
 =================================================== */
 
-#experience .timeline-item:hover .customcard {
+#experience .timeline-item:hover .customcard:not(.glowing-container) {
     /* Microscale lift + crisp elevation lighting depth pass */
     transform: translateX(8px) scale(1.005) !important;
     border-color: rgba(125, 211, 252, 0.25) !important;
     background: rgba(15, 23, 42, 0.45) !important;
-    /* Double-layer shadow: 1 soft structural shadow + 1 sharp inner neon bloom layer */
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 0 30px rgba(125, 211, 252, 0.04) !important;
 }
-
 #experience .timeline-item:hover .timeline-dot {
     /* Hyper-synchronized velocity slide + complete digital activation state shift */
     transform: translateX(8px) translateY(-1px) !important;
@@ -1834,4 +1868,22 @@ body .mud-dialog-container .mud-dialog.chat-dark,
     letter-spacing: 0.04em !important;
     text-transform: uppercase; /* Optional: Aggressively neat developer aesthetic */
     user-select: none !important; /* Prevents selection cursor artifacts when copying text */
+}
+
+.keyword-highlight {
+    /* 1. Keep the text pure white for maximum crisp readability */
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    /* 2. Create a glowing pill background that fits right inside the text row */
+    background: rgba(125, 211, 252, 0.15) !important;
+    border: 1px solid rgba(125, 211, 252, 0.35) !important;
+    /* 3. Smooth capsule spacing */
+    padding: 1px 6px !important;
+    border-radius: 4px !important;
+    margin: 0 2px !important;
+    /* 4. Soft ambient illumination pass */
+    box-shadow: 0 0 12px rgba(125, 211, 252, 0.2);
+    /* 5. Clean layout flow matching the text sentence */
+    display: inline-block;
+    vertical-align: baseline;
 }
