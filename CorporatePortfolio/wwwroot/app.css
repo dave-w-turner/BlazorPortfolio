@@ -856,32 +856,51 @@ p {
         cursor: pointer;
     }
 
+/*.profile-glow-ring {
+    position: absolute !important;
+    top: 0px !important;*/ /* Reset the offset so it anchors perfectly at the top edge */
+    /*left: 0px !important;
+    right: 0px !important;
+    bottom: 0px !important;
+    width: 100% !important;*/ /* Force full stretch width */
+    /*height: 100% !important;*/ /* Force full height right up to your red line */
+    /*border-radius: 50% !important;
+    z-index: -1 !important;
+    filter: blur(1.1px) !important;
+    opacity: 0.6 !important;
+    transform: none !important;*/ /* Strips out bad scale overrides */
+    /*animation: backgroundPortalWarp 4s ease-in-out infinite !important;
+    box-shadow: 0 0 12px rgba(125, 211, 252, 0.65), 0 0 30px rgba(56, 189, 248, 0.45), 0 0 50px rgba(14, 165, 233, 0.25), inset 0 0 10px rgba(125, 211, 252, 0.35) !important;
+}*/
+
 .profile-glow-ring {
     position: absolute;
     top: -14px;
     left: 0px;
     right: -5px;
     bottom: -5px;
-    /* 1. RESTORE YOUR OVAL ENGINE SHAPE RADIUS */
     border-radius: 50% !important;
     z-index: -1;
-    filter: blur(1.1px);
-    opacity: .6;
-    scale: 1 !important;
-    animation: auraPulseEngine 4s ease-in-out infinite !important;
+    opacity: .6 !important;
+    /* CHANGE: Switch from auraPulseEngine to a synchronized background portal loop */
+    animation: backgroundPortalWarp 4s ease-in-out infinite !important;
     box-shadow: 0 0 12px rgba(125, 211, 252, 0.65), 0 0 30px rgba(56, 189, 248, 0.45), 0 0 50px rgba(14, 165, 233, 0.25), inset 0 0 10px rgba(125, 211, 252, 0.35) !important;
 }
 
-
-@keyframes auraPulseEngine {
+@keyframes backgroundPortalWarp {
     0%, 100% {
-        scale: 1 !important; /* Perfectly default diameter placement */
-        opacity: 0.75 !important; /* Soft ambient emission baseline */
+        transform: scale(1.0);
+        opacity: 0.6;
+        /* Crisp, localized energy baseline resting against canvas text grid */
+        filter: blur(1px) drop-shadow(0 0 0px rgba(125, 211, 252, 0));
     }
 
     50% {
-        scale: 1.08 !important; /* Forces a clear visual breath outward */
-        opacity: 1 !important; /* Surges ring to peak brightness */
+        /* When your headshot hits peak forward float, warp the back background wide */
+        transform: scale(1.18);
+        opacity: 0.9;
+        /* Distorts the aura fog out behind your skull profile layer */
+        filter: blur(2px) drop-shadow(0 0 20px rgba(125, 211, 252, 0.6));
     }
 }
 
@@ -905,25 +924,30 @@ p {
         color: #ffffff !important;
     }
 
-
     .profile-container-wrapper .profile-img {
         position: absolute !important;
         top: 50% !important;
         left: 50% !important;
-        width: 125px !important; /* Reduced from 180px to stop clipping top/bottom */
-        height: 125px !important; /* Kept perfectly square for true circular radius */
-        margin-left: -62.5px !important; /* Half of width for exact alignment */
-        margin-top: -62.5px !important; /* Half of height for exact alignment */
+        width: 125px !important;
+        height: 125px !important;
+        margin-left: -62.5px !important;
+        margin-top: -62.5px !important;
         border-radius: 50% !important;
-        border: 2px solid rgba(255, 255, 255, 0.1) !important; /* Soft framing border */
+        border: 1.5px solid rgba(125, 211, 252, 0.2) !important;
+        box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8), 0 0 10px rgba(56, 189, 248, 0.15) !important;
         z-index: 5 !important;
+        will-change: transform, filter;
+        /* EXPLICIT BREAKOUT: Guarantees both animations load and fire sequentially */
+        animation-name: warpEntrance, floatAndGlow !important;
+        animation-duration: 1.5s, 4s !important;
+        animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1), ease-in-out !important;
+        animation-delay: 0s, 1.5s !important; /* Delays float loop until entrance finishes */
+        animation-iteration-count: 1, infinite !important; /* Entrance runs once, float loops forever */
+        animation-direction: normal, normal !important;
+        animation-fill-mode: both, none !important;
+        mix-blend-mode: screen !important;
     }
 
-/* ===================================================================
-✨ STAGE 2: THE NEW AMBIENT BIOLUMINESCENT SHIMMER LOOP
-   Slowly alters the blur density and opacity levels to make the colors 
-   appear to ripple and breathe smoothly behind the photo frame
-=================================================================== */
 @keyframes bioluminescentShimmer {
     0% {
         filter: blur(34px) drop-shadow(0 0 10px rgba(125, 211, 252, 0.05)) !important;
@@ -943,22 +967,65 @@ p {
     }
 }
 
-
-
-/* ===================================================================
-👤 LEAVE THE ORIGINAL ANIMATION UNTOUCHED FOR YOUR PORTRAIT PHOTO
-=================================================================== */
-/* This ensures line 807 (.profile-img) keeps its perfect, crisp 1:1 scale ratios */
 @keyframes floatAndGlow {
     0%, 100% {
         transform: scale(1.1) translateY(0px);
+        /* Resting State: Lowered to 0.36 so the background code stream is highly visible through you */
+        opacity: 0.36 !important;
+        /* Boosted contrast to 1.25 to prevent facial details from washing out at low opacity */
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)) brightness(0.82) contrast(1.25) saturate(0.70);
     }
 
     50% {
-        transform: scale(1.1) translateY(-12px);
+        transform: scale(1.18) translateY(-6px);
+        /* Active State: Rises to 0.52 as you float forward, sharpening the hologram projection */
+        opacity: 0.52 !important;
+        filter: drop-shadow(0 14px 12px rgba(0, 0, 0, 0.75)) brightness(0.92) contrast(1.28) saturate(0.80);
     }
 }
 
+@keyframes warpEntrance {
+    0% {
+        /* Hidden deep in the canvas data stream: miniature, pixelated, and blinding cyan light */
+        transform: scale(0.0) rotate(-15deg) translateY(30px);
+        filter: blur(30px) brightness(5) hue-rotate(90deg) contrast(3);
+        opacity: 0;
+    }
+
+    30% {
+        /* Digital snap: Explodes forward into a horizontally stretched wide scanning line */
+        transform: scaleX(2.2) scaleY(0.05) translateY(-20px);
+        filter: blur(4px) brightness(3) hue-rotate(45deg);
+        opacity: 0.7;
+    }
+
+    45% {
+        /* Dimensional twist: Compresses back tightly while throwing color artifacts */
+        transform: scaleX(0.4) scaleY(1.8) translateY(10px);
+        filter: blur(6px) brightness(2.5) hue-rotate(-30deg) contrast(2);
+        opacity: 0.9;
+    }
+
+    65% {
+        /* Hologram stabilize: Resolves close to its correct layout tracking proportions but vibrates slightly */
+        transform: scaleX(1.3) scaleY(0.85) translateY(-5px);
+        filter: blur(2px) brightness(1.4) hue-rotate(0deg);
+        opacity: 1;
+    }
+
+    82% {
+        /* Micro-adjustment rebound step */
+        transform: scaleX(0.95) scaleY(1.05) translateY(2px);
+        filter: blur(0.5px) brightness(1.1);
+    }
+
+    100% {
+        transform: scale(1.1) translateY(0px);
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)) blur(0px) brightness(0.82);
+        /* Seamless, flicker-free handoff to the 0% floatAndGlow marker */
+        opacity: 0.36 !important;
+    }
+}
 
 
 @keyframes shimmerSweep {
