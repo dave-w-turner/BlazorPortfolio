@@ -4,7 +4,7 @@
 @inject ResumeService resumeService
 @inject IJSRuntime JS
 @inject AppState State
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <div class="section" id="skills">
     <h2>Core Expertise</h2>
