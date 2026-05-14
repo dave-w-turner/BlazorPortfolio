@@ -58,18 +58,18 @@
 
     private async void PrepareScroll(string skillName)
     {
-        // Look at the RAW Details to find the match, not the HTML-formatted ones
         var target = State.Experiences.FirstOrDefault(e =>
             e.Details.Any(d => d.Contains(skillName, StringComparison.OrdinalIgnoreCase)));
 
         if (target != null)
         {
             int index = State.Experiences.IndexOf(target);
-            var targetId = $"exp-{index}";
 
-            await InvokeAsync(async () =>
+            // Use the dispatcher to safely set the variable and trigger a new render phase
+            await InvokeAsync(() =>
             {
-                await JS.InvokeVoidAsync("scrollToElement", targetId);
+                _pendingScrollElementId = $"exp-{index}";
+                StateHasChanged(); // This forces OnAfterRenderAsync to execute
             });
         }
     }
@@ -93,11 +93,11 @@
             await JS.InvokeVoidAsync("initScrollAnimations");
         }
 
-        // Execute scroll only AFTER a render has happened and we have a target
+        // 3. This block will now successfully catch the ID after render finishes
         if (!string.IsNullOrEmpty(_pendingScrollElementId))
         {
             var id = _pendingScrollElementId;
-            _pendingScrollElementId = null; // Clear it so it doesn't loop
+            _pendingScrollElementId = null; 
             await JS.InvokeVoidAsync("scrollToElement", id);
         }
     }

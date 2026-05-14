@@ -177,99 +177,110 @@
             bindTargets();
         };
 
-
         window.scrollToElement = (elementId) => {
-            const element = document.getElementById(elementId);
-            if (element) {
-                // 1. Get the position of the element relative to the document
-                const yOffset = -100; // Adjust this number (e.g., -150) to push the view higher up
-                const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            // Wrap in frame request to ensure Blazor has finished updating the DOM painting
+            requestAnimationFrame(() => {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    const yOffset = -100; // Space for fixed navbar header
+            
+                    // Calculate absolute position down the page safely, bypassing parent constraints
+                    let targetY = 0;
+                    let currentElement = element;
+                    while (currentElement) {
+                        targetY += currentElement.offsetTop;
+                        currentElement = currentElement.offsetParent;
+                    }
+            
+                    const finalScrollPosition = targetY + yOffset;
 
-                // 2. Perform the smooth scroll to that specific coordinate
-                window.scrollTo({
-                    top: y,
-                    behavior: 'smooth'
-                });
+                    // Perform the smooth scroll
+                    window.scrollTo({
+                        top: finalScrollPosition,
+                        behavior: 'smooth'
+                    });
 
-                // 3. Optional: Visual "You are here" feedback
-                element.style.transition = "filter 0.5s ease";
-                element.style.filter = "brightness(1.4) saturate(1.2)";
-                setTimeout(() => element.style.filter = "", 1000);
-            }
-        };     
+                    // Highlight animation feedback
+                    element.style.transition = "filter 0.5s ease, transform 0.5s ease";
+                    element.style.filter = "brightness(1.3) saturate(1.2)";
+            
+                    setTimeout(() => {
+                        element.style.filter = "";
+                    }, 1200);
+                }
+            });
+        }; 
 
         window.startMatrixRain = () => {
-    const canvas = document.getElementById('Matrix');
-    const context = canvas.getContext('2d');
+            const canvas = document.getElementById('Matrix');
+            const context = canvas.getContext('2d');
     
-    const targetDivs = document.getElementsByClassName('profile-glow-ring');
-    const targetElement = targetDivs[0]; 
+            const targetDivs = document.getElementsByClassName('profile-glow-ring');
+            const targetElement = targetDivs[0]; 
 
-    const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
-    const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const nums = '0123456789';
-    const alphabet = katakana + latin + nums;
+            const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+            const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const nums = '0123456789';
+            const alphabet = katakana + latin + nums;
 
-    const fontSize = 16;
-    let columns = 0;
-    const rainDrops = [];
+            const fontSize = 16;
+            let columns = 0;
+            const rainDrops = [];
 
-    const draw = () => {
-        // ==========================================================================
-        // ✨ THE 1:1 RESOLUTION LOCK (THE ULTIMATE FIX)
-        // Dynamically matches canvas coordinates to your CSS tracking size every frame
-        // This removes layout gaps and prevents characters from looking blurry or faint
-        // ==========================================================================
-        if (targetElement) {
-            const currentWidth = targetElement.offsetWidth || 750;
-            const currentHeight = targetElement.offsetHeight || 140;
+            const draw = () => {
+                // ==========================================================================
+                // ✨ THE 1:1 RESOLUTION LOCK (THE ULTIMATE FIX)
+                // Dynamically matches canvas coordinates to your CSS tracking size every frame
+                // This removes layout gaps and prevents characters from looking blurry or faint
+                // ==========================================================================
+                if (targetElement) {
+                    const currentWidth = targetElement.offsetWidth || 750;
+                    const currentHeight = targetElement.offsetHeight || 140;
 
-            if (canvas.width !== currentWidth || canvas.height !== currentHeight) {
-                canvas.width = currentWidth;
-                canvas.height = currentHeight;
+                    if (canvas.width !== currentWidth || canvas.height !== currentHeight) {
+                        canvas.width = currentWidth;
+                        canvas.height = currentHeight;
                 
-                // Recalculate columns based on the true expanded screen width
-                columns = Math.floor(canvas.width / fontSize);
-                for (let x = 0; x < columns; x++) {
-                    if (rainDrops[x] === undefined) {
-                        rainDrops[x] = Math.floor(Math.random() * (canvas.height / fontSize));
+                        // Recalculate columns based on the true expanded screen width
+                        columns = Math.floor(canvas.width / fontSize);
+                        for (let x = 0; x < columns; x++) {
+                            if (rainDrops[x] === undefined) {
+                                rainDrops[x] = Math.floor(Math.random() * (canvas.height / fontSize));
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        // Base fade background layer configuration
-        context.fillStyle = 'rgba(15, 23, 42, 0.05)';
-        context.fillRect(0, 0, canvas.width, canvas.height);
+                // Base fade background layer configuration
+                context.fillStyle = 'rgba(15, 23, 42, 0.05)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
 
-        // ==========================================================================
-        // 🚀 BRIGHTNESS OPTIMIZATION
-        // Increased alpha up to 0.45 to ensure code drops stand out clearly
-        // ==========================================================================
-        context.fillStyle = 'rgba(125, 211, 252, 0.45)'; 
-        context.font = 'bold ' + fontSize + 'px monospace'; // Bold font helps visibility
+                // ==========================================================================
+                // 🚀 BRIGHTNESS OPTIMIZATION
+                // Increased alpha up to 0.45 to ensure code drops stand out clearly
+                // ==========================================================================
+                context.fillStyle = 'rgba(125, 211, 252, 0.45)'; 
+                context.font = 'bold ' + fontSize + 'px monospace'; // Bold font helps visibility
 
-        for (let i = 0; i < columns; i++) {
-            const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
-            context.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+                for (let i = 0; i < columns; i++) {
+                    const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                    context.fillText(text, i * fontSize, rainDrops[i] * fontSize);
 
-            if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                rainDrops[i] = 0;
-            }
-            rainDrops[i]++;
-        }
+                    if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        rainDrops[i] = 0;
+                    }
+                    rainDrops[i]++;
+                }
 
-        const dataUrl = canvas.toDataURL(); 
-        if (targetElement) {
-            targetElement.style.backgroundImage = `url(${dataUrl})`;
-        }
-    };
+                const dataUrl = canvas.toDataURL(); 
+                if (targetElement) {
+                    targetElement.style.backgroundImage = `url(${dataUrl})`;
+                }
+            };
 
-    // Run the animation loop
-    setInterval(draw, 33);
-};
-
-
+            // Run the animation loop
+            setInterval(draw, 33);
+        };
     </script>
     <script src="https://unpkg.com"></script>
 </body>
