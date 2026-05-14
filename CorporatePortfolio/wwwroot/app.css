@@ -803,15 +803,21 @@ html {
     padding: 0;
 }
 
-body {
-    margin: 0px;
-    padding: 0px;
+body, html, #app {
+    /* 1. Ensure the layout container spans the complete window height */
+    min-height: 100vh !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow-x: hidden;
-    font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg, #0f172a, #020617);
-    color: white;
-    display: block;
+
+    /* 2. Configure the background properties to scale dynamically */
+    background: linear-gradient(135deg, #0f172a 0%, #020617 100%) !important;
+    background-attachment: fixed !important; /* Locks the gradient in place during scrolling */
+    background-repeat: no-repeat !important;
+    background-size: cover !important;
 }
+
 
 h1, h2 {
     color: white;
