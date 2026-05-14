@@ -803,26 +803,22 @@ h1:focus {
             color: #94a3b8;
         }
 
-html {
-    margin: 0 !important;
-    padding: 0;
-}
-
 body, html, #app {
-    /* 1. Ensure the layout container spans the complete window height */
-    min-height: 100vh !important;
-    height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow-x: hidden;
 
-    /* 2. Configure the background properties to scale dynamically */
     background: linear-gradient(135deg, #0f172a 0%, #020617 100%) !important;
     background-attachment: fixed !important; /* Locks the gradient in place during scrolling */
     background-repeat: no-repeat !important;
     background-size: cover !important;
 }
 
+#app {
+    min-height: 100vh !important;
+    height: 100% !important;
+    /* Keep overflow restrictions safely locked inside the app wrapper container */
+    overflow-x: hidden;
+}
 
 h1, h2 {
     color: white;
