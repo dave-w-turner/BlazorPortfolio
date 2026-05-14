@@ -253,7 +253,6 @@ h1:focus {
     box-sizing: border-box !important;
 }
 
-
     #experience .timeline-item::before {
         content: '' !important;
         display: block !important;
@@ -283,8 +282,9 @@ h1:focus {
     }
 
     #experience .timeline-item:has(.customcard.glowing-container) .timeline-dot {
-        transform: translateY(-8px) !important; /* Adjust pixel value to push higher or lower */
-        background: rgba(125, 211, 252, 0.25) !important; /* Boost background luminance slightly */
+        top: 0px !important;
+        transform: translateX(20px) translateY(-16px) !important;
+        background: rgba(125, 211, 252, 0.25) !important;
         border-color: #7DD3FC !important;
         color: #ffffff !important;
         box-shadow: 0 0 25px rgba(125, 211, 252, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
@@ -325,6 +325,49 @@ h1:focus {
     cursor: pointer;
 }
 
+    #experience .customcard.glowing-container,
+    #experience .timeline-item.customcard.glowing-container,
+    #experience .timeline-item:hover .customcard.glowing-container {
+        border: 2px solid #00d2ff !important;
+        background-color: rgba(20, 32, 55, 0.95) !important;
+        box-shadow: inset 0 0 15px rgba(0, 210, 255, 0.25), 0 0 12px rgba(0, 210, 255, 0.65), 0 0 35px rgba(0, 110, 255, 0.40) !important;
+        transform-origin: bottom center !important;
+        z-index: 50 !important;
+    }
+
+    #experience .customcard.glowing-container,
+    #experience .timeline-item.customcard.glowing-container,
+    #experience .timeline-item:hover .customcard.glowing-container {
+        border: 2px solid #00d2ff !important;
+        background-color: rgba(20, 32, 55, 0.95) !important;
+        box-shadow: inset 0 0 15px rgba(0, 210, 255, 0.25), 0 0 12px rgba(0, 210, 255, 0.65), 0 0 35px rgba(0, 110, 255, 0.40) !important;
+        transform-origin: bottom center !important;
+        z-index: 50 !important;
+    }
+
+#experience .timeline-item:has(.customcard.glowing-container) .timeline-dot {
+    transform: translateX(-0.5px) translateY(18px) !important;
+    background: rgba(125, 211, 252, 0.25) !important;
+    border-color: #7DD3FC !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 25px rgba(125, 211, 252, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+#experience .timeline-item:has(.customcard.glowing-container):hover .timeline-dot {
+    /* Preserves the desktop right-side nudge (8px) and lifts it 2px on the Y-axis */
+    transform: translateX(8px) translateY(13px) !important;
+    transition: transform 0.5s cubic-bezier(0.2, 1, 0.2, 1) !important;
+}
+
+#experience .timeline-item:hover .customcard.glowing-container {
+    transform: translateX(8px) translateY(-2px) !important;
+}
+
+#experience .timeline-item:has(.customcard.glowing-container):hover::after {
+    transform: translateX(-50%) !important; /* 0.1.39 */
+    transition: transform 0.5s cubic-bezier(0.2, 1, 0.2, 1) !important; /* 0.1.40 */
+}
+
 #experience .customcard {
     margin-top: -12px !important; /* Snaps it right behind the glow */
     width: 100% !important;
@@ -363,9 +406,8 @@ h1:focus {
 }
 
 #experience .timeline-item:hover .timeline-dot {
-    top: -4px !important; /* Locks vertical alignment */
-    /* Aligns badge translation variables perfectly with your idle desktop states */
-    transform: translateX(-2px) !important;
+    transform: translateX(8px) translateY(-2px) !important;
+    transition: transform 0.5s cubic-bezier(0.2, 1, 0.2, 1) !important;
     background: rgba(125, 211, 252, 0.2) !important;
     box-shadow: 0 0 20px rgba(125, 211, 252, 0.5) !important;
 }
@@ -427,8 +469,6 @@ h1:focus {
             transform: translateX(5px);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 15px rgba(125, 211, 252, 0.1);
         }
-
-
 
     #experience .customcard .icon {
         position: absolute;
@@ -505,18 +545,6 @@ h1:focus {
         #experience .customcard .subtitle::before {
             content: none !important;
         }
-
-    #experience .customcard.glowing-container,
-    #experience .timeline-item .customcard.glowing-container,
-    #experience .timeline-item:hover .customcard.glowing-container {
-        border: 2px solid #00d2ff !important;
-        background-color: rgba(20, 32, 55, 0.95) !important;
-        /* Premium high-intensity neon bloom spread */
-        box-shadow: inset 0 0 15px rgba(0, 210, 255, 0.25), 0 0 12px rgba(0, 210, 255, 0.65), 0 0 35px rgba(0, 110, 255, 0.40) !important;
-        /* Overrides the translateX translate nudge and keeps it centered */
-        transform: scale(1.01) translateY(-3px) !important;
-        z-index: 50 !important;
-    }
 
 /* Container for the Projects section */
 #projects .grid {
@@ -1533,31 +1561,36 @@ hr, .separator-line {
             display: flex !important;
             min-width: 0 !important;
         }
+
+    #experience .timeline-item:hover .customcard:not(.glowing-container) {
+        transform: translateX(6px) !important;
+    }
 }
 
 /* ===================================================
    Unified Mobile View Override (Identical to Big Screen)
 =================================================== */
 @media (max-width: 991px) {
-    /* 1. FORCE CONTAINER BACK TO STANDARD VERTICAL BLOCK FLOW */
+    /* 1. CONTAINER BLOCK SETUP */
     #experience .timeline-item {
         position: relative !important;
-        display: block !important;
+        display: block !important; /* Disables flex layout calculation conflicts */
         padding-left: 0 !important;
-        padding-bottom: 50px !important;
+        padding-top: 24px !important; /* Creates spatial clearance for the absolute date capsule */
+        padding-bottom: 25px !important;
         margin-bottom: 0 !important;
         width: 100% !important;
         box-sizing: border-box !important;
     }
 
-        /* 2. KEEP THE UNBROKEN TIMELINE SPINE LINE AT DESKTOP POSITION */
+        /* 2. THE UNBROKEN TIMELINE SPINE LINE */
         #experience .timeline-item::before {
             content: '' !important;
             display: block !important;
             position: absolute !important;
-            left: 20px !important; /* Fixed gutter position matching desktop */
-            top: 0 !important;
+            left: 20px !important;
             bottom: 0 !important;
+            top: 0 !important;
             width: 2px !important;
             background: rgba(125, 211, 252, 0.2) !important;
             z-index: 1 !important;
@@ -1569,7 +1602,7 @@ hr, .separator-line {
             content: '' !important;
             position: absolute !important;
             left: 20px !important;
-            top: 15px !important; /* Keeps axial alignment with the date pill */
+            top: 14px !important; /* Synchronizes intersection nodes directly with desktop view rules */
             width: 10px !important;
             height: 10px !important;
             background: #7DD3FC !important;
@@ -1580,65 +1613,81 @@ hr, .separator-line {
             box-shadow: 0 0 10px rgba(125, 211, 252, 0.6) !important;
         }
 
-    /* 4. RESTORE DESKTOP DATE PILL INDENTATION AND CAPSULE STYLE */
-    #experience .timeline-dot {
-        position: relative !important;
-        left: 0 !important;
-        top: 0 !important;
-        display: inline-block !important;
-        width: max-content !important;
-        white-space: nowrap !important;
-        margin-left: 45px !important; /* Keeps it shifted right of the spine */
-        margin-top: -4px !important;
-        margin-bottom: 0px !important;
-        transform: none !important;
-        background: rgba(15, 23, 42, 0.6) !important;
-        border: 1px solid rgba(125, 211, 252, 0.15) !important;
-        padding: 6px 14px !important;
-        border-radius: 30px !important; /* Premium Pill Shape */
-        color: rgba(125, 211, 252, 0.75) !important;
-        font-size: 0.8rem !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.05em !important;
-        z-index: 30 !important;
+        /* 4. DATE PILL (ABSOLUTE POSITIONING FOR TRUE OVERLAP) */
+        #experience .timeline-item .timeline-dot {
+            position: absolute !important; /* Removes the element footprint from block constraint calculations */
+            left: 30px !important; /* Aligns exactly with your target card horizontal edge */
+            top: 20px !important; /* Locks asset container flush to the top area */
+            display: inline-block !important;
+            width: max-content !important;
+            white-space: nowrap !important;
+            margin: 0 !important; /* Sweeps out conflicting layout spacing instructions */
+            transform: none !important;
+            background: rgba(15, 23, 42, 0.6) !important;
+            border: 1px solid rgba(125, 211, 252, 0.15) !important;
+            padding: 6px 14px !important;
+            border-radius: 30px !important;
+            color: rgba(125, 211, 252, 0.75) !important;
+            font-size: 0.8rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.05em !important;
+            z-index: 30 !important; /* Ensures the capsule border tracks over the top card slice */
+        }
+
+        /* 5. CARD COMPONENT SNAP */
+        #experience .timeline-item .customcard {
+            margin-top: 29px !important; /* Handled safely via section step 1 padding setups */
+            margin-left: 50px !important;
+            width: calc(100% - 50px) !important;
+            padding: 24px 20px !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+            z-index: 5 !important;
+            background: rgba(3, 7, 18, 0.4) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.02) !important;
+            border-radius: 12px !important;
+        }
+
+    /* 6. FORCE BULLET POINT STRUCTURAL OVERRIDES */
+    #experience .customcard h3,
+    #experience .customcard p {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
     }
 
-    /* 5. RESTORE DESKTOP EXPERIENCE CARD POSITIONING & PADDING */
-    #experience .customcard {
-        margin-top: 0px !important;
-        margin-left: 60px !important; /* Fixed left indentation gap */
-        width: calc(100% - 60px) !important;
-        padding: 30px 30px !important; /* Prevents tightening on small screens */
-        box-sizing: border-box !important;
-        position: relative !important;
-        z-index: 5 !important;
-        background: rgba(3, 7, 18, 0.4) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.02) !important;
-        border-radius: 12px !important;
+    #experience .timeline-item .customcard h3 {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+        margin-bottom: 16px !important;
     }
 
-        /* 6. FORCE BULLET POINT STRUCTURAL OVERRIDES */
-        #experience .customcard h3,
-        #experience .customcard p {
-            margin-left: 0 !important;
-            padding-left: 0 !important;
-        }
+    #experience .timeline-item .customcard p {
+        margin-left: 15px !important;
+        padding-left: 15px !important;
+        margin-bottom: 12px !important;
+        width: calc(100% - 15px) !important;
+    }
 
-        #experience .customcard h3 {
-            display: flex !important;
-            align-items: center !important;
-            gap: 12px !important;
-            margin-bottom: 20px !important;
-        }
+    #experience .timeline-item:hover .customcard:not(.glowing-container) {
+        /* Microscale lift + crisp elevation lighting depth pass */
+        transform: translateX(5px) scale(1.005) !important;
+        border-color: rgba(125, 211, 252, 0.25) !important;
+        background: rgba(15, 23, 42, 0.45) !important;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 0 30px rgba(125, 211, 252, 0.04) !important;
+    }
 
-        #experience .customcard p {
-            margin-left: 20px !important;
-            padding-left: 24px !important;
-            margin-bottom: 12px !important;
-            width: calc(100% - 20px) !important;
-        }
+    #experience .customcard.glowing-container, #experience .timeline-item.customcard.glowing-container, #experience .timeline-item:hover .customcard.glowing-container {
+        border: 2px solid #00d2ff !important;
+        background-color: rgba(20, 32, 55, 0.95) !important;
+        box-shadow: inset 0 0 15px rgba(0, 210, 255, 0.25), 0 0 12px rgba(0, 210, 255, 0.65), 0 0 35px rgba(0, 110, 255, 0.40) !important;
+        transform-origin: bottom center !important;
+        z-index: 50 !important;
+    }
 
     .mud-dialog {
         position: fixed !important;
@@ -1691,7 +1740,7 @@ hr, .separator-line {
             display: block !important;
             position: absolute !important;
             left: 20px !important; /* Anchors the vertical line inside the left gutter area */
-            top: 0 !important;
+            top: 0px !important;
             bottom: 0 !important;
             width: 2px !important;
             background: rgba(125, 211, 252, 0.2) !important;
@@ -1718,7 +1767,7 @@ hr, .separator-line {
     #experience .timeline-dot {
         position: relative !important;
         left: 0 !important;
-        top: 0 !important;
+        top: 20px !important;
         display: inline-block !important;
         width: max-content !important;
         white-space: nowrap !important;
@@ -1742,6 +1791,7 @@ hr, .separator-line {
 
     /* 5. KEEP THE CARD POSITION LOCKED */
     #experience .customcard {
+        top: 20px !important;
         margin-top: 0px !important;
         margin-left: 60px !important;
         width: calc(100% - 60px) !important;
@@ -1807,14 +1857,15 @@ hr, .separator-line {
 
 #experience .timeline-item:hover .customcard:not(.glowing-container) {
     /* Microscale lift + crisp elevation lighting depth pass */
-    transform: translateX(8px) scale(1.005) !important;
+    transform: translateX(8px) !important;
     border-color: rgba(125, 211, 252, 0.25) !important;
     background: rgba(15, 23, 42, 0.45) !important;
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 0 30px rgba(125, 211, 252, 0.04) !important;
 }
+
 #experience .timeline-item:hover .timeline-dot {
     /* Hyper-synchronized velocity slide + complete digital activation state shift */
-    transform: translateX(8px) translateY(-1px) !important;
+    transform: translateX(8px) translateY(-7px) !important;
     background: rgba(125, 211, 252, 0.16) !important;
     border-color: #7DD3FC !important;
     color: #ffffff !important;
