@@ -18,13 +18,20 @@ namespace CorporatePortfolio.Services.DTO
             foreach (var exp in Experiences)
                 foreach (var detail in exp.Details)
                     exp.DetailsFormatted.Add(new MarkupString(detail));
-
-            NotifyStateChanged();
         }
 
         public void SelectSkill(string skillName)
         {
             OnSkillSelected?.Invoke(skillName);
+        }
+
+        public void UpdateIndexLoadingState(bool isLoaded)
+        {
+            if (IsIndexLoaded != isLoaded)
+            {
+                IsIndexLoaded = isLoaded;
+                NotifyStateChanged();
+            }
         }
 
         public void NotifyStateChanged()

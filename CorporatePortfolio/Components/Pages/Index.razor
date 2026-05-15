@@ -12,17 +12,12 @@
 <Footer />
 
 @code {
-    protected override async Task OnInitializedAsync()
-    {
-        State.IsIndexLoaded = true;
-        State.NotifyStateChanged();
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await JSRuntime.InvokeVoidAsync("initScrollAnimations");
+            State.UpdateIndexLoadingState(true);
         }
     }
 }
