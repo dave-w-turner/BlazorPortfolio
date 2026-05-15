@@ -1,4 +1,5 @@
-﻿@inherits LayoutComponentBase
+﻿@using CorporatePortfolio.Components
+@inherits LayoutComponentBase
 @inject AppState State
 
 @* CRITICAL FIXED SECTION: Explicitly mark layout providers as interactive *@
@@ -6,6 +7,8 @@
 <MudDialogProvider @rendermode="InteractiveServer" />
 <MudSnackbarProvider @rendermode="InteractiveServer" />
 <MudPopoverProvider @rendermode="InteractiveServer" />
+
+<Loading />
 
 <MudLayout>
     <MudMainContent>
@@ -32,8 +35,10 @@
         }
     };
 
+    private bool _isSubscribed = false;
+
     protected override async Task OnInitializedAsync()
     {
         await State.InitializeAsync();
-    }
+    }   
 }

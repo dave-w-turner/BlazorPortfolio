@@ -1,0 +1,43 @@
+﻿@rendermode InteractiveServer
+@inject AppState State
+
+<div style="position: absolute; top: 0; left: 0; z-index: 9999; width: 100%; height: 100%;
+    pointer-events: @(IsAnimationHidden ? "none" : "all");
+    visibility: @(IsAnimationHidden ? "hidden" : "visible");
+    opacity: @(IsAnimationHidden ? 0 : 1);
+    transition: opacity 0.4s ease, visibility 0.4s ease;">
+    <dotlottie-wc src="mangemant.lottie" autoplay loop style="width: 100%; height: 100%;"></dotlottie-wc>
+</div>
+
+@code {
+    private bool IsAnimationHidden { get; set; } = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Subscribes cleanly inside an explicitly interactive component pipeline
+            State.IndexLoaded += RefreshLoaderState;
+
+            // Immediately catch state if page rendering completes before initialization
+            if (State.IsIndexLoaded)
+            {
+                RefreshLoaderState();
+            }
+        }
+    }
+
+    private void RefreshLoaderState()
+    {
+        InvokeAsync(() =>
+        {
+            IsAnimationHidden = State.IsIndexLoaded;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        State.IndexLoaded -= RefreshLoaderState;
+    }
+}
