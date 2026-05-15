@@ -2,6 +2,8 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IJSRuntime JSRuntime
 @inject AppState State
+@inject PersistentComponentState ApplicationState
+@implements IDisposable
 @using CorporatePortfolio.Services
 
 <Header />
@@ -12,12 +14,36 @@
 <Footer />
 
 @code {
+    private PersistingComponentStateSubscription _subscription;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if the state survived the pre-render transfer pipeline
+        if (ApplicationState.TryTakeFromJson<bool>("isLoadedState", out var restoredState))
+        {
+            State.UpdateIndexLoadingState(restoredState);
+        }
+
+        _subscription = ApplicationState.RegisterOnPersisting(PersistData);
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && !State.IsIndexLoaded)
         {
             await JSRuntime.InvokeVoidAsync("initScrollAnimations");
             State.UpdateIndexLoadingState(true);
         }
+    }
+
+    private Task PersistData()
+    {
+        ApplicationState.PersistAsJson("isLoadedState", true);
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _subscription.Dispose();
     }
 }
