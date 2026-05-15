@@ -759,7 +759,6 @@ h1:focus {
 /* --- Technical Footer Section --- */
 #built-with {
     margin-top: 100px;
-    padding: 60px 0;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     text-align: center;
 }
@@ -779,7 +778,7 @@ h1:focus {
         justify-content: center;
         align-items: center;
         gap: 40px;
-        margin-top: 40px !important;
+        margin-top: 0px !important;
         padding-bottom: 20px !important;
         width: 100% !important;
     }
@@ -829,6 +828,10 @@ h1:focus {
             font-size: 0.8rem;
             font-family: 'Consolas', monospace;
             color: #94a3b8;
+        }
+
+        #built-with .section {
+            padding: 60px 0px !important
         }
 
 body, html, #app {
@@ -2064,4 +2067,12 @@ body .mud-dialog-container .mud-dialog.chat-dark,
         transform: none !important;
         margin: 0 !important;
     }
+}
+
+.rad-logo {
+    height: 200px;
+    width: 200px;
+    position: absolute;
+    left: 0;
+    max-width: none;
 }
