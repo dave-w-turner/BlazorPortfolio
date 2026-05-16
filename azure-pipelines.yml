@@ -18,7 +18,7 @@ steps:
   - task: DotNetCoreCLI@2
     displayName: 'Restore Packages'
     inputs:
-      azureSubscription: 'Azure subscription 1(0d9eff65-1b86-4467-a230-fc35f2dcacec)'
+      azureSubscription: 'Azure'
       command: 'restore'
       projects: '**/CorporatePortfolio.slnx'
       feedsToUse: 'select'
@@ -26,13 +26,13 @@ steps:
   - task: DotNetCoreCLI@2
     displayName: 'Build Solution'
     inputs:
-      azureSubscription: 'Azure subscription 1(0d9eff65-1b86-4467-a230-fc35f2dcacec)'
+      azureSubscription: 'Azure'
       command: 'build'
       projects: '**/CorporatePortfolio.slnx'
   - task: DotNetCoreCLI@2
     displayName: 'Publish Solution'
     inputs:
-      azureSubscription: 'Azure subscription 1(0d9eff65-1b86-4467-a230-fc35f2dcacec)'
+      azureSubscription: 'Azure'
       command: 'publish'
       projects: '**/CorporatePortfolio.slnx'
       publishWebProjects: false
