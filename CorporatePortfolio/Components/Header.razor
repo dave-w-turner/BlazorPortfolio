@@ -1,5 +1,28 @@
-﻿@rendermode @(new InteractiveServerRenderMode(prerender: false))
+﻿@using CorporatePortfolio.Components.Authentication
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IJSRuntime JS
+
+<div class="portfolio-header-actions">
+    <CascadingAuthenticationState>
+        <AuthorizeView>
+            <Authorized>
+                <form action="Account/Logout" method="post" class="m-0 p-0">
+                    <AntiforgeryToken />
+                    <button type="submit" class="btn-dashboard-logout">
+                        <i class="bi bi-box-arrow-right me-2"></i>Sign Out
+                    </button>
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <button class="btn-dashboard-login" @onclick="() => showLogin = true">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                </button>
+            </NotAuthorized>
+        </AuthorizeView>
+    </CascadingAuthenticationState>
+</div>
+
+<ProviderList @bind-IsOpen="showLogin" />
 
 <div class="hero fade-in">
     <div class="hero-content">
@@ -26,6 +49,7 @@
 @code {
     private List<ImageMagick.MagickImage> headShots = [];
     private string? currentHeadShot;
+    private bool showLogin = false;
 
     protected override async Task OnInitializedAsync()
     {
