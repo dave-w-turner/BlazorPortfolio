@@ -1,19 +1,18 @@
 using CorporatePortfolio.Components;
-using Microsoft.EntityFrameworkCore;
 using CorporatePortfolio.Data;
 using CorporatePortfolio.Services;
 using CorporatePortfolio.Services.DTO;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Identity.Web;
+using Microsoft.Identity.Web.UI;
 using MudBlazor.Services;
 using Xceed.Words.NET;
-using Microsoft.Identity.Web.UI;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register the database connection string (adjust to your SQL Server setup)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
@@ -21,6 +20,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
@@ -32,6 +32,11 @@ var authBuilder = builder.Services.AddAuthentication(options =>
 });
 
 authBuilder.AddIdentityCookies();
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
 
 authBuilder.AddMicrosoftIdentityWebApp(options =>
 {
@@ -83,7 +88,6 @@ if (builder.Configuration["Authentication:Facebook:AppId"] != null && builder.Co
     });
 }
 
-// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents()
     .AddInteractiveServerComponents();
@@ -91,12 +95,15 @@ builder.Services.AddRazorComponents()
 builder.Services.AddBlazorBootstrap();
 builder.Services.AddMudServices();
 
-builder.Services.AddControllers().AddMicrosoftIdentityUI();
-
+builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
 builder.Services.AddEndpointsApiExplorer();
-
-builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
+
+builder.Services.AddScoped(sp =>
+{
+    var navManager = sp.GetRequiredService<NavigationManager>();
+    return new HttpClient { BaseAddress = new Uri(navManager.BaseUri) };
+});
 
 builder.Services.AddTransient(provider =>
 {
@@ -104,28 +111,28 @@ builder.Services.AddTransient(provider =>
     return new ResumeService(document);
 });
 
-builder.Services.AddTransient((provider) =>
+builder.Services.AddHttpClient("OllamaClient", (provider, httpClient) =>
 {
-    var modelName = provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty;
-    var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
-    var httpClient = httpClientFactory.CreateClient();
+    var config = provider.GetRequiredService<IConfiguration>();
+    var env = provider.GetRequiredService<IHostEnvironment>();
 
-    if (!provider.GetRequiredService<IHostEnvironment>().IsDevelopment())
-        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", provider.GetRequiredService<IConfiguration>()["Groq:ApiKey"]);
+    if (!env.IsDevelopment())
+    {
+        httpClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", config["Groq:ApiKey"]);
+    }
 
-    httpClient.BaseAddress = new Uri($"{provider.GetRequiredService<IConfiguration>()["OllamaServiceUrl"]}" ?? string.Empty);
-    httpClient.Timeout = TimeSpan.FromSeconds(30);
-
-    return httpClient;
+    httpClient.BaseAddress = new Uri(config["OllamaServiceUrl"] ?? string.Empty);
+    httpClient.Timeout = TimeSpan.FromMinutes(2);
 });
 
 builder.Services.AddSingleton(provider =>
 {
-    var httpClient = provider.GetRequiredService<HttpClient>();
-    httpClient.Timeout = TimeSpan.FromMinutes(2);
+    var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+    var ollamaClient = httpClientFactory.CreateClient("OllamaClient");
 
     return new ChatbotService(
-        httpClient,
+        ollamaClient,
         provider.GetRequiredService<IHostEnvironment>().IsDevelopment(),
         provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty,
         provider.GetRequiredService<ResumeService>(),
@@ -139,7 +146,6 @@ builder.WebHost.UseStaticWebAssets();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
@@ -147,39 +153,34 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
-app.UseRouting()
-    .UseAntiforgery()
-    .UseEndpoints(r =>
-    {
-        r.MapDefaultControllerRoute();
-    });
+app.UseStaticFiles();
+
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseAntiforgery();
 
 app.MapPost("/signin-oidc", async context =>
 {
     await Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions.ChallengeAsync(
         context,
-        OpenIdConnectDefaults.AuthenticationScheme,
+        Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectDefaults.AuthenticationScheme,
         new Microsoft.AspNetCore.Authentication.AuthenticationProperties());
 })
-.DisableAntiforgery() // Strips the token check from this specific route
-.WithMetadata(new Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute()); // Ensures public cloud azure calls pass through
+.DisableAntiforgery()
+.WithMetadata(new Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute());
 
 app.MapControllers();
+
 app.MapStaticAssets();
-app.UseStaticFiles();
-app.UseBlazorFrameworkFiles();
+
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+

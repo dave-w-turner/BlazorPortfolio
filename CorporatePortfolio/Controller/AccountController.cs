@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace CorporatePortfolio.Controllers;
+namespace CorporatePortfolio.Controller;
 
 [ApiController]
 [Route("[controller]")]
@@ -14,10 +14,7 @@ public class AccountController(SignInManager<ApplicationUser> signInManager) : C
     [HttpPost("PerformExternalLogin")]
     public IActionResult PerformExternalLogin([FromForm] string provider, [FromForm] string returnUrl = "/")
     {
-        // Generates a callback link targeting your local ExternalLoginCallback method
         var redirectUrl = Url.Action("ExternalLoginCallback", "Account", new { returnUrl });
-
-        // Configures the challenge properties for either "Google" or "Microsoft"
         var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
 
         return Challenge(properties, provider);
@@ -44,7 +41,6 @@ public class AccountController(SignInManager<ApplicationUser> signInManager) : C
 
         if (user != null)
         {
-            // Sign them in using the EXACT same method that makes your registration block work!
             await _signInManager.SignInAsync(user, isPersistent: false, info.LoginProvider);
             return LocalRedirect(returnUrl);
         }
@@ -69,7 +65,6 @@ public class AccountController(SignInManager<ApplicationUser> signInManager) : C
         return Redirect("/login");
     }
 
-    // This handles: POST /Account/Logout
     [HttpPost("Logout")]
     [IgnoreAntiforgeryToken]
     public async Task<IActionResult> Logout()
