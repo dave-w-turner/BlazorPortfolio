@@ -1,49 +1,94 @@
 ﻿@using MudBlazor
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
-@inject IDialogService DialogService
 @implements IDisposable
 @inject AppState State
+@inject IJSRuntime JS
+@inject IDialogService DialogService
 
-<div class="chat-launcher-container">
-    <div class="chat-hint @(showHint ? "fade-in-up" : "fade-out")">
-        <span>Click here to chat with David Turner...</span>
-        <button class="close-hint" @onclick="HideHint">×</button>
+<div class="chat-launcher-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+
+    <div class="chat-hint @(showHint ? "fade-in-up" : "fade-out")"
+         @onclick="HideHint"
+         style="cursor: pointer; z-index: 9999 !important; margin: 0; @(!showHint ? "display: none !important;" : "")">
+
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; pointer-events: none;">
+            <span>Click here to chat with David Turner...</span>
+            <button class="close-hint" @onclick="HideHint" style="pointer-events: auto; background: none; border: none; margin-left: 8px;">×</button>
+        </div>
     </div>
+
     @if (State.IsIndexLoaded)
     {
         <MudFab Class="@($"chat-toggle {(_chatReference != null ? "chat-active" : "")} fade-in")"
                 Color="Color.Primary"
                 StartIcon="@(_chatReference == null ? Icons.Material.Filled.Chat : Icons.Material.Filled.Close)"
-                OnClick="ToggleChatWindow" />
+                OnClick="ToggleChatWindow"
+                style="z-index: 9998 !important;" />
     }
 </div>
 
 @code {
     private IDialogReference? _chatReference;
-    private bool showHint = true;
+    private bool showHint = false;
+    private CancellationTokenSource? _cts;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        State.IndexLoaded += Show;
-
-        if (State.IsIndexLoaded)
+        if (firstRender)
         {
-            Show();
-        }
+            State.IndexLoaded += Show;
 
-        await Task.Delay(8000);
-        await HideHint();
+            if (State.IsIndexLoaded)
+            {
+                Show();
+            }
+
+            var hasSeenHint = await JS.InvokeAsync<string>("localStorage.getItem", "hasSeenChatHint");
+
+            if (hasSeenHint != "true")
+            {
+                showHint = true;
+                await InvokeAsync(StateHasChanged);
+
+                _cts = new CancellationTokenSource();
+                _ = StartBackgroundHintTimerAsync(_cts.Token);
+            }
+        }
+    }
+
+    private async Task StartBackgroundHintTimerAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(8000, token);
+            if (!token.IsCancellationRequested)
+            {
+                await HideHint();
+            }
+        }
+        catch (TaskCanceledException) { }
     }
 
     private async Task HideHint()
     {
-        showHint = false;
-        await InvokeAsync(StateHasChanged);
+        _cts?.Cancel();
+
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", "hasSeenChatHint", "true");
+        }
+        catch { }
+
+        await InvokeAsync(() =>
+        {
+            showHint = false;
+            StateHasChanged();
+        });
     }
 
     private async Task ToggleChatWindow()
     {
-        showHint = false;
+        await HideHint();
 
         if (_chatReference != null)
         {
@@ -65,26 +110,20 @@
                 BackgroundClass = "chat-no-overlay"
             };
 
-            // CORRECTED CONFIGURATION: Use a dictionary parameter mapping layer
             var parameters = new DialogParameters
             {
                 { "Class", "chat-dark" }
             };
 
-            // 1. Pass the parameter dictionary straight to the runtime factory engine
             _chatReference = await DialogService.ShowAsync<ChatDialog>("David Turner's AI Assistant", parameters, options);
-
-            // 2. Offload the close tracking path to the async background monitor thread loop
             _ = HandleDialogCloseAsync(_chatReference);
         }
     }
 
     private async Task HandleDialogCloseAsync(IDialogReference dialogRef)
     {
-        // Await the modal conclusion in the background
         await dialogRef.Result;
 
-        // Safely check if the reference hasn't been changed by an explicit close toggle tap
         if (_chatReference == dialogRef)
         {
             _chatReference = null;
@@ -99,6 +138,8 @@
 
     public void Dispose()
     {
+        _cts?.Cancel();
+        _cts?.Dispose();
         State.IndexLoaded -= Show;
     }
 }
