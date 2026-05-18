@@ -1,25 +1,20 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CorporatePortfolio.Controller;
 
 [ApiController]
 [Route("[controller]")]
+[Authorize(AuthenticationSchemes = OpenIdConnectDefaults.AuthenticationScheme, Roles = "Admin")]
 public class FileUploadController(IWebHostEnvironment environment) : ControllerBase
 {
     private readonly IWebHostEnvironment _environment = environment;
     private const long MaxFileSizeInBytes = 1024 * 1024 * 5;
-    private const string UploadAuthToken = "AdminSecureUploadToken_ChangeMe123!"; // Your secure app key
 
     [HttpPost("upload-resume")]
-    public async Task<IActionResult> UploadResume(IFormFile file)
+    public async Task<IActionResult> UploadResume([FromForm] IFormFile file)
     {
-        if (!Request.Headers.TryGetValue("X-Upload-Token", out var extractedToken) ||
-            extractedToken != UploadAuthToken)
-        {
-            return Unauthorized("Invalid upload security token reference.");
-        }
-
         if (file == null || file.Length == 0)
             return BadRequest("No file was uploaded.");
 

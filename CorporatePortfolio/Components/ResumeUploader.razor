@@ -1,11 +1,13 @@
 ﻿@using System.Net.Http
-@using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Components.Forms
+@inject AntiforgeryStateProvider AntiforgeryProvider
 @inject HttpClient Http
 
 @if (!string.IsNullOrEmpty(statusMessage))
 {
-    <div class="alert @(isError ? "alert-danger" : "alert-success") mb-3 py-2 small text-center" role="alert">
+    <div class="alert @(isError ? "alert-danger" : "alert-success") mb-3 py-2 small text-center"
+         role="alert"
+         style="max-height: 250px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-family: monospace; text-align: left !important;">
         @statusMessage
     </div>
 }
@@ -61,27 +63,17 @@
             SetStatus("Uploading file...", false);
             StateHasChanged();
 
+            var antiforgeryToken = AntiforgeryProvider.GetAntiforgeryToken();
+
             using var content = new MultipartFormDataContent();
             var fileStream = selectedFile.OpenReadStream(maxAllowedSize);
             var streamContent = new StreamContent(fileStream);
             streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
             content.Add(streamContent, "file", selectedFile.Name);
 
-            // =====================================================================
-            // 💡 COMPILER-SAFE COOKIE FORWARDING
-            // =====================================================================
-            // Uses a relative path string directly. By utilizing an isolated request 
-            // message, we tell the browser sandbox to forward your Admin login cookies.
             using var request = new HttpRequestMessage(HttpMethod.Post, "FileUpload/upload-resume");
             request.Content = content;
 
-            // This lowercase string key instructs WebAssembly to append cookies natively
-            request.Options.Set(
-                new HttpRequestOptionsKey<string>("WebAssemblyHttpRequestMessageExtensions.WebAssemblyBrowserRequestCredentials"), 
-                "include"
-            );
-
-            // Fire the configured request through your existing client pipeline
             var response = await Http.SendAsync(request);
 
             if (response.IsSuccessStatusCode)

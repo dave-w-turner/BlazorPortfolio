@@ -2,6 +2,7 @@ using CorporatePortfolio.Components;
 using CorporatePortfolio.Data;
 using CorporatePortfolio.Services;
 using CorporatePortfolio.Services.DTO;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -12,7 +13,6 @@ using Xceed.Words.NET;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register the database connection string
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
@@ -32,6 +32,11 @@ var authBuilder = builder.Services.AddAuthentication(options =>
 });
 
 authBuilder.AddIdentityCookies();
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
 
 authBuilder.AddMicrosoftIdentityWebApp(options =>
 {
@@ -83,7 +88,6 @@ if (builder.Configuration["Authentication:Facebook:AppId"] != null && builder.Co
     });
 }
 
-// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents()
     .AddInteractiveServerComponents();
@@ -91,15 +95,14 @@ builder.Services.AddRazorComponents()
 builder.Services.AddBlazorBootstrap();
 builder.Services.AddMudServices();
 
-builder.Services.AddControllers().AddMicrosoftIdentityUI();
+builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMemoryCache();
 
-builder.Services.AddHttpClient("LocalAppClient");
 builder.Services.AddScoped(sp =>
 {
-    var factory = sp.GetRequiredService<IHttpClientFactory>();
-    return factory.CreateClient("LocalAppClient");
+    var navManager = sp.GetRequiredService<NavigationManager>();
+    return new HttpClient { BaseAddress = new Uri(navManager.BaseUri) };
 });
 
 builder.Services.AddTransient(provider =>
@@ -108,7 +111,6 @@ builder.Services.AddTransient(provider =>
     return new ResumeService(document);
 });
 
-// 3. Keep your specialized AI client completely isolated
 builder.Services.AddHttpClient("OllamaClient", (provider, httpClient) =>
 {
     var config = provider.GetRequiredService<IConfiguration>();
@@ -172,7 +174,7 @@ app.MapPost("/signin-oidc", async context =>
 .DisableAntiforgery()
 .WithMetadata(new Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute());
 
-app.MapControllers().DisableAntiforgery();
+app.MapControllers();
 
 app.MapStaticAssets();
 
