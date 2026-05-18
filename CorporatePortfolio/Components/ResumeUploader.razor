@@ -1,0 +1,117 @@
+﻿@using System.Net.Http
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Forms
+@inject HttpClient Http
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @(isError ? "alert-danger" : "alert-success") mb-3 py-2 small text-center" role="alert">
+        @statusMessage
+    </div>
+}
+
+<div class="w-100 m-0 p-0">
+    <label class="btn btn-auth btn-microsoft d-flex align-items-center cursor-pointer m-0 w-100 @(isUploading ? "disabled" : "")" style="cursor: pointer;">
+        
+        <InputFile OnChange="HandleFileSelection" accept=".docx" style="display: none;" disabled="@isUploading" />
+        
+        <span class="auth-icon-wrapper">
+            @if (isUploading)
+            {
+                <span class="spinner-border spinner-border-sm text-white" role="status" aria-hidden="true"></span>
+            }
+            else
+            {
+                <i class="bi bi-upload"></i>
+            }
+        </span>
+        <span class="auth-text flex-grow-1">@(isUploading ? "Uploading..." : "Upload Resume")</span>
+        <span class="auth-spacer"></span>
+    </label>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnUploadSuccess { get; set; }
+
+    private bool isUploading = false;
+    private string statusMessage = string.Empty;
+    private bool isError = false;
+    private const long maxAllowedSize = 1024 * 1024 * 5; // 5MB Limit
+
+    private async Task HandleFileSelection(InputFileChangeEventArgs e)
+    {
+        var selectedFile = e.File;
+        if (selectedFile == null) return;
+
+        if (!selectedFile.Name.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+        {
+            SetStatus("Invalid file type. Only .docx files are permitted.", true);
+            return;
+        }
+
+        if (selectedFile.Size > maxAllowedSize)
+        {
+            SetStatus("File size exceeds the 5MB maximum limit.", true);
+            return;
+        }
+
+        try
+        {
+            isUploading = true;
+            SetStatus("Uploading file...", false);
+            StateHasChanged();
+
+            using var content = new MultipartFormDataContent();
+            var fileStream = selectedFile.OpenReadStream(maxAllowedSize);
+            var streamContent = new StreamContent(fileStream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+            content.Add(streamContent, "file", selectedFile.Name);
+
+            // =====================================================================
+            // 💡 COMPILER-SAFE COOKIE FORWARDING
+            // =====================================================================
+            // Uses a relative path string directly. By utilizing an isolated request 
+            // message, we tell the browser sandbox to forward your Admin login cookies.
+            using var request = new HttpRequestMessage(HttpMethod.Post, "FileUpload/upload-resume");
+            request.Content = content;
+
+            // This lowercase string key instructs WebAssembly to append cookies natively
+            request.Options.Set(
+                new HttpRequestOptionsKey<string>("WebAssemblyHttpRequestMessageExtensions.WebAssemblyBrowserRequestCredentials"), 
+                "include"
+            );
+
+            // Fire the configured request through your existing client pipeline
+            var response = await Http.SendAsync(request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                SetStatus("Resume uploaded successfully!", false);
+                StateHasChanged();
+                await Task.Delay(600);
+                statusMessage = string.Empty; 
+                await OnUploadSuccess.InvokeAsync();
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                SetStatus(!string.IsNullOrEmpty(errorResponse) ? errorResponse : "Upload failed.", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"An error occurred: {ex.Message}", true);
+        }
+        finally
+        {
+            isUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SetStatus(string message, bool error)
+    {
+        statusMessage = message;
+        isError = error;
+    }
+}

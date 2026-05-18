@@ -2,27 +2,42 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IJSRuntime JS
 
-<div class="portfolio-header-actions">
+<div class="portfolio-header-actions d-flex align-items-center w-100">
     <CascadingAuthenticationState>
         <AuthorizeView>
             <Authorized>
-                <form action="Account/Logout" method="post" class="m-0 p-0">
-                    <AntiforgeryToken />
-                    <button type="submit" class="btn-dashboard-logout">
-                        <i class="bi bi-box-arrow-right me-2"></i>Sign Out
-                    </button>
-                </form>
+                <div class="d-flex align-items-center justify-content-end w-100">
+
+                    <AuthorizeView Roles="Admin">
+                        <Authorized Context="adminContext">
+                            <button class="btn-dashboard-admin me-3" @onclick="() => showAdminTools = true">
+                                <i class="bi bi-gear me-2"></i>Admin Tools
+                            </button>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <form action="Account/Logout" method="post" class="m-0 p-0">
+                        <AntiforgeryToken />
+                        <button type="submit" class="btn-dashboard-logout">
+                            <i class="bi bi-box-arrow-right me-2"></i>Sign Out
+                        </button>
+                    </form>
+
+                </div>
             </Authorized>
             <NotAuthorized>
-                <button class="btn-dashboard-login" @onclick="() => showLogin = true">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
-                </button>
+                <div class="d-flex align-items-center justify-content-end w-100">
+                    <button class="btn-dashboard-login" @onclick="() => showLogin = true">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                    </button>
+                </div>
             </NotAuthorized>
         </AuthorizeView>
     </CascadingAuthenticationState>
 </div>
 
 <ProviderList @bind-IsOpen="showLogin" />
+<AdminTools @bind-IsOpen="showAdminTools" />
 
 <div class="hero fade-in">
     <div class="hero-content">
@@ -34,7 +49,6 @@
         <h1>David Turner</h1>
         <p class="subtitle">Senior Software Developer • Enterprise Systems • Cloud & Automation</p>
     
-        <!-- New Resume & Contact Buttons -->
         <div class="hero-buttons fade-in" style="margin-top: 25px; display: flex; justify-content: center; gap: 15px;">
             <a href="DavidTurner_Resume.docx" target="_blank" class="btn-primary" style="padding: 10px 24px; border-radius: 50px;">
                 <i class="bi bi-file-earmark-pdf"></i> View Resume
@@ -50,6 +64,7 @@
     private List<ImageMagick.MagickImage> headShots = [];
     private string? currentHeadShot;
     private bool showLogin = false;
+    public bool showAdminTools = false;
 
     protected override async Task OnInitializedAsync()
     {

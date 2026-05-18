@@ -1,0 +1,44 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+
+@if (IsOpen)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="custom-modal-wrapper" role="dialog" aria-modal="true">
+        <div class="custom-modal-card shadow-lg">
+            @* Modal Header *@
+            <div class="modal-header border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
+                <h4 class="modal-title fw-bold text-white m-0">Admin Tools</h4>
+                <button type="button"
+                        class="btn-close shadow-none"
+                        style="filter: invert(1) brightness(10) !important; opacity: 0.8;"
+                        aria-label="Close"
+                        @onclick="CloseModal">
+                </button>
+            </div>
+
+            @* Modal Body *@
+            <div class="modal-body px-4 pb-5 pt-2 text-center">
+                <div class="d-grid gap-2" style="margin-top: 25px;">
+                    
+                    @* Clean Child Component Instance *@
+                    <ResumeUploader OnUploadSuccess="CloseModal" />
+                                       
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<bool> IsOpenChanged { get; set; }
+
+    private async Task CloseModal()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+    }
+}
