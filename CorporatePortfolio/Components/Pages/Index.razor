@@ -2,22 +2,59 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IJSRuntime JSRuntime
 @inject AppState State
+@inject ResumeService ResumeService
 @using CorporatePortfolio.Services
 
-<Header />
-<Skills />
-<Experience />
-<Projects />
-<LetsConnect />
-<Footer />
+@if (State.AreSkillsLoaded)
+{
+    <Header />
+    <Skills />
+    <Experience />
+    <Projects />
+    <LetsConnect />
+    <Footer />
+}
 
 @code {
+    protected override async Task OnInitializedAsync()
+    {
+        State.SkillsLoaded += HandleStateChanged;
+        State.ExperiencesOnChange += HandleStateChanged;
+
+        if (!State.AreSkillsLoaded)
+        {
+            try
+            {
+                var experienceTask = State.InitializeAsync(); // Loads experiences into AppState
+                var competenciesTask = ResumeService.GetCompetencies();
+
+                await Task.WhenAll(experienceTask, competenciesTask);
+
+                State.Competencies = competenciesTask.Result;
+            }
+            finally
+            {
+                State.UpdateSkillsLoadingState(true);
+            }
+        }
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && State.AreSkillsLoaded)
         {
             await JSRuntime.InvokeVoidAsync("initScrollAnimations");
-            State.UpdateIndexLoadingState(true);
         }
+    }
+
+    public void Dispose()
+    {
+        State.SkillsLoaded -= HandleStateChanged;
+        State.ExperiencesOnChange -= HandleStateChanged;
     }
 }

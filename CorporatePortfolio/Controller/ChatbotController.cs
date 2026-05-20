@@ -7,9 +7,10 @@ namespace CorporatePortfolio.Controller
 {
     [ApiController]
     [Route("api/chat")]
-    public class ChatbotController(ChatbotService chatbot) : ControllerBase
+    public class ChatbotController(ChatbotService chatbot, ResumeService resumeService) : ControllerBase
     {
         private readonly ChatbotService _chatbot = chatbot;
+        private readonly ResumeService _resumeService = resumeService;
 
         [HttpPost]
         public async Task Ask([FromBody] ChatRequest request)
@@ -19,7 +20,8 @@ namespace CorporatePortfolio.Controller
             Response.Headers.Append("Connection", "keep-alive");
             Response.Headers.Append("X-Content-Type-Options", "nosniff");
 
-            var stream = await _chatbot.Ask(request.Question, request.History);
+            var resumeText = await _resumeService.GetResumeText();
+            var stream = await _chatbot.Ask(request.Question, request.History, resumeText);
 
             var buffer = new StringBuilder();
             bool isBuffering = false;
@@ -29,7 +31,7 @@ namespace CorporatePortfolio.Controller
                 if (string.IsNullOrEmpty(chunk)) continue;
 
                 // Detect when a Markdown link starts
-                if (chunk.Contains("["))
+                if (chunk.Contains('['))
                 {
                     isBuffering = true;
                 }
@@ -39,7 +41,7 @@ namespace CorporatePortfolio.Controller
                     buffer.Append(chunk);
 
                     // Detect when the Markdown link completes
-                    if (chunk.Contains(")"))
+                    if (chunk.Contains(')'))
                     {
                         var completeLink = buffer.ToString();
                         await Response.WriteAsync($"data: {completeLink}\n\n");

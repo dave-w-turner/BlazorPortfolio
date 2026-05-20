@@ -4,12 +4,12 @@ namespace CorporatePortfolio.Services.DTO
 {
     public class AppState(ResumeService resumeService)
     {
-        // Initialize as an empty list so components don't crash while loading
         public List<ExperienceData> Experiences { get; private set; } = [];
+        public List<CompetencyData> Competencies { get; set; } = [];
         public event Action<string>? OnSkillSelected;
-        public bool IsIndexLoaded { get; set; } = false;
-        public event Action? IndexLoaded;
+        public bool AreSkillsLoaded { get; set; } = false;
         public event Action? ExperiencesOnChange;
+        public event Action? SkillsLoaded;
 
         public async Task InitializeAsync()
         {
@@ -25,11 +25,11 @@ namespace CorporatePortfolio.Services.DTO
             OnSkillSelected?.Invoke(skillName);
         }
 
-        public void UpdateIndexLoadingState(bool isLoaded)
+        public void UpdateSkillsLoadingState(bool isLoaded)
         {
-            if (IsIndexLoaded != isLoaded)
+            if (AreSkillsLoaded != isLoaded)
             {
-                IsIndexLoaded = isLoaded;
+                AreSkillsLoaded = isLoaded;
                 NotifyStateChanged();
             }
         }
@@ -37,7 +37,7 @@ namespace CorporatePortfolio.Services.DTO
         public void NotifyStateChanged()
         {
             ExperiencesOnChange?.Invoke();
-            IndexLoaded?.Invoke();
+            SkillsLoaded?.Invoke();
         }
     }
 }

@@ -14,16 +14,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            // Subscribes cleanly inside an explicitly interactive component pipeline
-            State.IndexLoaded += RefreshLoaderState;
+        State.SkillsLoaded += RefreshLoaderState;
 
-            // Immediately catch state if page rendering completes before initialization
-            if (State.IsIndexLoaded)
-            {
-                RefreshLoaderState();
-            }
+        if (State.AreSkillsLoaded)
+        {
+            RefreshLoaderState();
         }
     }
 
@@ -31,13 +26,13 @@
     {
         InvokeAsync(() =>
         {
-            IsAnimationHidden = State.IsIndexLoaded;
+            IsAnimationHidden = State.AreSkillsLoaded;
             StateHasChanged();
         });
     }
 
     public void Dispose()
     {
-        State.IndexLoaded -= RefreshLoaderState;
+        State.SkillsLoaded -= RefreshLoaderState;
     }
 }

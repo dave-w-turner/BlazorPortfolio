@@ -1,7 +1,5 @@
 ﻿@using CorporatePortfolio.Services
 @using CorporatePortfolio.Services.DTO
-@using System.Text
-@inject ResumeService resumeService
 @inject IJSRuntime JS
 @inject AppState State
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
@@ -10,7 +8,7 @@
     <h2>Core Expertise</h2>
 
     <div class="grid">
-        @foreach (var competency in competencies)
+        @foreach (var competency in State.Competencies)
         {
             <div class="customcard glow" @onclick="(() => OnSkillClick(competency.Name))"><i class="bi bi-@competency.Icon"></i> @competency.Name</div>
         }
@@ -18,16 +16,8 @@
 </div>
 
 @code {
-    private List<CompetencyData> competencies = new();
-
-    protected override async Task OnInitializedAsync()
-    {
-        competencies = await resumeService.GetCompetencies();
-    }
-
     private async Task OnSkillClick(string skillName)
     {
-        // 1. Highlight the text (Your existing logic)
         for (int a = 0; a < State.Experiences.Count; a++)
         {
             for (int b = 0; b < State.Experiences[a].DetailsFormatted.Count; b++)
@@ -40,10 +30,7 @@
             }
         }
 
-        // 2. Refresh the UI text highlights
         State.NotifyStateChanged();
-
-        // 3. ADD THIS: This triggers the scroll event in Experience.razor
         State.SelectSkill(skillName);
     }
 
@@ -52,7 +39,6 @@
         if (firstRender)
         {
             await Task.Delay(50);
-            // Triggers icon conversion and binds scroll animations safely
             await JS.InvokeVoidAsync("initScrollAnimations");
         }
     }
