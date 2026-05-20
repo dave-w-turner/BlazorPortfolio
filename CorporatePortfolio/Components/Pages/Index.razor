@@ -3,6 +3,7 @@
 @inject IJSRuntime JSRuntime
 @inject AppState State
 @inject ResumeService ResumeService
+@implements IDisposable
 @using CorporatePortfolio.Services
 
 @if (State.AreSkillsLoaded)

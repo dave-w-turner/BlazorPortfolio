@@ -137,7 +137,8 @@
                     new { role = "user", content = $"Given the data available in the DATA section, answer this question: {question}" }
                 };
 
-                var cleanMessages = messages.Select(m => new {
+                var cleanMessages = messages.Select(m => new
+                {
                     role = m.role,
                     content = m.content
                 }).ToList();
@@ -168,9 +169,11 @@
                 response.EnsureSuccessStatusCode();
 
             JsonObject? responseObject = JsonSerializer.Deserialize<JsonObject>(await response.Content.ReadAsStringAsync());
-            string message = responseObject?["response"]?.ToString() ?? string.Empty;
+            string message = isDevelopment ? responseObject?["response"]?.ToString() ?? string.Empty 
+                : responseObject?["choices"]?[0]?["message"]?["content"]?.ToString() ?? string.Empty;
+
             return message;
-        }
+        }        
 
         public static async Task<FormattedText> FormatMessage(string text,   bool isComplete = true, string? specificKeyword = null, bool applyEnhancedKeywordStyling = false)
         {

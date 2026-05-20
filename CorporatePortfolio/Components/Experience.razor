@@ -1,5 +1,6 @@
 ﻿@using CorporatePortfolio.Services
 @using CorporatePortfolio.Services.DTO
+@implements IDisposable
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AppState State
 @inject IJSRuntime JS
