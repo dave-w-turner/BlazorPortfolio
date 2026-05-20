@@ -7,21 +7,28 @@
 <div class="section" id="skills">
     <h2>Core Expertise</h2>
 
-    <div class="grid">
+    <div class="grid" @onmouseleave="HandleGlobalMouseOut">
         @foreach (var competency in State.Competencies)
         {
-            <div class="customcard glow @(competency.Name == State.ClickedSkillName ? "selected-active" : "")"
+            <!-- Keep classes intact but the hover interaction boundary is handled via CSS uniformly -->
+            <div class="customcard @(competency.Name == State.ClickedSkillName ? "selected-active" : "")"
                  @onclick="(() => OnSkillClick(competency.Name))"
-                 @onmouseover="() => State.SetHoveredSkillSummary(competency.Name)"
-                 @onmouseout="() => State.ClearHoveredSkillSummary()"
-                 style="cursor: pointer;">
-                <i class="bi bi-@competency.Icon"></i> @competency.Name
+                 @onmouseover="() => State.SetHoveredSkillSummary(competency.Name)">
+                <span class="card-content">
+                    <i class="bi bi-@competency.Icon"></i> @competency.Name
+                </span>
             </div>
         }
     </div>
 </div>
 
 @code {
+    // Fired ONLY when the mouse completely leaves the entire row area of buttons
+    private void HandleGlobalMouseOut()
+    {
+        State.ClearHoveredSkillSummary();
+    }
+
     private async Task OnSkillClick(string skillName)
     {
         State.SetClickedSkillSummary(skillName);
