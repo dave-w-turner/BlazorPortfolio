@@ -4,12 +4,12 @@
 @implements IDisposable
 @inject AppState State
 
-<div class="portfolio-header-actions d-flex align-items-center w-100">
+<!-- ISOLATED AUTH ZONE: Layout changes here won't trigger vertical content bouncing -->
+<div class="portfolio-header-actions d-flex align-items-center w-100" style="min-height: 56px;">
     <CascadingAuthenticationState>
         <AuthorizeView>
             <Authorized>
                 <div class="d-flex align-items-center justify-content-end w-100">
-
                     <AuthorizeView Roles="Admin">
                         <Authorized Context="adminContext">
                             <button class="btn-dashboard-admin me-3" @onclick="() => showAdminTools = true">
@@ -24,7 +24,6 @@
                             <i class="bi bi-box-arrow-right me-2"></i>Sign Out
                         </button>
                     </form>
-
                 </div>
             </Authorized>
             <NotAuthorized>
@@ -41,6 +40,7 @@
 <ProviderList @bind-IsOpen="showLogin" />
 <AdminTools @bind-IsOpen="showAdminTools" />
 
+<!-- INDEPENDENT STABLE HERO ZONE -->
 <div class="hero fade-in">
     <div class="hero-content">
         <div class="profile-container-wrapper">
@@ -50,7 +50,7 @@
         </div>
         <h1>David Turner</h1>
         <p class="subtitle">Senior Software Developer • Enterprise Systems • Cloud & Automation</p>
-    
+
         <div class="hero-buttons fade-in" style="margin-top: 25px; display: flex; justify-content: center; gap: 15px;">
             <a href="DavidTurner_Resume.docx" target="_blank" class="btn-primary" style="padding: 10px 24px; border-radius: 50px;">
                 <i class="bi bi-file-earmark-pdf"></i> View Resume
@@ -61,7 +61,8 @@
         </div>
 
         <div class="skill-summary-responsive-wrapper">
-            <div class="layout-spacer-ghost" aria-hidden="true">
+
+            <div class="layout-spacer-ghost" aria-hidden="true" style="visibility: hidden; pointer-events: none;">
                 @foreach (var competency in State.Competencies)
                 {
                     <div class="ghost-card">
@@ -70,7 +71,18 @@
                 }
             </div>
 
-            @if (!string.IsNullOrWhiteSpace(State.CurrentSkillSummaryText))
+            @if (string.IsNullOrWhiteSpace(State.CurrentSkillSummaryText))
+            {
+                <div class="skeleton-summary-wrapper fade-in-fast" aria-hidden="true">
+                    <div class="skeleton-line skeleton-title"></div>
+                    <div class="skeleton-line skeleton-body-long"></div>
+                    <div class="skeleton-line skeleton-body-short"></div>
+                    <div class="skeleton-instruction-overlay">
+                        <p><i class="bi bi-arrow-down-short me-2 fs-5 align-middle text-primary"></i> Select a skill below to explore technical breakdowns</p>
+                    </div>
+                </div>
+            }
+            else
             {
                 <div class="summary-speech-bubble-card animated-fade-in-up">
                     <p>@State.CurrentSkillSummaryText</p>
