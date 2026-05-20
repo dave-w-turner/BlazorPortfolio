@@ -9,9 +9,13 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
 using MudBlazor.Services;
+using System.Diagnostics;
 using Xceed.Words.NET;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (Debugger.IsAttached)
+    builder.Configuration.AddUserSecrets<Program>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -105,12 +109,6 @@ builder.Services.AddScoped(sp =>
     return new HttpClient { BaseAddress = new Uri(navManager.BaseUri) };
 });
 
-builder.Services.AddTransient(provider =>
-{
-    DocX document = DocX.Load("wwwroot/DavidTurner_Resume.docx");
-    return new ResumeService(document);
-});
-
 builder.Services.AddHttpClient("OllamaClient", (provider, httpClient) =>
 {
     var config = provider.GetRequiredService<IConfiguration>();
@@ -128,6 +126,12 @@ builder.Services.AddHttpClient("OllamaClient", (provider, httpClient) =>
 
 builder.Services.AddSingleton(provider =>
 {
+    DocX document = DocX.Load("wwwroot/DavidTurner_Resume.docx");
+    return new ResumeService(provider.GetRequiredService<ChatbotService>(), document, provider.GetRequiredService<IMemoryCache>());
+});
+
+builder.Services.AddSingleton(provider =>
+{
     var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
     var ollamaClient = httpClientFactory.CreateClient("OllamaClient");
 
@@ -135,7 +139,6 @@ builder.Services.AddSingleton(provider =>
         ollamaClient,
         provider.GetRequiredService<IHostEnvironment>().IsDevelopment(),
         provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty,
-        provider.GetRequiredService<ResumeService>(),
         provider.GetRequiredService<IMemoryCache>());
 });
 

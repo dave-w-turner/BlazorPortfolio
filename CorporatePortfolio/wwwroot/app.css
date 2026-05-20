@@ -49,7 +49,7 @@ h1:focus {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px 0;
+    padding: 0;
     margin: 0;
 }
 
@@ -155,7 +155,15 @@ h1:focus {
     border-radius: 15px 4px 15px 4px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+    #skills .customcard.selected-active {
+        background: rgba(59, 130, 246, 0.16) !important;
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+        transform: translateY(-2px);
+    }
 
     #skills .customcard:hover {
         border-radius: 4px 20px 4px 20px;
@@ -1911,6 +1919,19 @@ FLOATING MICRO-SCREEN VIEW OVERRIDE (Screens under 601px wide)
     .modal-body {
         padding-bottom: 2rem !important;
     }
+
+    .skill-summary-responsive-wrapper {
+        margin-top: 20px;
+    }
+
+    .summary-speech-bubble-card, .ghost-card {
+        padding: 10px 16px;
+    }
+
+        .summary-speech-bubble-card p, .ghost-card p {
+            font-size: 0.95rem;
+            line-height: 1.45;
+        }
 }
 
 /* ===================================================
@@ -2179,4 +2200,81 @@ CHAT DIALOG SENDER NAME TEXT LABELS
 
 .btn-facebook:hover {
     box-shadow: 0 0 15px rgba(24, 119, 242, 0.1);
+}
+
+.skill-summary-responsive-wrapper {
+    margin-top: 30px;
+    display: grid;
+    grid-template-columns: 100%;
+    grid-template-rows: 100%;
+    justify-items: center;
+    align-items: center;
+    width: 100%;
+    padding: 0 15px;
+}
+
+/* Invisible element block that stretches the wrapper to match the longest summary entry */
+.layout-spacer-ghost {
+    grid-column: 1;
+    grid-row: 1;
+    visibility: hidden;
+    pointer-events: none;
+    max-width: 680px;
+    width: 100%;
+    /* FIX: Stack the ghost items on top of each other using grid layout rules */
+    display: grid;
+    grid-template-columns: 100%;
+    grid-template-rows: 100%;
+}
+
+/* Formats the invisible cards identically to ensure accurate pixel height mapping */
+.ghost-card {
+    /* FIX: Force every individual ghost sentence item to overlap into the same slot position */
+    grid-column: 1;
+    grid-row: 1;
+    padding: 14px 22px;
+    font-size: 1.05rem;
+    line-height: 1.55;
+    font-style: italic;
+}
+
+/* The visual active summary element card container template layout layer */
+.summary-speech-bubble-card {
+    grid-column: 1;
+    grid-row: 1;
+    max-width: 680px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    padding: 14px 22px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    box-sizing: border-box;
+}
+
+    .summary-speech-bubble-card p {
+        color: #e2e8f0;
+        font-size: 1.05rem;
+        line-height: 1.55;
+        margin: 0;
+        text-align: center;
+        font-style: italic;
+        word-wrap: break-word;
+    }
+
+.animated-fade-in-up {
+    animation: bubbleFadeInUp 0.25s ease-out forwards;
+}
+
+@keyframes bubbleFadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

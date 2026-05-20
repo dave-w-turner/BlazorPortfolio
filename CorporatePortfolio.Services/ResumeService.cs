@@ -1,204 +1,246 @@
 ﻿using CorporatePortfolio.Services.DTO;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.FileProviders;
 using System.Text;
-using Xceed.Document.NET;
 using Xceed.Words.NET;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace CorporatePortfolio.Services
 {
-    public class ResumeService(DocX document)
+    public class ResumeService(ChatbotService chatbotService, DocX document, IMemoryCache memoryCache)
     {
         private readonly DocX _document = document;
+        private readonly ChatbotService _chatbotService = chatbotService;
+        private readonly IMemoryCache _memoryCache = memoryCache;
 
         public async Task<string> GetResumeText()
         {
-            var documentTextSb = new StringBuilder();
+            var fileInfo = new FileInfo("DavidTurner_Resume.docx");
 
-            // Group experiences by Company Name to avoid duplicates
-            var experienceGroups = new Dictionary<string, List<string>>();
-            var projects = false;
-
-            foreach (var bm in _document.Bookmarks)
+            return await _memoryCache.GetOrCreateAsync("#resumeText", async entry =>
             {
-                var isExperience = bm.Name.StartsWith("Experience_");
-                var isContactInfo = bm.Name.Equals("Contact_Info", StringComparison.OrdinalIgnoreCase);
-                var isCompetencies = bm.Name.Equals("Competencies", StringComparison.OrdinalIgnoreCase);
-                var isProject = bm.Name.StartsWith("Project_", StringComparison.OrdinalIgnoreCase);
-                var currentBmSb = new StringBuilder();
+                var fileProvider = new PhysicalFileProvider(Path.GetDirectoryName(fileInfo.FullName)!);
+                var changeToken = fileProvider.Watch(Path.GetFileName(fileInfo.Name));
 
-                var startTag = _document.Xml.Descendants()
-                    .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
-                                         (x.Attribute("name")?.Value == bm.Name ||
-                                          x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == bm.Name)));
+                entry.ExpirationTokens.Add(changeToken);
 
-                if (startTag == null) continue;
+                var documentTextSb = new StringBuilder();
 
-                string bookmarkId = startTag.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value ?? string.Empty;
-                var currentParagraph = bm.Paragraph;
+                // Group experiences by Company Name to avoid duplicates
+                var experienceGroups = new Dictionary<string, List<string>>();
+                var projects = false;
 
-                var expParagraphCounter = 0;
-                var projParagraphCounter = 0;
-                var companyName = string.Empty;
-                var roleDetails = string.Empty;
-                var projectDetailsSb = new StringBuilder();
-
-
-                if (!isExperience && !isContactInfo && !isCompetencies && !isProject)
-                    currentBmSb.Append($"# {bm.Name.ToUpper()}\r\n");
-
-                if (isContactInfo)
-                    currentBmSb.AppendLine("<contact_data>");
-
-                if (isCompetencies)
-                    currentBmSb.AppendLine("<competencies_data>");
-
-                if (isProject && !projects)
+                foreach (var bm in _document.Bookmarks)
                 {
-                    currentBmSb.AppendLine("#PROJECTS");
-                    projects = true;
-                }
+                    var isExperience = bm.Name.StartsWith("Experience_");
+                    var isContactInfo = bm.Name.Equals("Contact_Info", StringComparison.OrdinalIgnoreCase);
+                    var isCompetencies = bm.Name.Equals("Competencies", StringComparison.OrdinalIgnoreCase);
+                    var isProject = bm.Name.StartsWith("Project_", StringComparison.OrdinalIgnoreCase);
+                    var currentBmSb = new StringBuilder();
 
-                while (currentParagraph != null)
-                {
-                    var text = currentParagraph.Text.Trim();
+                    var startTag = _document.Xml.Descendants()
+                        .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
+                                             (x.Attribute("name")?.Value == bm.Name ||
+                                              x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == bm.Name)));
 
-                    if (!string.IsNullOrWhiteSpace(text))
+                    if (startTag == null) continue;
+
+                    string bookmarkId = startTag.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value ?? string.Empty;
+                    var currentParagraph = bm.Paragraph;
+
+                    var expParagraphCounter = 0;
+                    var projParagraphCounter = 0;
+                    var companyName = string.Empty;
+                    var roleDetails = string.Empty;
+                    var projectDetailsSb = new StringBuilder();
+
+
+                    if (!isExperience && !isContactInfo && !isCompetencies && !isProject)
+                        currentBmSb.Append($"# {bm.Name.ToUpper()}\r\n");
+
+                    if (isContactInfo)
+                        currentBmSb.AppendLine("<contact_data>");
+
+                    if (isCompetencies)
+                        currentBmSb.AppendLine("<competencies_data>");
+
+                    if (isProject && !projects)
                     {
-                        if (isCompetencies)
-                        {
-                            currentBmSb.AppendLine($"# {text.ToString().Split(":").First().Trim()}");
-                            currentBmSb.AppendLine($" - {text.ToString().Split(":").Last().Trim()}");
-                        }
-                        else if (bm.Name.Equals("Education"))
-                        {
-                            currentBmSb.Append($"* {text}\r\n");
-                        }
-                        else if (isContactInfo)
-                        {
-                            currentBmSb.AppendLine($"{text}");
-                        }
-                        else if (isExperience)
-                        {
-                            // Paragraph 1 in your bookmark: The Company and Location
-                            if (expParagraphCounter == 0)
-                            {
-                                companyName = text;
-                            }
-                            // Paragraph 2 in your bookmark: The Job Title
-                            else if (expParagraphCounter == 1)
-                            {
-                                roleDetails = text;
-                            }
-                            // Paragraph 3 in your bookmark: The Dates
-                            else if (expParagraphCounter == 2)
-                            {
-                                roleDetails += $" ({text})";
-                            }
-                            expParagraphCounter++;
-                        }
-                        else if (isProject)
-                        {
-                            currentBmSb.AppendLine($"{(projParagraphCounter == 0 ? "- " : "  * ")}{text}");
-
-                            if (projParagraphCounter == 0)
-                                projParagraphCounter++;
-                        }
-                        else
-                        {
-                            currentBmSb.Append($"{text}\r\n");
-                        }
+                        currentBmSb.AppendLine("#PROJECTS");
+                        projects = true;
                     }
 
-                    if (currentParagraph.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
-                        x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bookmarkId)))
-                        break;
-
-                    currentParagraph = currentParagraph.NextParagraph;
-                }
-
-                if (isExperience && !string.IsNullOrWhiteSpace(companyName) && !string.IsNullOrWhiteSpace(roleDetails))
-                {
-                    // Normalize company name (strip out any trailing " - Toronto, ON" if needed, or leave exact)
-                    var cleanCompanyKey = companyName.Trim();
-
-                    if (!experienceGroups.ContainsKey(cleanCompanyKey))
+                    while (currentParagraph != null)
                     {
-                        experienceGroups[cleanCompanyKey] = [];
+                        var text = currentParagraph.Text.Trim();
+
+                        if (!string.IsNullOrWhiteSpace(text))
+                        {
+                            if (isCompetencies)
+                            {
+                                currentBmSb.AppendLine($"# {text.ToString().Split(":").First().Trim()}");
+                                currentBmSb.AppendLine($" - {text.ToString().Split(":").Last().Trim()}");
+                            }
+                            else if (bm.Name.Equals("Education"))
+                            {
+                                currentBmSb.Append($"* {text}\r\n");
+                            }
+                            else if (isContactInfo)
+                            {
+                                currentBmSb.AppendLine($"{text}");
+                            }
+                            else if (isExperience)
+                            {
+                                // Paragraph 1 in your bookmark: The Company and Location
+                                if (expParagraphCounter == 0)
+                                {
+                                    companyName = text;
+                                }
+                                // Paragraph 2 in your bookmark: The Job Title
+                                else if (expParagraphCounter == 1)
+                                {
+                                    roleDetails = text;
+                                }
+                                // Paragraph 3 in your bookmark: The Dates
+                                else if (expParagraphCounter == 2)
+                                {
+                                    roleDetails += $" ({text})";
+                                }
+                                expParagraphCounter++;
+                            }
+                            else if (isProject)
+                            {
+                                currentBmSb.AppendLine($"{(projParagraphCounter == 0 ? "- " : "  * ")}{text}");
+
+                                if (projParagraphCounter == 0)
+                                    projParagraphCounter++;
+                            }
+                            else
+                            {
+                                currentBmSb.Append($"{text}\r\n");
+                            }
+                        }
+
+                        if (currentParagraph.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
+                            x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bookmarkId)))
+                            break;
+
+                        currentParagraph = currentParagraph.NextParagraph;
                     }
-                    experienceGroups[cleanCompanyKey].Add($"  * {roleDetails.Trim()}");
-                }
-                else if (isContactInfo)
-                {
-                    currentBmSb.AppendLine("</contact_data>");
-                    documentTextSb.Append(currentBmSb.ToString() + "\r\n");
-                }
-                else if (isCompetencies)
-                {
-                    currentBmSb.AppendLine("</competencies_data>");
-                    documentTextSb.Append(currentBmSb.ToString() + "\r\n");
-                }
-                else if (currentBmSb.Length > 0)
-                {
-                    documentTextSb.Append(currentBmSb.ToString() + "\r\n");
-                }
 
-                if (!isProject)
-                    projects = false;
-            }
-
-            // Append the consolidated EXPERIENCE section exactly how the AI needs it
-            if (experienceGroups.Count > 0)
-            {
-                documentTextSb.AppendLine("# EXPERIENCE");
-                foreach (var company in experienceGroups)
-                {
-                    documentTextSb.AppendLine($"* {company.Key}");
-                    foreach (var role in company.Value)
+                    if (isExperience && !string.IsNullOrWhiteSpace(companyName) && !string.IsNullOrWhiteSpace(roleDetails))
                     {
-                        documentTextSb.AppendLine(role);
+                        // Normalize company name (strip out any trailing " - Toronto, ON" if needed, or leave exact)
+                        var cleanCompanyKey = companyName.Trim();
+
+                        if (!experienceGroups.ContainsKey(cleanCompanyKey))
+                        {
+                            experienceGroups[cleanCompanyKey] = [];
+                        }
+                        experienceGroups[cleanCompanyKey].Add($"  * {roleDetails.Trim()}");
+                    }
+                    else if (isContactInfo)
+                    {
+                        currentBmSb.AppendLine("</contact_data>");
+                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                    }
+                    else if (isCompetencies)
+                    {
+                        currentBmSb.AppendLine("</competencies_data>");
+                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                    }
+                    else if (currentBmSb.Length > 0)
+                    {
+                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                    }
+
+                    if (!isProject)
+                        projects = false;
+                }
+
+                // Append the consolidated EXPERIENCE section exactly how the AI needs it
+                if (experienceGroups.Count > 0)
+                {
+                    documentTextSb.AppendLine("# EXPERIENCE");
+                    foreach (var company in experienceGroups)
+                    {
+                        documentTextSb.AppendLine($"* {company.Key}");
+                        foreach (var role in company.Value)
+                        {
+                            documentTextSb.AppendLine(role);
+                        }
                     }
                 }
-            }
 
-            return documentTextSb.ToString().Trim();
+                return documentTextSb.ToString().Trim();
+
+            }) ?? string.Empty;
         }
 
         public async Task<List<CompetencyData>> GetCompetencies()
         {
-            var competencyBm = _document.Bookmarks.Where(bm => bm.Name.Equals("Competencies")).FirstOrDefault();
-            var bmId = competencyBm != null ? _document.Xml.Descendants()
-                    .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
-                                         (x.Attribute("name")?.Value == competencyBm.Name ||
-                                          x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == competencyBm.Name)))
-                    ?.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value : null;
-            List<CompetencyData> competencies = [];
-            var competenciesSb = new StringBuilder();
+            var fileInfo = new FileInfo("DavidTurner_Resume.docx");
 
-            if (competencyBm != null)
+            return await _memoryCache.GetOrCreateAsync("#cachedSkillsWithSummaries", async entry =>
             {
-                
-                var currentParagraph = competencyBm.Paragraph;
+                var fileProvider = new PhysicalFileProvider(Path.GetDirectoryName(fileInfo.FullName)!);
+                var changeToken = fileProvider.Watch(Path.GetFileName(fileInfo.Name));
 
-                while ((!currentParagraph?.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
-                            x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bmId))) ?? false)
+                entry.ExpirationTokens.Add(changeToken);
+
+                var competencyBm = _document.Bookmarks.Where(bm => bm.Name.Equals("Competencies")).FirstOrDefault();
+                var bmId = competencyBm != null ? _document.Xml.Descendants()
+                        .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
+                                             (x.Attribute("name")?.Value == competencyBm.Name ||
+                                              x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == competencyBm.Name)))
+                        ?.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value : null;
+
+                List<CompetencyData> competencies = [];
+                var competenciesSb = new StringBuilder();
+
+                if (competencyBm != null)
                 {
-                    competenciesSb.AppendLine(currentParagraph?.Text.Trim());
-                    currentParagraph = currentParagraph?.NextParagraph;
+                    var currentParagraph = competencyBm.Paragraph;
+
+                    while ((!currentParagraph?.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
+                                x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bmId))) ?? false)
+                    {
+                        competenciesSb.AppendLine(currentParagraph?.Text.Trim());
+                        currentParagraph = currentParagraph?.NextParagraph;
+                    }
                 }
-            }
 
-            var skillList = await GetTagsFromProject(competenciesSb.ToString());
+                var skillList = await GetTagsFromProject(competenciesSb.ToString());
 
-            foreach (var skill in skillList)
-            {
-                competencies.Add(new CompetencyData
+                foreach (var skill in skillList)
                 {
-                    Name = skill,
-                    Icon = await GetIconForCompetency(skill)
-                });
-            }
+                    competencies.Add(new CompetencyData
+                    {
+                        Name = skill,
+                        Icon = await GetIconForCompetency(skill)
+                    });
+                }
 
-            return [.. competencies.Where(c => !string.IsNullOrEmpty(c.Icon)).ToList().OrderBy(c => c.Name).Take(6)];
+                List<CompetencyData> selectedSkills = [.. competencies
+                    .Where(c => !string.IsNullOrEmpty(c.Icon))
+                    .OrderBy(c => c.Name)
+                    .Take(6)];
+
+                string resumeText = await GetResumeText();
+
+                // 4. Generate summaries for the selected skills (runs once per file lifecycle)
+                foreach (var skill in selectedSkills)
+                {
+                    skill.Summary = await _chatbotService.Generate(
+                        $@"Please summarize this skill: '{skill.Name}'. DO NOT MENTION SUMMARY IN YOUR ANSWER. DO NOT MENTION THE EMPLOYERS. 
+                JUST SUMMARIZE THE SKILL AND INCLUDE THE SKILL NAME ONLY ONCE WITHIN THE SUMMARY ITSELF.
+                Provide a concise summary of 2 sentences that highlights the key aspects and importance of this skill in the context of
+                the resume data provided. Avoid generic descriptions and focus on what makes this skill valuable to potential employers.
+                Only 1 paragraph MAX! Instead of mentioning developers, speak in the first person context.",
+                        resumeText);
+                }
+
+                return selectedSkills;
+            }) ?? [];
         }
 
         public async Task<List<ExperienceData>> GetExperience()

@@ -1,6 +1,8 @@
 ﻿@using CorporatePortfolio.Components.Authentication
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IJSRuntime JS
+@implements IDisposable
+@inject AppState State
 
 <div class="portfolio-header-actions d-flex align-items-center w-100">
     <CascadingAuthenticationState>
@@ -57,6 +59,24 @@
                 Get in Touch
             </a>
         </div>
+
+        <div class="skill-summary-responsive-wrapper">
+            <div class="layout-spacer-ghost" aria-hidden="true">
+                @foreach (var competency in State.Competencies)
+                {
+                    <div class="ghost-card">
+                        <p>@competency.Summary</p>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(State.CurrentSkillSummaryText))
+            {
+                <div class="summary-speech-bubble-card animated-fade-in-up">
+                    <p>@State.CurrentSkillSummaryText</p>
+                </div>
+            }
+        </div>
     </div>
 </div>
 
@@ -84,7 +104,10 @@
 
         string base64String = Convert.ToBase64String(imageBytes);
         currentHeadShot = $"data:image/png;base64,{base64String}";
+        State.ExperiencesOnChange += HandleLayoutStateUpdate;
     }
+
+    private void HandleLayoutStateUpdate() => InvokeAsync(StateHasChanged);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -92,5 +115,10 @@
         {
             await JS.InvokeVoidAsync("startMatrixRain");
         }
+    }
+
+    public void Dispose()
+    {
+        State.ExperiencesOnChange -= HandleLayoutStateUpdate;
     }
  }

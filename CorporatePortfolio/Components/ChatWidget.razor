@@ -17,7 +17,7 @@
         </div>
     </div>
 
-    @if (State.IsIndexLoaded)
+    @if (State.AreSkillsLoaded)
     {
         <MudFab Class="@($"chat-toggle {(_chatReference != null ? "chat-active" : "")} fade-in")"
                 Color="Color.Primary"
@@ -36,9 +36,9 @@
     {
         if (firstRender)
         {
-            State.IndexLoaded += Show;
+            State.SkillsLoaded += Show;
 
-            if (State.IsIndexLoaded)
+            if (State.AreSkillsLoaded)
             {
                 Show();
             }
@@ -140,6 +140,6 @@
     {
         _cts?.Cancel();
         _cts?.Dispose();
-        State.IndexLoaded -= Show;
+        State.SkillsLoaded -= Show;
     }
 }
