@@ -10,6 +10,7 @@ namespace CorporatePortfolio.Services.DTO
         public List<CompetencyData> Competencies { get; set; } = [];
         public event Action<string>? OnSkillSelected;
         public bool AreSkillsLoaded { get; set; } = false;
+        public bool ErrorInvoked { get; set; } = false;
         public event Action? ExperiencesOnChange;
         public event Action? SkillsLoaded;
 
