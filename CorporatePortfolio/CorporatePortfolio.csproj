@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
     <UserSecretsId>c5e5fac8-c258-44d9-bffd-23a1ea7f2c7d</UserSecretsId>
+    <UseRazorSourceGenerator>true</UseRazorSourceGenerator>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,6 +32,7 @@
     <PackageReference Include="NuGet.Packaging" Version="7.6.0" />
     <PackageReference Include="NuGet.Protocol" Version="7.6.0" />
     <ProjectReference Include="..\CorporatePortfolio.Client\CorporatePortfolio.Client.csproj" />
+    <ProjectReference Include="..\CorporatePortfolio.Services\CorporatePortfolio.Services.csproj" />
     <PackageReference Include="Blazor.Bootstrap" Version="3.5.0" />
     <PackageReference Include="DocX" Version="5.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Facebook" Version="10.0.8" />

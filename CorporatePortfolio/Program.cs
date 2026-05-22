@@ -145,9 +145,16 @@ builder.Services.AddSingleton(provider =>
 builder.Services.AddScoped<ChatState>();
 builder.Services.AddScoped<AppState>();
 
-builder.WebHost.UseStaticWebAssets();
-
 var app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin");
+    context.Response.Headers.Append("Cross-Origin-Embedder-Policy", "require-corp");
+    await next();
+});
+
+app.UseStaticFiles();
 
 if (app.Environment.IsDevelopment())
 {
@@ -160,9 +167,6 @@ else
 }
 
 app.UseHttpsRedirection();
-
-app.UseStaticFiles();
-
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();

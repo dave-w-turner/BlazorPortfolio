@@ -1,0 +1,76 @@
+﻿@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<div class="pa-4 style-container">
+    <MudText Typo="Typo.body2" Class="mb-4">Voice Clone Prompt Sandbox Context</MudText>
+    <MudTextField @bind-Value="_textPrompt" Label="Type speech string here..." Variant="Variant.Outlined" Lines="3" Class="mb-4" />
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnGenerateSpeechClicked" Disabled="@(!_isEngineReady || _isSpeaking)">
+        @(_isSpeaking ? "Speaking Cloned Audio..." : (_isEngineReady ? "Generate Speech" : "Loading Neural Voice Engine..."))
+    </MudButton>
+</div>
+
+@code {
+    private string _textPrompt = "Hello, this is David Turner speaking directly out of your local web browser hardware framework.";
+    private bool _isEngineReady = false;
+    private bool _isSpeaking = false;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<AIAvatar>? _objRef; // Tracks the physical instance wrapper safely
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _objRef = DotNetObjectReference.Create(this);
+            _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./Components/AIAvatar.razor.js");
+
+            await _module.InvokeVoidAsync("initializeNeuralTts", _objRef);
+        }
+    }
+
+    public async Task SpeakLocally(string text)
+    {
+        if (_module is null || string.IsNullOrWhiteSpace(text)) return;
+
+        _isSpeaking = true;
+        StateHasChanged();
+
+        try
+        {
+            var options = new TimeSpan(0, 5, 0); // Extends timeout limit safely to 5 minutes
+
+            await _module.InvokeVoidAsync("synthesizeClonedVoice", options, text);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[BLAZOR-TIMEOUT-CATCH]: {ex.Message}");
+
+            _isSpeaking = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnGenerateSpeechClicked()
+    {
+        await SpeakLocally(_textPrompt);
+    }
+
+    [JSInvokable]
+    public void OnEngineReady()
+    {
+        _isEngineReady = true;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnSpeechFinished()
+    {
+        _isSpeaking = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _objRef?.Dispose();
+    }
+}
