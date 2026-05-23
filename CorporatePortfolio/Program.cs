@@ -20,6 +20,13 @@ if (Debugger.IsAttached)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
+builder.Services.AddServerSideBlazor()
+    .AddHubOptions(options =>
+    {
+        // Raise the WebSocket threshold size to handle rapid interop streaming traffic smoothly
+        options.MaximumReceiveMessageSize = 1024 * 1024; // 1 MB
+    });
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 

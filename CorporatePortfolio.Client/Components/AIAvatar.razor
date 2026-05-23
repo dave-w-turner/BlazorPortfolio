@@ -1,8 +1,10 @@
 ﻿@inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
 @implements IDisposable
 
 <div class="pa-4 style-container">
     <MudText Typo="Typo.body2" Class="mb-4">Voice Clone Prompt Sandbox Context</MudText>
+
     <MudTextField @bind-Value="_textPrompt" Label="Type speech string here..." Variant="Variant.Outlined" Lines="3" Class="mb-4" />
 
     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnGenerateSpeechClicked" Disabled="@(!_isEngineReady || _isSpeaking)">
@@ -11,11 +13,14 @@
 </div>
 
 @code {
+    // NEW: Parameter link to forward synchronized word events up to chatdialog.razor
+    [Parameter] public EventCallback<string> OnWordSpoken { get; set; }
+
     private string _textPrompt = "Hello, this is David Turner speaking directly out of your local web browser hardware framework.";
     private bool _isEngineReady = false;
     private bool _isSpeaking = false;
     private IJSObjectReference? _module;
-    private DotNetObjectReference<AIAvatar>? _objRef; // Tracks the physical instance wrapper safely
+    private DotNetObjectReference<AIAvatar>? _objRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -28,25 +33,70 @@
         }
     }
 
+    // ==============================================================================
+    // THE SYNCHRONIZATION BRIDGE
+    // JavaScript triggers this method inside AIAvatar, which forwards it to ChatDialog
+    // ==============================================================================
+    [JSInvokable]
+    public async Task OnWordAudioTriggered(string nextWord)
+    {
+        if (OnWordSpoken.HasDelegate)
+        {
+            // Bubble the word up to chatdialog.razor thread-safely
+            await OnWordSpoken.InvokeAsync(nextWord);
+        }
+    }
+    // ==============================================================================
+
+    public async Task StartStreamingSession()
+    {
+        if (_module is null) return;
+        string pythonStreamUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
+
+        await InvokeAsync(() =>
+        {
+            _isSpeaking = true;
+            StateHasChanged();
+        });
+
+        await _module.InvokeVoidAsync("initializeVoiceStreamSession", pythonStreamUrl);
+    }
+
+    public async Task AppendStreamingToken(string token)
+    {
+        if (_module is null || string.IsNullOrEmpty(token)) return;
+        await _module.InvokeVoidAsync("accumulateAndStreamVoiceTokens", token);
+    }
+
+    public async Task FinalizeStreamingSession()
+    {
+        if (_module is null) return;
+        await _module.InvokeVoidAsync("finalizeVoiceStreamSession");
+    }
+
     public async Task SpeakLocally(string text)
     {
         if (_module is null || string.IsNullOrWhiteSpace(text)) return;
 
-        _isSpeaking = true;
-        StateHasChanged();
+        await InvokeAsync(() =>
+        {
+            _isSpeaking = true;
+            StateHasChanged();
+        });
 
         try
         {
-            var options = new TimeSpan(0, 5, 0); // Extends timeout limit safely to 5 minutes
-
-            await _module.InvokeVoidAsync("synthesizeClonedVoice", options, text);
+            string pythonStreamUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
+            await _module.InvokeVoidAsync("synthesizeClonedVoiceStream", pythonStreamUrl, text);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[BLAZOR-TIMEOUT-CATCH]: {ex.Message}");
-
-            _isSpeaking = false;
-            StateHasChanged();
+            Console.WriteLine($"[BLAZOR-STREAM-CATCH]: {ex.Message}");
+            await InvokeAsync(() =>
+            {
+                _isSpeaking = false;
+                StateHasChanged();
+            });
         }
     }
 

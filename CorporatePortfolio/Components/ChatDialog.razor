@@ -5,6 +5,7 @@
 @inject NavigationManager NavigationManager
 @inject ChatState State
 @inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
 @inject IHostEnvironment HostEnvironment
 @inject HttpClient Http
 
@@ -16,27 +17,26 @@
                 David Turner
             </MudText>
 
-            <!-- Dev Bypass OR Production Admin Check to display the UI controls -->
             @if (HostEnvironment.IsDevelopment())
             {
-                <MudToggleIconButton @bind-Toggled="_showAvatarPanel"
+                <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
                                      Icon="@Icons.Material.Filled.VideocamOff"
                                      Color="@Color.Default"
                                      ToggledIcon="@Icons.Material.Filled.Videocam"
                                      ToggledColor="@Color.Primary"
-                                     ToolTip="@(_showAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
+                                     ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
                                      Class="mr-8" />
             }
             else
             {
                 <AuthorizeView Roles="Admin">
                     <Authorized>
-                        <MudToggleIconButton @bind-Toggled="_showAvatarPanel"
+                        <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
                                              Icon="@Icons.Material.Filled.VideocamOff"
                                              Color="@Color.Default"
                                              ToggledIcon="@Icons.Material.Filled.Videocam"
                                              ToggledColor="@Color.Primary"
-                                             ToolTip="@(_showAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
+                                             ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
                                              Class="mr-8" />
                     </Authorized>
                 </AuthorizeView>
@@ -45,7 +45,6 @@
     </TitleContent>
     <DialogContent>
         <div style="display: flex; width: 100%; height: 100%; min-height: 450px;">
-
             <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid rgba(255,255,255,0.05);">
                 <div id="chat-container" style="flex-grow: 1; overflow-y: auto;" class="pa-4">
                     @foreach (var msg in _messages)
@@ -126,7 +125,7 @@
                 @if (_showAvatarPanel)
                 {
                     <div style="width: 320px; background-color: #1e1e24; display: flex; flex-direction: column;" class="pa-4">
-                        <AIAvatar @ref="_avatarComponent" />
+                        <AIAvatar @ref="_avatarComponent" OnWordSpoken="HandleStreamingWordReceived" />
                     </div>
                 }
             }
@@ -137,13 +136,12 @@
                         @if (_showAvatarPanel)
                         {
                             <div style="width: 320px; background-color: #1e1e24; display: flex; flex-direction: column;" class="pa-4">
-                                <AIAvatar @ref="_avatarComponent" @rendermode="InteractiveWebAssembly" />
+                                <AIAvatar @ref="_avatarComponent" OnWordSpoken="HandleStreamingWordReceived" />
                             </div>
                         }
                     </Authorized>
                 </AuthorizeView>
             }
-
         </div>
     </DialogContent>
     <DialogActions>
@@ -168,7 +166,6 @@
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public string Class { get; set; } = "chat-dark";
     private MudTextField<string> _textField = default!;
-
     private string _customStyle => State.HasPosition
         ? $"position: fixed; margin: 0; top: {State.Top}; left: {State.Left}; width: {(_showAvatarPanel ? "770px" : (string.IsNullOrEmpty(State.Width) ? "450px" : State.Width))}; height: {State.Height}; max-width: none; z-index: 3500 !important;"
         : "z-index: 3500 !important;";
@@ -176,96 +173,168 @@
     private List<ChatMessage> _messages = new();
     private string _userInput = "";
     private bool _isTyping = false;
-    private bool _disableInput = false;
+    private bool _disableInput = true;
     private const string _avatarUrl = "images/my-profile-pic.jpg";
     private const string _userAvatarUrl = "images/user-profile-pic.png";
     private AIAvatar? _avatarComponent;
     private bool _showAvatarPanel = false;
-    private bool _isExiting = false;
-
-    protected override async Task OnInitializedAsync()
+    private bool ShowAvatarPanel
     {
-        if (!_messages.Any())
+        get => _showAvatarPanel;
+        set
         {
-            _disableInput = true;
-            _isExiting = false;
-
-            var connectionBar = new ChatMessage { IsConnecting = true };
-            _messages.Add(connectionBar);
-            StateHasChanged();
-
-            await Task.Delay(4500); // Initial delay
-
-            // PHASE 2: Transition Out
-            _isExiting = true;
-            StateHasChanged();
-            await Task.Delay(400); // Let CSS slide-out finish
-
-            // The "Thinking" Dots
-            _messages.Remove(connectionBar);
-            _isExiting = false;
-            _isTyping = true;               
-            StateHasChanged();
-
-            await Task.Delay(2500); // 2.5s of bouncing dots
-
-            var greetingMsg = new ChatMessage
+            if (_showAvatarPanel != value)
             {
-                Text = "",
-                IsUser = false,
-                UserName = "David",
-                AvatarUrl = _avatarUrl,
-                IsComplete = false
-            };
-            _messages.Add(greetingMsg);
+                _showAvatarPanel = value;
 
-            string[] chunks = new string[] { "How ", "are you ", "today?" };
-            bool firstWord = true;
-
-            foreach (var chunk in chunks)
-            {
-                if (firstWord)
+                if (value == false)
                 {
-                    _isTyping = false; // Bubbles vanish as text arrives
-                    firstWord = false;
+                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] User hid the avatar stream panel mid-session. Forcing fallback UI release.");
+                    _disableInput = false;
+                    _isTyping = false;
+
+                    var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
+                    if (activeAiMessage is not null) activeAiMessage.IsComplete = true;
                 }
-                greetingMsg.Text += chunk;
-                greetingMsg.FormattedText = (await ChatbotService.FormatMessage(greetingMsg.Text)).Text;
-                StateHasChanged();
-                await Task.Delay(new Random().Next(160, 280));
-            }
 
-            greetingMsg.IsComplete = true;
-            _disableInput = false;
-            StateHasChanged();
-            await _textField.FocusAsync();
-
-            if (_avatarComponent is not null)
-            {
-                // The browser utilizes local client memory buffers to voice clone the greeting text
-                await _avatarComponent.SpeakLocally(greetingMsg.Text);
+                InvokeAsync(StateHasChanged);
             }
         }
     }
 
-    private bool IsMobileViewport()
+    private bool _isExiting = false;
+    private DotNetObjectReference<ChatDialog>? _chatDialogRef;
+
+    // A simple guard token to ensure our greeting animation sequence logic only fires once
+    private bool _hasGreetingRendered = false;
+
+    protected override Task OnInitializedAsync()
     {
-        // If the saved horizontal coordinate is larger than the screen width, drop explicit positioning
-        if (string.IsNullOrEmpty(State.Left)) return false;
-        if (int.TryParse(State.Left.Replace("px", ""), out int leftValue))
-        {
-            return leftValue > 600; // Returns true if the coordinates cannot fit in a mobile screen
-        }
-        return false;
+        // LEAVE EMPTY: We move the greeting out of here to stop server-side pre-render duplication bugs!
+        return Task.CompletedTask;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            _chatDialogRef = DotNetObjectReference.Create(this);
             await Task.Delay(150);
-            var objRef = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initChatDrag", objRef);
+            await JSRuntime.InvokeVoidAsync("initChatDrag", _chatDialogRef);
+
+            if (!_hasGreetingRendered && !_messages.Any())
+            {
+                // ==============================================================================
+                // INITIALIZATION UI GATE LOCK
+                // Force an immediate re-render on step one to lock the text entry controls
+                // BEFORE any heavy background Task.Delays block the execution thread!
+                // ==============================================================================
+                _hasGreetingRendered = true;
+                _disableInput = true;
+                _isExiting = false;
+
+                await InvokeAsync(StateHasChanged); // Snaps the input box disabled instantly!
+                // ==============================================================================
+
+                var connectionBar = new ChatMessage { IsConnecting = true };
+                _messages.Add(connectionBar);
+                await InvokeAsync(StateHasChanged);
+
+                await Task.Delay(4500);
+
+                _isExiting = true;
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(400);
+
+                _messages.Remove(connectionBar);
+                _isExiting = false;
+                _isTyping = true;
+                await InvokeAsync(StateHasChanged);
+
+                await Task.Delay(2500);
+
+                var greetingMsg = new ChatMessage
+                {
+                    Text = "",
+                    IsUser = false,
+                    UserName = "David",
+                    AvatarUrl = _avatarUrl,
+                    IsComplete = false
+                };
+                _messages.Add(greetingMsg);
+
+                string fullGreetingText = "How are you today?";
+
+                if (ShowAvatarPanel && _avatarComponent is not null)
+                {
+                    _isTyping = false;     // Clear bouncing loading dots instantly
+                    _disableInput = true;  // Keep user input field securely locked while greeting loads
+                    await InvokeAsync(StateHasChanged);
+
+                    // Initialize the parallel web audio background stream structures safely
+                    await _avatarComponent.StartStreamingSession();
+                    await _avatarComponent.AppendStreamingToken(fullGreetingText);
+                    await _avatarComponent.FinalizeStreamingSession();
+
+                    // HARD TIMEOUT BYPASS RESILIENCY VALVE:
+                    // This acts strictly as an un-awaited background supervisor guard.
+                    // It will ONLY step in to unlock if a catastrophic initialization failure occurs!
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(4000); // Extended to 4 seconds to cover backend cold-start generation
+
+                        await InvokeAsync(async () =>
+                                                {
+                                                    // If the system is still accidentally locked due to a network glitch, clear it safely
+                                                    if (_disableInput && _messages.Count == 1 && _messages.LastOrDefault()?.IsUser == false)
+                                                    {
+                                                        System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Hydration timeout hit. Enforcing fallback release.");
+                                                        _disableInput = false;
+                                                        _isTyping = false;
+
+                                                        var currentActiveAiMsg = _messages.LastOrDefault(m => !m.IsUser);
+                                                        if (currentActiveAiMsg is not null) currentActiveAiMsg.IsComplete = true;
+
+                                                        StateHasChanged();
+
+                                                        if (_textField is not null)
+                                                        {
+                                                            await _textField.FocusAsync();
+                                                        }
+                                                    }
+                                                });
+                    });
+                }
+                else
+                {
+                    // ==============================================================================
+                    // FALLBACK ISOLATION VALVE: Only runs if the avatar face panel is completely closed!
+                    // This is the ONLY place where C# can immediately reset state variables.
+                    // ==============================================================================
+                    string[] chunks = new string[] { "How ", "are you ", "today?" };
+                    bool firstWord = true;
+
+                    foreach (var chunk in chunks)
+                    {
+                        if (firstWord)
+                        {
+                            _isTyping = false;
+                            firstWord = false;
+                        }
+                        greetingMsg.Text += chunk;
+                        greetingMsg.FormattedText = (await ChatbotService.FormatMessage(greetingMsg.Text)).Text;
+                        await InvokeAsync(StateHasChanged);
+                        await Task.Delay(new Random().Next(160, 280));
+                    }
+
+                    greetingMsg.IsComplete = true;
+                    _disableInput = false; // Safely unlocks here ONLY if face panel is hidden
+                    _isTyping = false;
+                    await InvokeAsync(StateHasChanged);
+                    if (_textField is not null) await _textField.FocusAsync();
+                }
+                // ==============================================================================
+            }
         }
     }
 
@@ -279,19 +348,20 @@
 
     private async Task SendMessage()
     {
-        if (string.IsNullOrWhiteSpace(_userInput) || _isTyping) return;
+        if (string.IsNullOrWhiteSpace(_userInput) || _isTyping || _disableInput) return;
 
         var userText = _userInput;
         _messages.Add(new ChatMessage { Text = userText, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl, IsComplete = true });
 
         _userInput = "";
         await ScrollToBottom();
-        _isTyping = true; // Displays the dots until the first word appears
+        _isTyping = true;
         _disableInput = true;
         await InvokeAsync(StateHasChanged);
         await ScrollToBottom();
 
         var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };
+        string hiddenTextPayloadTracker = "";
 
         var chatRequest = new ChatRequest
         {
@@ -306,7 +376,7 @@
                 Timestamp = m.Timestamp,
                 UserName = m.UserName
             }).ToList()
-        };        
+        };
 
         var request = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/chat")
         {
@@ -338,23 +408,26 @@
                         _isTyping = false;
                         _messages.Add(aiMsg);
                         firstWordReceived = true;
+
+                        if (_showAvatarPanel && _avatarComponent is not null)
+                        {
+                            await _avatarComponent.StartStreamingSession();
+                        }
                     }
 
-                    if (string.IsNullOrEmpty(chunk))
+                    string sanitizedChunk = string.IsNullOrEmpty(chunk)
+                        ? "\n"
+                        : chunk.Replace("\\n", "\n").Replace("\r", "");
+
+                    hiddenTextPayloadTracker += sanitizedChunk;
+
+                    if (_showAvatarPanel && _avatarComponent is not null && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
-                        aiMsg.Text += "\n";
-                    }
-                    else
-                    {
-                        string sanitizedChunk = chunk.Replace("\\n", "\n").Replace("\r", "");
-                        aiMsg.Text += sanitizedChunk;
+                        string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
+
+                        await _avatarComponent.AppendStreamingToken(healedChunk);
                     }
 
-                    var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, aiMsg.IsComplete);
-                    aiMsg.FormattedText = formattedResult.Text;
-
-                    await InvokeAsync(StateHasChanged);
-                    await InvokeAsync(ScrollToBottom);
                     await Task.Yield();
                 }
             }
@@ -367,16 +440,92 @@
         finally
         {
             aiMsg.IsComplete = true;
-            _isTyping = false;
-            _disableInput = false;
-            await InvokeAsync(StateHasChanged);
-            await ScrollToBottom();
-            await _textField.FocusAsync();
 
             if (_showAvatarPanel && _avatarComponent is not null)
             {
-                await _avatarComponent.SpeakLocally(aiMsg.Text);
+                await _avatarComponent.FinalizeStreamingSession();
             }
+            else
+            {
+                aiMsg.Text = hiddenTextPayloadTracker;
+                var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, aiMsg.IsComplete);
+                aiMsg.FormattedText = formattedResult.Text;
+
+                _isTyping = false;
+                _disableInput = false;
+                await InvokeAsync(StateHasChanged);
+                await ScrollToBottom();
+            }
+        }
+    }
+
+    private async Task HandleStreamingWordReceived(string nextWord)
+    {
+        var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete);
+        if (activeAiMessage is null) activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
+
+        if (activeAiMessage is not null)
+        {
+            if (string.IsNullOrEmpty(activeAiMessage.Text))
+            {
+                activeAiMessage.Text = nextWord;
+            }
+            else
+            {
+                // Remove hidden markdown formatting tokens to read the true string footprint
+                string cleanCurrent = System.Text.RegularExpressions.Regex.Replace(activeAiMessage.Text, @"[\[\]\(\)*_#\s]", "");
+                string cleanNext = System.Text.RegularExpressions.Regex.Replace(nextWord, @"[\[\]\(\)*_#\s]", "");
+
+                // 1. FIX OVER 10: If a word ends in letters and the next chunk starts with numbers, force a clean space!
+                if (cleanCurrent.Length > 0 && cleanNext.Length > 0 &&
+                    char.IsLetter(cleanCurrent[^1]) && char.IsDigit(cleanNext[0]))
+                {
+                    activeAiMessage.Text = activeAiMessage.Text.TrimEnd() + " " + nextWord.TrimStart();
+                }
+                // 2. FIX .NET SPACING: If appending an acronym suffix directly after a period symbol, touch them natively with ZERO spaces
+                else if (activeAiMessage.Text.TrimEnd().EndsWith(".") && cleanNext.Equals("NET", StringComparison.OrdinalIgnoreCase))
+                {
+                    activeAiMessage.Text = activeAiMessage.Text.TrimEnd() + nextWord.TrimStart();
+                }
+                // 3. STANDARD WORD SEPARATION PUNCTUATION
+                else if (activeAiMessage.Text.EndsWith(" ") || nextWord.StartsWith(" ") || nextWord.StartsWith(",") || nextWord.StartsWith("."))
+                {
+                    activeAiMessage.Text += nextWord;
+                }
+                else
+                {
+                    activeAiMessage.Text += " " + nextWord;
+                }
+            }
+
+            var formattedResult = await ChatbotService.FormatMessage(activeAiMessage.Text, activeAiMessage.IsComplete);
+            activeAiMessage.FormattedText = formattedResult.Text;
+
+            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(ScrollToBottom);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnSpeechFinished()
+    {
+        System.Diagnostics.Debug.WriteLine("[BLAZOR-DIALOG] Audio pipelines empty. Unlocking inputs.");
+
+        // 1. Release UI input controls cleanly
+        _isTyping = false;
+        _disableInput = false;
+
+        // 2. Mark the greeting or chat response bubble complete so formatting engines finalize
+        var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
+        if (activeAiMessage is not null) activeAiMessage.IsComplete = true;
+
+        await InvokeAsync(StateHasChanged);
+        await InvokeAsync(ScrollToBottom);
+
+        // 3. Force focus back to your text entry bar automatically
+        if (_textField is not null)
+        {
+            await _textField.FocusAsync();
         }
     }
 
@@ -390,5 +539,10 @@
     {
         await Task.Delay(100);
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
-    }      
+    }
+
+    public void Dispose()
+    {
+        _chatDialogRef?.Dispose();
+    }
 }

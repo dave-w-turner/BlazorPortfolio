@@ -14,13 +14,10 @@
     <Content Include="Components\AIAvatar.razor.js" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup> 
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Hosting" Version="2.3.10" />
     <PackageReference Include="MudBlazor" Version="9.4.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="wwwroot\" />
   </ItemGroup>
 
 </Project>

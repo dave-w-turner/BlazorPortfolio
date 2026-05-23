@@ -1,4 +1,4 @@
-# f5_server.py - High Fidelity Local Voice Cloning Endpoint (Final Production)
+# f5_server.py - High Fidelity Local Voice Cloning Endpoint (Final Production with Streaming support)
 import os
 from dotenv import load_dotenv
 
@@ -15,6 +15,7 @@ import soundfile as sf
 import librosa
 import torchaudio
 import re
+import numpy as np
 
 # ==============================================================================
 # MONKEY-PATCH: Explicitly force torchaudio.load to use soundfile decoding layout.
@@ -33,6 +34,7 @@ print("[PATCH] torchaudio.load successfully bound to pure Python Soundfile wrapp
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from f5_tts.api import F5TTS
 
@@ -40,7 +42,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Swap with your actual frontend domain when pushing live!
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -59,10 +61,18 @@ async def generate_voice_clone(request: TTSRequest):
         
         processed_text = str(request.text).strip()
 
-        # Strip hyphens completely to join the words natively
-        processed_text = processed_text.replace("-", " ")
+        # FIX STRAY SPACE: Look for periods touching a letter, but EXPLICITLY ignore it 
+        # if the following letters spell out "net" or "NET"!
+        processed_text = re.sub(r'\.(?=[A-Za-z0-9])(?!(?:net|NET)\b)', '. ', processed_text)
 
-        # Fix pronounciations
+        # 2. HARD HYBRID OVERRIDES FOR TECHNICAL SYMBOLS (Runs cleanly below)
+        processed_text = re.sub(r'\bC#\b|\bC#', "C sharp", processed_text, flags=re.IGNORECASE)
+        processed_text = re.sub(r'\.NET\b', "dot net", processed_text, flags=re.IGNORECASE)
+        processed_text = re.sub(r'\b\.net\b', "dot net", processed_text, flags=re.IGNORECASE)
+        processed_text = processed_text.replace(".NET", "dot net")
+        processed_text = processed_text.replace(".net", "dot net")
+
+        # 3. CANADIAN ACCENT DICTIONARY MAPPINGS (Pure letters only)
         CANADIAN_DICTIONARY = {
             "routing": "rauwting",
             "processes": "prosesses",
@@ -75,7 +85,7 @@ async def generate_voice_clone(request: TTSRequest):
             "cache": "kash",
             "asphalt": "ashphalt",
             "lever": "leever",
-            "decal": "dee-kal",
+            "decal": "dee kal",
             "project": "proeject",
             "projects": "proejects",
             "drama": "dramma",
@@ -90,31 +100,36 @@ async def generate_voice_clone(request: TTSRequest):
             "latency": "laytency",
             "kubernetes": "koobernetties",
             "variable": "vairyable",
-            "daemon": "daymon",
-            ".net": "dot net",
-            "dotnot": "dot net",
-            "C#": "C-sharp"
+            "daemon": "daymon"
         }
 
-        processed_text = str(request.text).strip()
-        processed_text = processed_text.replace("-", " ")
-
+        # Run the standard case-insensitive regex loop for the pure letter keys
         for word, phonetic in CANADIAN_DICTIONARY.items():
             pattern = re.compile(rf'\b{re.escape(word)}\b', re.IGNORECASE)
             
             def match_case(match):
                 text = match.group()
-                # If the original matched word was fully uppercase (like SQL or SAAS)
                 if text.isupper():
                     return phonetic.upper()
-                # If the original matched word was capitalized (like Process or Routing)
-                if text[0].isupper():
+                if text.istitle():
                     return phonetic.capitalize()
-                # Fall back to standard lowercase replacement
                 return phonetic
 
             processed_text = pattern.sub(match_case, processed_text)
 
+        # 4. FIX COMMA CRACKLES SAFELY WITHOUT SWALLOWING WORD SPACES
+        # Adds space after a comma if missing, then pads the front of the comma with a clean space token
+        processed_text = re.sub(r',(?=[A-Za-z0-9])', ', ', processed_text)
+        processed_text = re.sub(r'\s*,\s*', ' , ', processed_text) # Handles spacing on both sides safely
+
+        # 5. STRIP STRUCTURAL HYPHENS
+        processed_text = processed_text.replace("-", " ")
+
+        # 6. COMPRESS CONSECUTIVE SPACES INTO A SINGLE UNIFIED BLANK SPACE
+        # This replaces your old buggy block and guarantees 'Over 10' is preserved!
+        processed_text = ' '.join(processed_text.split())
+
+        # 7. APPEND TERMINAL PUNCTUATION GUARD
         if not processed_text.endswith(('.', '!', '?')):
             processed_text += '.'
 
@@ -136,29 +151,50 @@ async def generate_voice_clone(request: TTSRequest):
             print(f"[F5-ENGINE] Resampling audio track dynamically from {sample_rate}Hz to 24000Hz...")
             audio_data = librosa.resample(audio_data, orig_sr=sample_rate, target_sr=24000)
             
-        # FIX: Raised boundary to 7 seconds so your 5.4s track is never truncated!
         max_samples = int(24000 * 7.0)  
         audio_data = audio_data[:max_samples]
         
         normalized_audio_path = "normalized_reference.wav"
         sf.write(normalized_audio_path, audio_data, 24000)
 
-        print(f"[F5-ENGINE] Processing flow-matching inference for prompt: '{local_config['gen_text']}'")
-        
-        wav, sr, spect = f5_pipeline.infer(
-            normalized_audio_path,
-            local_config["ref_text"],
-            local_config["gen_text"],
-            speed=1.3,               
-            nfe_step=16              
-        )
-        
-        buffer = io.BytesIO()
-        sf.write(buffer, wav, sr, format='WAV', subtype='PCM_16')
-        buffer.seek(0)
-        
-        from fastapi.responses import Response
-        return Response(content=buffer.read(), media_type="audio/wav")
+        # ==============================================================================
+        # STREAMING GENERATOR CORE
+        # ==============================================================================
+        def chunk_audio_stream():
+            # Only split on final periods (.) followed by spaces to prevent fragmentation
+            raw_sentences = re.split(r'(?<=\.)\s+', local_config["gen_text"].strip())
+            sentences = [s.strip() for s in raw_sentences if s.strip()]
+            
+            for sentence in sentences:
+                # Add silence buffers so text components wind down smoothly inside the DiT matrix
+                padded_sentence = " " + sentence + " . . ."
+                
+                print(f"[F5-ENGINE] Processing sub-block chunk: '{padded_sentence}'")
+                wav_chunk, sr, _ = f5_pipeline.infer(
+                    normalized_audio_path,
+                    local_config["ref_text"],
+                    padded_sentence,
+                    speed=1.35,
+                    nfe_step=24
+                )
+                
+                # ACOUSTIC LIMITER MATRIX: Scale max floating peak safely down to -1dB (0.89)
+                max_peak = np.max(np.abs(wav_chunk))
+                if max_peak > 0:
+                    wav_chunk = (wav_chunk / max_peak) * 0.89
+                
+                # Chunk and yield standard uncompressed mono 16-bit PCM bytes (4096-frame buffer)
+                chunk_size = 4096
+                for i in range(0, len(wav_chunk), chunk_size):
+                    chunk = wav_chunk[i:i + chunk_size]
+                    pcm_data = (chunk * 32767).astype(np.int16).tobytes()
+                    yield pcm_data
+
+            # Final line terminal cushion
+            silence_pad = np.zeros(9600, dtype=np.int16).tobytes()
+            yield silence_pad
+
+        return StreamingResponse(chunk_audio_stream(), media_type="audio/pcm")
 
     except Exception as e:
         import traceback
