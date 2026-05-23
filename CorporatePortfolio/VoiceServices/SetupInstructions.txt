@@ -5,13 +5,14 @@ python -m venv env
 .\env\Scripts\Activate.ps1
 
 3. Install dependencies and NVIDIA GPU Drivers
-pip install fastapi uvicorn soundfile librosa f5-tts pydantic && python -c "b = 'https://download.p'; y = 'ytorch.org/whl/cu124'; cmd = f'pip install torch torchaudio --index-url {b}{y} --force-reinstall --no-cache-dir'; import subprocess; subprocess.run(cmd.split())"
+pip install fastapi uvicorn soundfile librosa f5-tts pydantic python-dotenv
+* Ignore any fsspec errors during installation, they are not relevant to this project and should not affect functionality.
 
-4. Add a .env file to this solutions VoiceServices folder with the following content:
-# .env file content
-HF_TOKEN=YOURHUGGINGFACESAPIKEY
+4. Add a .env file to this solutions VoiceServices folder using the following Powershell command and you must be within that folder at the commandline:
+python -c "with open('.env', 'w', encoding='utf-8') as f: f.write('HF_TOKEN=YOURHUGGINGFACESAPIKEY\n')"
 
-5. Update the .gitignore file to include the .env file
+5. Update the .gitignore file to include the .env file, add to to the very end if it is not already there.
 
 4. Start the server
 python f5_server.py
+* Ignore any ffmpeg errors during server startup, they are not relevant to this project and should not affect functionality.

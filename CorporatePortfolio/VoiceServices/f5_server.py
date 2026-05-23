@@ -2,7 +2,9 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+current_folder = os.path.dirname(os.path.abspath(__file__))
+env_file_path = os.path.join(current_folder, ".env")
+load_dotenv(dotenv_path=env_file_path)
 
 # Set absolute base configuration variables first
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
