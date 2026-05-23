@@ -1,0 +1,17 @@
+1. Create new isolated virtual environment
+python -m venv env
+
+2. Active the environment
+.\env\Scripts\Activate.ps1
+
+3. Install dependencies and NVIDIA GPU Drivers
+pip install fastapi uvicorn soundfile librosa f5-tts pydantic && python -c "b = 'https://download.p'; y = 'ytorch.org/whl/cu124'; cmd = f'pip install torch torchaudio --index-url {b}{y} --force-reinstall --no-cache-dir'; import subprocess; subprocess.run(cmd.split())"
+
+4. Add a .env file to this solutions VoiceServices folder with the following content:
+# .env file content
+HF_TOKEN=YOURHUGGINGFACESAPIKEY
+
+5. Update the .gitignore file to include the .env file
+
+4. Start the server
+python f5_server.py
