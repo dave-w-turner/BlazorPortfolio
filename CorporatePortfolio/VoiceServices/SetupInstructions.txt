@@ -16,3 +16,26 @@ python -c "with open('.env', 'w', encoding='utf-8') as f: f.write('HF_TOKEN=YOUR
 4. Start the server
 python f5_server.py
 * Ignore any ffmpeg errors during server startup, they are not relevant to this project and should not affect functionality.
+
+You can run the server from a powershell command line or you can install it as a windows service using the following command from an elevated powershell command line:
+
+1. 'winget install nssm' **Downloads service manager utility. If prompted to source contract scripts, type Y and hit enter.
+2. 'nssm install F5VoiceService' **Configures background service.
+3. A small graphic layout window will pop up on your screen. Fill out the three parameter rows exactly like this:
+	- Path: Set this to the absolute location of your Anaconda environment's Python executable file.Path String: C:\Users\user\anaconda3\python.exe
+	- Startup directory: Set this to your exact project solution's subfolder tracking path.Path String: C:\Users\user\source\repos\user\CorporatePortfolio\CorporatePortfolio\VoiceServices
+	- Arguments: Type the literal file name of your server script file:
+		- Argument String: f5_server.py
+
+Click the Install service button at the bottom. NSSM will instantly hook your script into the core Windows kernel tracking ledger.
+
+4. Setup the service, use the following powershell commands:
+
+	# 1. Set the service to start automatically every time your machine boots up
+	Set-Service -Name F5VoiceService -StartupType Automatic
+
+	# 2. Fire up the background listener engine right now
+	Start-Service -Name F5VoiceService
+
+	# 3. Verify that it is running cleanly in the background
+	Get-Service -Name F5VoiceService
