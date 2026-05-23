@@ -16,8 +16,15 @@ python -c "with open('.env', 'w', encoding='utf-8') as f: f.write('HF_TOKEN=YOUR
 4. Start the server
 python f5_server.py
 * Ignore any ffmpeg errors during server startup, they are not relevant to this project and should not affect functionality.
+* Run it at least once first from powershell and make sure it starts up.
 
-You can run the server from a powershell command line or you can install it as a windows service using the following command from an elevated powershell command line:
+INFO:     Started server process [44008]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+
+
+You can install it as a windows service using the following command from an elevated powershell command line:
 
 1. 'winget install nssm' **Downloads service manager utility. If prompted to source contract scripts, type Y and hit enter.
 2. 'nssm install F5VoiceService' **Configures background service.
@@ -39,3 +46,8 @@ Click the Install service button at the bottom. NSSM will instantly hook your sc
 
 	# 3. Verify that it is running cleanly in the background
 	Get-Service -Name F5VoiceService
+
+5. The .env file you created to run the service from powershell will not be able to be read by the NETWORK SERVICE account on the local machine so you must add a Windows Environment Variable
+   called HF_TOKEN instead. You must also add the environment variable KMP_DUPLICATE_LIB_OK and set the value to TRUE. Make sure you add these under the SYSTEM VARIABLES.
+
+7. Set the Logon for the Windows Service to Local System Account using the GUI editor launched with "nssm edit F5VoiceService" from the command line.

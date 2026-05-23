@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 .env
+normalized_reference.wav
