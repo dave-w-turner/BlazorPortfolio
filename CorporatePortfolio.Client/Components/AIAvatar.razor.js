@@ -47,6 +47,32 @@ export function initializeVoiceStreamSession(targetUrl) {
     }
 }
 
+export function synchronizeVoiceTextSessionHead(alreadyRenderedText) {
+    console.log("[JS-HARDWARE] Multi-toggle reset: Syncing audio clock to word boundaries.");
+
+    // 1. Flush any leftover byte arrays from the old muted stream
+    downloadedAudioPayloadBufferQueue = [];
+
+    // 2. Align our string tracker to match the visual display text state
+    jsTextAccumulator = alreadyRenderedText || "";
+
+    // ==========================================================================
+    // HARD TIMELINE REALIGNMENT VALVE
+    // Force the scheduling timeline clock to sync exactly with the browser's live
+    // AudioContext clock, ensuring that the very next word highlight maps perfectly!
+    // ==========================================================================
+    if (globalAudioCtx) {
+        // Pushes the hardware timeline track exactly 100ms ahead of the active sound card
+        nextPlayTime = globalAudioCtx.currentTime + 0.1;
+    } else {
+        nextPlayTime = 0;
+    }
+
+    // 3. Clear out your custom token/word tracking offsets if you are counting 
+    // word markers via loops, ensuring arrays evaluate from the new slice head index!
+    window.isWaitingForAudioHandshake = true;
+}
+
 export function accumulateAndStreamVoiceTokens(textChunk) {
     jsTextAccumulator += textChunk;
 
@@ -201,14 +227,17 @@ function processHardwarePlaybackLoop() {
         let mergedFloats = payload.audioData;
         let sentenceText = payload.text;
 
+        // ==============================================================================
+        // HARDWARE HANDSHAKE TRIGGER
+        // Fires your exact native C# method in AIAvatar.razor to drop the loading bubbles!
+        // ==============================================================================
         if (dotNetReference && window.isWaitingForAudioHandshake) {
             window.isWaitingForAudioHandshake = false;
             let physicalStartDelayMs = Math.max(0, (nextPlayTime - globalAudioCtx.currentTime) * 1000);
+
             setTimeout(() => {
                 console.log("[JS-HARDWARE] Audio waves are physically playing now. Releasing Blazor bubbles.");
-                if (window.chatDialogRef) {
-                    window.chatDialogRef.invokeMethodAsync('OnPhysicalAudioStarted');
-                }
+                dotNetReference.invokeMethodAsync('OnAudioStarted');
             }, physicalStartDelayMs);
         }
 
@@ -239,17 +268,30 @@ function processHardwarePlaybackLoop() {
             // 1. Repair broken framework spaces before splitting into word tokens
             sanitizedText = sanitizedText.replace(/\bC\s*#\s*\.?\s*NET\b/gi, "C# .NET");
             sanitizedText = sanitizedText.replace(/\bC\s*\+\+\b/gi, "C++");
-            sanitizedText = sanitizedText.replace(/\bCI\s*\/\s*CD\b/gi, "CI/CD");
+            sanitizedText = sanitizedText.replace(/\bCI\s\/\sCD\b/gi, "CI/CD");
 
             // 2. Now safely split the repaired text into individual words
             const words = sanitizedText.trim().split(/(?<!\b(?:C#|F#|C\+\+|CI))\s+(?!(?:\.?NET|CD)\b)/gi);
 
             if (words.length > 0) {
                 const wordDisplayInterval = (audioBuffer.duration / words.length) * 1000;
+
+                // ==============================================================================
+                // STABLE TIMELINE SNAPSHOT
+                // Freeze exactly when this specific chunk is planned to play out of the speaker.
+                // ==============================================================================
+                const chunkScheduleStartTime = nextPlayTime;
+
                 words.forEach((word, index) => {
+                    // Calculate the exact milliseconds relative to the physical sound wave
+                    let wordDelayMs = Math.max(0, ((chunkScheduleStartTime - globalAudioCtx.currentTime) * 1000) + (index * wordDisplayInterval));
+
                     setTimeout(() => {
-                        dotNetReference.invokeMethodAsync('OnWordAudioTriggered', word);
-                    }, (nextPlayTime - globalAudioCtx.currentTime) * 1000 + (index * wordDisplayInterval));
+                        if (dotNetReference) {
+                            // Streams individual word markers natively up to ChatDialog typewriter
+                            dotNetReference.invokeMethodAsync('OnWordAudioTriggered', word);
+                        }
+                    }, wordDelayMs);
                 });
             }
         }
@@ -261,7 +303,6 @@ function processHardwarePlaybackLoop() {
 
     } catch (playbackError) {
         console.error("[PLAYBACK-CRITICAL-FAULT]: Bypassing to preserve UI state locks.", playbackError);
-        // SAFETY FALLBACK: If an audio array handles improperly, release the worker states
         isJsPlaybackWorkerRunning = false;
         checkSystemIdleState();
     }
@@ -324,6 +365,17 @@ export function forceStopAndResetAudioContext() {
     }
 }
 
+export function isHardwareAudioQueueActive() {
+    if (!globalAudioCtx) {
+        return false;
+    }
+
+    // If the next planned audio frame timestamp is further out than 
+    // the hardware context's live running clock, audio is still playing!
+    return nextPlayTime > globalAudioCtx.currentTime;
+}
+
+window.isHardwareAudioQueueActive = isHardwareAudioQueueActive;
 window.forceStopAndResetAudioContext = forceStopAndResetAudioContext;
 window.resetAudioEngineState = resetAudioEngineState;
 window.Blazor = window.Blazor || {};

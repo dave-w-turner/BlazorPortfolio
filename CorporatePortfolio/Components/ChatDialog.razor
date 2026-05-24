@@ -18,32 +18,37 @@
                 David Turner
             </MudText>
 
-            @if (HostEnvironment.IsDevelopment())
-            {
-                <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
-                                     Icon="@Icons.Material.Filled.VideocamOff"
-                                     Color="@Color.Default"
-                                     ToggledIcon="@Icons.Material.Filled.Videocam"
-                                     ToggledColor="@Color.Primary"
-                                     ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
-                                     Class="mr-8" />
-            }
-            else
-            {
-                <AuthorizeView Roles="Admin">
-                    <Authorized>
-                        <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
-                                             Icon="@Icons.Material.Filled.VideocamOff"
-                                             Color="@Color.Default"
-                                             ToggledIcon="@Icons.Material.Filled.Videocam"
-                                             ToggledColor="@Color.Primary"
-                                             ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
-                                             Class="mr-8" />
-                    </Authorized>
-                </AuthorizeView>
-            }
+            <div @onclick:stopPropagation="true">
+                @if (HostEnvironment.IsDevelopment())
+                {
+                    <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
+                                         Icon="@Icons.Material.Filled.VideocamOff"
+                                         Color="@Color.Default"
+                                         ToggledIcon="@Icons.Material.Filled.Videocam"
+                                         ToggledColor="@Color.Primary"
+                                         ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
+                                         Class="mr-8"
+                                         Disabled="@(_messages.Any(m => !m.IsUser) && _messages.LastOrDefault(m => !m.IsUser)?.IsComplete == true)" />
+                }
+                else
+                {
+                    <AuthorizeView Roles="Admin">
+                        <Authorized>
+                            <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
+                                                 Icon="@Icons.Material.Filled.VideocamOff"
+                                                 Color="@Color.Default"
+                                                 ToggledIcon="@Icons.Material.Filled.Videocam"
+                                                 ToggledColor="@Color.Primary"
+                                                 ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
+                                                 Class="mr-8"
+                                                 Disabled="@(_messages.Any(m => !m.IsUser) && _messages.LastOrDefault(m => !m.IsUser)?.IsComplete == true)" />
+                        </Authorized>
+                    </AuthorizeView>
+                }
+            </div>
         </div>
     </TitleContent>
+
     <DialogContent>
         <div style="display: flex; width: 100%; height: 100%; min-height: 450px;">
             <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid rgba(255,255,255,0.05);">
@@ -133,27 +138,21 @@
 
             @if (HostEnvironment.IsDevelopment())
             {
-                @if (_showAvatarPanel)
-                {
-                    <div style="width: 320px; background-color: #1e1e24; display: flex; flex-direction: column;" class="pa-4">
-                        <AIAvatar @ref="_avatarComponent"
-                                  OnWordSpoken="HandleStreamingWordReceived"
-                                  OnAudioLive="HandlePhysicalAudioLive" />
-                    </div>
-                }
+                <div style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
+                    <AIAvatar @ref="_avatarComponent"
+                              OnWordSpoken="HandleStreamingWordReceived"
+                              OnAudioLive="HandlePhysicalAudioLive" />
+                </div>
             }
             else
             {
                 <AuthorizeView Roles="Admin">
                     <Authorized>
-                        @if (_showAvatarPanel)
-                        {
-                            <div style="width: 320px; background-color: #1e1e24; display: flex; flex-direction: column;" class="pa-4">
-                                <AIAvatar @ref="_avatarComponent"
-                                          OnWordSpoken="HandleStreamingWordReceived"
-                                          OnAudioLive="HandlePhysicalAudioLive" />
-                            </div>
-                        }
+                        <div style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
+                            <AIAvatar @ref="_avatarComponent"
+                                      OnWordSpoken="HandleStreamingWordReceived"
+                                      OnAudioLive="HandlePhysicalAudioLive" />
+                        </div>
                     </Authorized>
                 </AuthorizeView>
             }
@@ -191,7 +190,7 @@
     private bool _disableInput = true;
     private const string _avatarUrl = "images/my-profile-pic.jpg";
     private const string _userAvatarUrl = "images/user-profile-pic.png";
-    private AIAvatar? _avatarComponent;
+    private AIAvatar _avatarComponent;
     private bool _showAvatarPanel = false;
     private bool ShowAvatarPanel
     {
@@ -201,22 +200,137 @@
             if (_showAvatarPanel != value)
             {
                 _showAvatarPanel = value;
+
                 if (value == true)
                 {
-                    // Toggle hotswap mode tracking
+                    // =============================================================
+                    // KILL SWITCH: Cancel and dispose of any running recovery typewriter
+                    // tasks instantly to prevent multi-threaded UI thread pollution!
+                    // =============================================================
+                    if (_typewriterCts is not null)
+                    {
+                        _typewriterCts.Cancel();
+                        _typewriterCts.Dispose();
+                        _typewriterCts = null;
+                    }
+
                     _isWaitingForAudioStreamHook = true;
                     _isAudioTypingStarted = false;
+
+                    var runningAiMessage = _messages.LastOrDefault(m => !m.IsUser);
+
+                    bool requiresAudioReboot = runningAiMessage is not null &&
+                                                                   !string.IsNullOrEmpty(hiddenTextPayloadTracker) &&
+                                                                   runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length;
+
+                    if (requiresAudioReboot && !_isAudioSessionInitialized)
+                    {
+                        try
+                        {
+                            string pythonVoiceUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
+
+                            _ = JSRuntime.InvokeVoidAsync("initializeVoiceStreamSession", pythonVoiceUrl);
+                            _isAudioSessionInitialized = true;
+                            isDeceleratingHotSwap = true;
+
+                            if (!string.IsNullOrEmpty(runningAiMessage.Text))
+                            {
+                                // Add a trailing space padding if missing so the next oncoming words
+                                // compile as isolated text tokens instead of cutting old words in half!
+                                string paddedTextHead = runningAiMessage.Text.EndsWith(" ")
+                                    ? runningAiMessage.Text
+                                    : runningAiMessage.Text + " ";
+
+                                _ = JSRuntime.InvokeVoidAsync("synchronizeVoiceTextSessionHead", paddedTextHead);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[BLAZOR-ERROR] Re-initialization failed: {ex.Message}");
+                        }
+                    }
+
+                    _ = InvokeAsync(StateHasChanged);
                 }
                 if (value == false)
                 {
-                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Panel hidden.");
-                    _disableInput = false;
-                    _isTyping = false;
+                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] User hid avatar panel. Running safe typewriter recovery track.");
+
+                    // 1. Instantly silence browser sound card tracks
+                    _ = JSRuntime.InvokeVoidAsync("forceStopAndResetAudioContext");
+
+                    // 2. Reset the transition and initialization flags cleanly
                     _isWaitingForAudioStreamHook = false;
-                    var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
-                    if (activeAiMessage is not null) activeAiMessage.IsComplete = true;
+                    _isAudioTypingStarted = false;
+                    _isAudioSessionInitialized = false;
+
+                    // Create a clean cancellation token source
+                    _typewriterCts = new System.Threading.CancellationTokenSource();
+                    var token = _typewriterCts.Token;
+
+                    var runningAiMessage = _messages.LastOrDefault(m => !m.IsUser);
+                    if (runningAiMessage is not null && !string.IsNullOrEmpty(hiddenTextPayloadTracker))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                while (runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length)
+                                {
+                                    if (token.IsCancellationRequested || _showAvatarPanel) break;
+
+                                    int currentLength = runningAiMessage.Text.Length;
+                                    char nextChar = hiddenTextPayloadTracker[currentLength];
+
+                                    runningAiMessage.Text += nextChar;
+
+                                    if (char.IsWhiteSpace(nextChar) || currentLength + 1 == hiddenTextPayloadTracker.Length)
+                                    {
+                                        var formattedResult = await ChatbotService.FormatMessage(runningAiMessage.Text, false);
+                                        runningAiMessage.FormattedText = formattedResult.Text;
+                                        await InvokeAsync(StateHasChanged);
+                                        await ScrollToBottom();
+                                    }
+
+                                    await Task.Delay(8, token);
+                                }
+
+                                // =============================================================
+                                // AUDIO-AWARE SESSION COMPLETION VALVE
+                                // Once the text finishes typing, we check if the hardware audio context
+                                // queue is still processing waves in the background before shutting down!
+                                // =============================================================
+                                while (!_showAvatarPanel && !token.IsCancellationRequested)
+                                {
+                                    // Query JavaScript to see if there are still audio fragments actively scheduled
+                                    bool isAudioStillPlaying = await JSRuntime.InvokeAsync<bool>("isHardwareAudioQueueActive");
+
+                                    if (!isAudioStillPlaying)
+                                    {
+                                        // BOTH tracks are entirely done! Safely shut down the session locks.
+                                        break;
+                                    }
+
+                                    // Hold here and check back every quarter of a second
+                                    await Task.Delay(250, token);
+                                }
+
+                                if (!_showAvatarPanel && !token.IsCancellationRequested)
+                                {
+                                    runningAiMessage.IsComplete = true;
+                                    _isTyping = false;
+                                    _disableInput = false;
+
+                                    await InvokeAsync(StateHasChanged);
+                                    if (_textField is not null) await _textField.FocusAsync();
+                                }
+                            }
+                            catch (TaskCanceledException) { /* Safe exit bypass */ }
+                        }, token);
+                    }
+
+                    _ = InvokeAsync(StateHasChanged);
                 }
-                InvokeAsync(StateHasChanged);
             }
         }
     }
@@ -231,6 +345,8 @@
 
     private bool _isWaitingForAudioStreamHook = false;
     private bool _isAudioTypingStarted = false;
+    private System.Threading.CancellationTokenSource? _typewriterCts;
+    private bool _isAudioSessionInitialized = false;
 
     protected override Task OnInitializedAsync()
     {
@@ -385,8 +501,6 @@
         await ScrollToBottom();
 
         var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };        
-        bool isAudioSessionInitialized = false;
-        int hotSwapTypingDelay = 0;
 
         var chatRequest = new ChatRequest
         {
@@ -434,10 +548,10 @@
                         _messages.Add(aiMsg);
                         firstWordReceived = true;
 
-                        if (_showAvatarPanel && _avatarComponent is not null)
+                        if (_showAvatarPanel)
                         {
                             await _avatarComponent.StartStreamingSession();
-                            isAudioSessionInitialized = true;
+                            _isAudioSessionInitialized = true;
                         }
                     }
 
@@ -450,17 +564,16 @@
                     // ==============================================================================
                     // 1. DUAL-STREAMING ORCHESTRATOR GATING VALVE
                     // ==============================================================================
-                    if (_showAvatarPanel && _avatarComponent is not null && !string.IsNullOrWhiteSpace(sanitizedChunk))
+                    if (_showAvatarPanel && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
-                        if (!isAudioSessionInitialized)
+                        // If the panel was opened but initialization was missed, handle it as a safe fallback
+                        if (!_isAudioSessionInitialized)
                         {
                             try
                             {
                                 string pythonVoiceUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
                                 await JSRuntime.InvokeVoidAsync("initializeVoiceStreamSession", pythonVoiceUrl);
-                                isAudioSessionInitialized = true;
-
-                                // Trigger the UI layer to slow down its typing pace
+                                _isAudioSessionInitialized = true;
                                 isDeceleratingHotSwap = true;
                             }
                             catch { /* Safety fallback */ }
@@ -468,14 +581,20 @@
 
                         string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
 
-                        // PASS TO JAVASCRIPT INSTANTLY (Never delayed, keeping the audio pipeline fed!)
+                        // PASS TO JAVASCRIPT INSTANTLY
                         await JSRuntime.InvokeVoidAsync("accumulateAndStreamVoiceTokens", healedChunk);
                     }
 
                     if (!_showAvatarPanel)
                     {
-                        // Standard mode: Render high-speed network text natively to screen layout
-                        aiMsg.Text = hiddenTextPayloadTracker;
+                        // HOTSWAP RECOVERY CATCH-UP:
+                        // If we just toggled the panel off, the layout text might be behind
+                        // the background network tracker. To prevent a freeze, we force the string
+                        // to sync up to what is currently tracked, and let it stream forward smoothly.
+                        if (aiMsg.Text != hiddenTextPayloadTracker)
+                        {
+                            aiMsg.Text = hiddenTextPayloadTracker;
+                        }
 
                         var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
                         aiMsg.FormattedText = formattedResult.Text;
@@ -484,10 +603,7 @@
                     }
                     else if (_showAvatarPanel && _isWaitingForAudioStreamHook)
                     {
-                        // HOTSWAP TRANSITION LOCK:
-                        // The user opened the panel. We freeze text rendering to let the audio engine sync.
-                        // Instead of spamming StateHasChanged hundreds of times per second, we yield
-                        // the execution thread gracefully so the browser can keep the dots smoothly animating!
+                        // HOTSWAP TRANSITION LOCK: Hold layout updates during audio buffering
                         await Task.Delay(45);
                     }
 
@@ -507,8 +623,19 @@
             _isWaitingForAudioStreamHook = false;
             _isAudioTypingStarted = false;
 
+            if (!_showAvatarPanel)
+            {
+                var finalMsg = _messages.LastOrDefault(m => !m.IsUser);
+                if (finalMsg is not null && (string.IsNullOrEmpty(hiddenTextPayloadTracker) || finalMsg.Text.Length >= hiddenTextPayloadTracker.Length))
+                {
+                    finalMsg.IsComplete = true;
+                    _isTyping = false;
+                    _disableInput = false;
+                }
+            }
+
             // Use our local tracking flag to safely verify if an audio session was actually used
-            if (isAudioSessionInitialized && _avatarComponent is not null)
+            if (_isAudioSessionInitialized && _avatarComponent is not null && _showAvatarPanel)
             {
                 await _avatarComponent.FinalizeStreamingSession();
             }
@@ -517,12 +644,12 @@
                 aiMsg.Text = hiddenTextPayloadTracker;
                 var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, aiMsg.IsComplete);
                 aiMsg.FormattedText = formattedResult.Text;
-
-                _isTyping = false;
-                _disableInput = false;
-                await InvokeAsync(StateHasChanged);
-                await ScrollToBottom();
             }
+
+            _isTyping = false;
+            _disableInput = false;
+            await InvokeAsync(StateHasChanged);
+            await ScrollToBottom();
         }
     }
 
@@ -543,33 +670,24 @@
                 isDeceleratingHotSwap = false;
             }
 
-            // ==============================================================================
-            // AUDIO-DRIVEN TYPEWRITER REASSEMBLY ENGINE
-            // ==============================================================================
-            if (string.IsNullOrEmpty(activeAiMessage.Text))
+            if (!string.IsNullOrEmpty(hiddenTextPayloadTracker))
             {
-                activeAiMessage.Text = nextWord;
-            }
-            else
-            {
-                string cleanCurrent = System.Text.RegularExpressions.Regex.Replace(activeAiMessage.Text, @"[\[\]\(\)*_]", "");
-                string cleanNext = System.Text.RegularExpressions.Regex.Replace(nextWord, @"[\[\]\(\)*_]", "");
+                int currentPos = activeAiMessage.Text.Length;
 
-                if (cleanCurrent.Length > 0 && cleanNext.Length > 0 && char.IsLetter(cleanCurrent[^1]) && char.IsDigit(cleanNext[0]))
+                if (hiddenTextPayloadTracker.Length > currentPos)
                 {
-                    activeAiMessage.Text = activeAiMessage.Text.TrimEnd() + " " + nextWord.TrimStart();
-                }
-                else if (activeAiMessage.Text.TrimEnd().EndsWith(".") && cleanNext.Contains("NET", StringComparison.OrdinalIgnoreCase))
-                {
-                    activeAiMessage.Text = activeAiMessage.Text.TrimEnd() + nextWord.TrimStart();
-                }
-                else if (activeAiMessage.Text.EndsWith(" ") || nextWord.StartsWith(" ") || nextWord.StartsWith(",") || nextWord.StartsWith("."))
-                {
-                    activeAiMessage.Text += nextWord;
-                }
-                else
-                {
-                    activeAiMessage.Text += " " + nextWord;
+                    // 1. Initial rough forward push based on token size
+                    activeAiMessage.Text = hiddenTextPayloadTracker[..Math.Min(hiddenTextPayloadTracker.Length, currentPos + nextWord.Length + 2)];
+
+                    // 2. FIXED: Search from the last known boundary zone instead of strictly currentPos
+                    // to safely tolerate tiny string length offsets caused by multi-toggle hotswaps!
+                    int searchStart = Math.Max(0, currentPos - 10);
+                    int expectedIndex = hiddenTextPayloadTracker.IndexOf(nextWord, searchStart, StringComparison.OrdinalIgnoreCase);
+
+                    if (expectedIndex != -1)
+                    {
+                        activeAiMessage.Text = hiddenTextPayloadTracker[..(expectedIndex + nextWord.Length)];
+                    }
                 }
             }
 
