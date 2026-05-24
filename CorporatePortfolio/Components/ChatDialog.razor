@@ -423,24 +423,23 @@
 
                     if (_showAvatarPanel && _avatarComponent is not null && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
+                        // PRISTINE AUDIO TRACK (Untouched: Works flawlessly for synchronization)
                         string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
+
                         await _avatarComponent.AppendStreamingToken(healedChunk);
                     }
                     else if (!_showAvatarPanel)
                     {
-                        // 1. Accumulate raw chunk text directly into our active screen message
+                        // FALLBACK TYPEWRITER TRACK (Only runs if the avatar panel is completely closed)
                         aiMsg.Text = hiddenTextPayloadTracker;
 
-                        // 2. Format with isComplete = false to keep markdown parsing fluid during typing
+                        // Pass false for completion context to maintain a fluid typewriter flow while streaming
                         var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
                         aiMsg.FormattedText = formattedResult.Text;
 
-                        // 3. Force Blazor to draw the frame on screen instantly
                         await InvokeAsync(StateHasChanged);
                         await ScrollToBottom();
                     }
-
-                    await Task.Yield();
                 }
             }
         }
