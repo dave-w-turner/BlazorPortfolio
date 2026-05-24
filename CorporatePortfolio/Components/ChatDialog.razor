@@ -87,6 +87,16 @@
                                         {
                                             <div style="color: #F8FAFC; line-height: 1.6; font-size: 1.02em; white-space: pre-wrap; word-break: break-word;">
                                                 @msg.FormattedText
+
+                                                @* HARDWARE HANDSHAKE VISUAL GAP FILLER *@
+                                                @if (_isWaitingForAudioStreamHook && !_isAudioTypingStarted && !msg.IsComplete && _messages.LastOrDefault(m => !m.IsUser) == msg)
+                                                {
+                                                    <span class="ml-2" style="display: inline-flex; gap: 3px; align-items: center; vertical-align: middle;">
+                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></span>
+                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></span>
+                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></span>
+                                                    </span>
+                                                }
                                             </div>
                                         }
                                         else
@@ -126,7 +136,9 @@
                 @if (_showAvatarPanel)
                 {
                     <div style="width: 320px; background-color: #1e1e24; display: flex; flex-direction: column;" class="pa-4">
-                        <AIAvatar @ref="_avatarComponent" OnWordSpoken="HandleStreamingWordReceived" />
+                        <AIAvatar @ref="_avatarComponent"
+                                  OnWordSpoken="HandleStreamingWordReceived"
+                                  OnAudioLive="HandlePhysicalAudioLive" />
                     </div>
                 }
             }
@@ -137,7 +149,9 @@
                         @if (_showAvatarPanel)
                         {
                             <div style="width: 320px; background-color: #1e1e24; display: flex; flex-direction: column;" class="pa-4">
-                                <AIAvatar @ref="_avatarComponent" OnWordSpoken="HandleStreamingWordReceived" />
+                                <AIAvatar @ref="_avatarComponent"
+                                          OnWordSpoken="HandleStreamingWordReceived"
+                                          OnAudioLive="HandlePhysicalAudioLive" />
                             </div>
                         }
                     </Authorized>
@@ -191,6 +205,7 @@
                 {
                     // Toggle hotswap mode tracking
                     _isWaitingForAudioStreamHook = true;
+                    _isAudioTypingStarted = false;
                 }
                 if (value == false)
                 {
@@ -215,6 +230,7 @@
     private bool isDeceleratingHotSwap = false;
 
     private bool _isWaitingForAudioStreamHook = false;
+    private bool _isAudioTypingStarted = false;
 
     protected override Task OnInitializedAsync()
     {
@@ -455,20 +471,24 @@
                         // PASS TO JAVASCRIPT INSTANTLY (Never delayed, keeping the audio pipeline fed!)
                         await JSRuntime.InvokeVoidAsync("accumulateAndStreamVoiceTokens", healedChunk);
                     }
-                    else if (!_showAvatarPanel)
+
+                    if (!_showAvatarPanel)
                     {
-                        // The background thread continues to safely aggregate all incoming data
+                        // Standard mode: Render high-speed network text natively to screen layout
                         aiMsg.Text = hiddenTextPayloadTracker;
 
-                        // INTERCEPTION VALVE: If the user just clicked open the panel mid-session,
-                        // stop updating the visible screen layout text until the sound card starts playing!
-                        if (!_isWaitingForAudioStreamHook)
-                        {
-                            var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
-                            aiMsg.FormattedText = formattedResult.Text;
-                            await InvokeAsync(StateHasChanged);
-                            await ScrollToBottom();
-                        }
+                        var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
+                        aiMsg.FormattedText = formattedResult.Text;
+                        await InvokeAsync(StateHasChanged);
+                        await ScrollToBottom();
+                    }
+                    else if (_showAvatarPanel && _isWaitingForAudioStreamHook)
+                    {
+                        // HOTSWAP TRANSITION LOCK:
+                        // The user opened the panel. We freeze text rendering to let the audio engine sync.
+                        // Instead of spamming StateHasChanged hundreds of times per second, we yield
+                        // the execution thread gracefully so the browser can keep the dots smoothly animating!
+                        await Task.Delay(45);
                     }
 
                     await Task.Yield();
@@ -485,6 +505,7 @@
             aiMsg.IsComplete = true;
             isDeceleratingHotSwap = false;
             _isWaitingForAudioStreamHook = false;
+            _isAudioTypingStarted = false;
 
             // Use our local tracking flag to safely verify if an audio session was actually used
             if (isAudioSessionInitialized && _avatarComponent is not null)
@@ -512,14 +533,6 @@
 
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete);
         if (activeAiMessage is null) activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
-
-        if (_isWaitingForAudioStreamHook && activeAiMessage is not null)
-        {
-            _isWaitingForAudioStreamHook = false;
-
-            // Fast-forward screen text layout to perfectly match the current buffer position
-            activeAiMessage.Text = hiddenTextPayloadTracker;
-        }
 
         if (activeAiMessage is not null)
         {
@@ -569,6 +582,12 @@
 
             activeAiMessage.FormattedText = formattedResult.Text;
 
+            if (!_isAudioTypingStarted)
+            {
+                _isAudioTypingStarted = true;
+                _isWaitingForAudioStreamHook = false; // Safety fallback clearance
+            }
+
             await InvokeAsync(StateHasChanged);
             await InvokeAsync(ScrollToBottom);
 
@@ -609,6 +628,27 @@
     }
 
     [JSInvokable]
+    public async Task OnPhysicalAudioStarted()
+    {
+        System.Diagnostics.Debug.WriteLine("[BLAZOR-HARDWARE] Audio waves are physically playing now. Releasing Blazor bubbles.");
+
+        // 1. Drop the bubbles ONLY at this exact millisecond
+        _isWaitingForAudioStreamHook = false;
+
+        // 2. Synchronize our display text state to match the complete background buffer context
+        var activeMsg = _messages.LastOrDefault(m => !m.IsUser);
+        if (activeMsg is not null)
+        {
+            activeMsg.Text = hiddenTextPayloadTracker;
+            var catchUpResult = await ChatbotService.FormatMessage(activeMsg.Text, false);
+            activeMsg.FormattedText = catchUpResult.Text;
+        }
+
+        await InvokeAsync(StateHasChanged);
+        await ScrollToBottom();
+    }
+
+    [JSInvokable]
     public void SaveDimensions(string top, string left, string width, string height)
     {
         State.Top = top; State.Left = left; State.Width = width; State.Height = height;
@@ -618,6 +658,44 @@
     {
         await Task.Delay(100);
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
+    }
+
+    public async Task TriggerPhysicalAudioHandoff()
+    {
+        // 1. Drop the bubbles at this exact millisecond
+        _isWaitingForAudioStreamHook = false;
+
+        // 2. Catch up our text display layout to match background thread collections
+        var activeMsg = _messages.LastOrDefault(m => !m.IsUser);
+        if (activeMsg is not null)
+        {
+            activeMsg.Text = hiddenTextPayloadTracker;
+            var catchUpResult = await ChatbotService.FormatMessage(activeMsg.Text, false);
+            activeMsg.FormattedText = catchUpResult.Text;
+        }
+
+        await InvokeAsync(StateHasChanged);
+        await ScrollToBottom();
+    }
+
+    private async Task HandlePhysicalAudioLive()
+    {
+        System.Diagnostics.Debug.WriteLine("[BLAZOR-HARDWARE] Audio waves are physically playing now. Shifting layout tracks.");
+
+        // 1. Drop the bubbles at this exact millisecond
+        _isWaitingForAudioStreamHook = false;
+
+        // 2. Catch up our text container layout to match the background thread allocations
+        var activeMsg = _messages.LastOrDefault(m => !m.IsUser);
+        if (activeMsg is not null)
+        {
+            activeMsg.Text = hiddenTextPayloadTracker;
+            var catchUpResult = await ChatbotService.FormatMessage(activeMsg.Text, false);
+            activeMsg.FormattedText = catchUpResult.Text;
+        }
+
+        await InvokeAsync(StateHasChanged);
+        await ScrollToBottom();
     }
 
     public void Dispose()

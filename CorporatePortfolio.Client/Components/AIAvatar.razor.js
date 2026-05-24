@@ -12,6 +12,11 @@ var isJsPlaybackWorkerRunning = typeof isJsPlaybackWorkerRunning !== 'undefined'
 var pendingSentencesToFetchQueue = typeof pendingSentencesToFetchQueue !== 'undefined' ? pendingSentencesToFetchQueue : [];
 var downloadedAudioPayloadBufferQueue = typeof downloadedAudioPayloadBufferQueue !== 'undefined' ? downloadedAudioPayloadBufferQueue : [];
 
+window.Blazor = window.Blazor || {};
+window.Blazor.registerChatDialogRef = function (dotNetRef) {
+    window.chatDialogRef = dotNetRef;
+};
+
 export function initializeNeuralTts(dotNetRef) {
     dotNetReference = dotNetRef;
     console.log("[JS-MODULE] Studio Parallel Core Connected Safely.");
@@ -28,6 +33,7 @@ export function initializeNeuralTts(dotNetRef) {
 // Warm up the target URL context right when the LLM begins streaming tokens
 export function initializeVoiceStreamSession(targetUrl) {
     jsActiveTargetUrl = targetUrl;
+    window.isWaitingForAudioHandshake = true;
     jsTextAccumulator = "";
     pendingSentencesToFetchQueue = [];
     downloadedAudioPayloadBufferQueue = [];
@@ -195,6 +201,17 @@ function processHardwarePlaybackLoop() {
         let mergedFloats = payload.audioData;
         let sentenceText = payload.text;
 
+        if (dotNetReference && window.isWaitingForAudioHandshake) {
+            window.isWaitingForAudioHandshake = false;
+            let physicalStartDelayMs = Math.max(0, (nextPlayTime - globalAudioCtx.currentTime) * 1000);
+            setTimeout(() => {
+                console.log("[JS-HARDWARE] Audio waves are physically playing now. Releasing Blazor bubbles.");
+                if (window.chatDialogRef) {
+                    window.chatDialogRef.invokeMethodAsync('OnPhysicalAudioStarted');
+                }
+            }, physicalStartDelayMs);
+        }
+
         if (nextPlayTime < globalAudioCtx.currentTime) {
             nextPlayTime = globalAudioCtx.currentTime + 0.01;
         }
@@ -309,3 +326,7 @@ export function forceStopAndResetAudioContext() {
 
 window.forceStopAndResetAudioContext = forceStopAndResetAudioContext;
 window.resetAudioEngineState = resetAudioEngineState;
+window.Blazor = window.Blazor || {};
+window.Blazor.registerChatDialogRef = function (dotNetRef) {
+    window.chatDialogRef = dotNetRef;
+};

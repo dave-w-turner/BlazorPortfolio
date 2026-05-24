@@ -15,6 +15,7 @@
 @code {
     // NEW: Parameter link to forward synchronized word events up to chatdialog.razor
     [Parameter] public EventCallback<string> OnWordSpoken { get; set; }
+    [Parameter] public EventCallback OnAudioLive { get; set; }
 
     private string _textPrompt = "Hello, this is David Turner speaking directly out of your local web browser hardware framework.";
     private bool _isEngineReady = false;
@@ -117,6 +118,16 @@
     {
         _isSpeaking = false;
         StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnPhysicalAudioStarted()
+    {
+        if (OnWordSpoken.HasDelegate)
+        {
+            // Force-feed the matching token up to ChatDialog's gating valve
+            await OnAudioLive.InvokeAsync();
+        }
     }
 
     public void Dispose()
