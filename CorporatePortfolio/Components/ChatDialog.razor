@@ -421,25 +421,30 @@
 
                     hiddenTextPayloadTracker += sanitizedChunk;
 
+                    // ==============================================================================
+                    // 1. UNIFIED TYPEWRITER STREAM ENGINE (Always updates the screen text layout)
+                    // ==============================================================================
+                    aiMsg.Text = hiddenTextPayloadTracker;
+
+                    // Pass false for completion context to maintain a fluid typewriter animation
+                    var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
+                    aiMsg.FormattedText = formattedResult.Text;
+
+                    // ==============================================================================
+                    // 2. BACKGROUND VOICE ENGINES AUDIO TRANSIT VALVE
+                    // ==============================================================================
                     if (_showAvatarPanel && _avatarComponent is not null && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
-                        // PRISTINE AUDIO TRACK (Untouched: Works flawlessly for synchronization)
                         string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
-
                         await _avatarComponent.AppendStreamingToken(healedChunk);
                     }
-                    else if (!_showAvatarPanel)
-                    {
-                        // FALLBACK TYPEWRITER TRACK (Only runs if the avatar panel is completely closed)
-                        aiMsg.Text = hiddenTextPayloadTracker;
 
-                        // Pass false for completion context to maintain a fluid typewriter flow while streaming
-                        var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
-                        aiMsg.FormattedText = formattedResult.Text;
+                    // 3. FORCE WEB VIEWPORT DRAW FRAMES IMMEDIATELY
+                    await InvokeAsync(StateHasChanged);
+                    await ScrollToBottom();
 
-                        await InvokeAsync(StateHasChanged);
-                        await ScrollToBottom();
-                    }
+                    // 4. CRITICAL: Yield control to prevent thread lockups
+                    await Task.Yield();
                 }
             }
         }
