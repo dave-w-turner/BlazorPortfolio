@@ -187,17 +187,20 @@
             if (_showAvatarPanel != value)
             {
                 _showAvatarPanel = value;
-
+                if (value == true)
+                {
+                    // Toggle hotswap mode tracking
+                    _isWaitingForAudioStreamHook = true;
+                }
                 if (value == false)
                 {
-                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] User hid the avatar stream panel mid-session. Forcing fallback UI release.");
+                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Panel hidden.");
                     _disableInput = false;
                     _isTyping = false;
-
+                    _isWaitingForAudioStreamHook = false;
                     var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
                     if (activeAiMessage is not null) activeAiMessage.IsComplete = true;
                 }
-
                 InvokeAsync(StateHasChanged);
             }
         }
@@ -210,6 +213,8 @@
     private bool _hasGreetingRendered = false;
     string hiddenTextPayloadTracker = "";
     private bool isDeceleratingHotSwap = false;
+
+    private bool _isWaitingForAudioStreamHook = false;
 
     protected override Task OnInitializedAsync()
     {
@@ -452,14 +457,18 @@
                     }
                     else if (!_showAvatarPanel)
                     {
-                        // Fallback Track: If the avatar remains closed, handle standard fast typewriter text natively
+                        // The background thread continues to safely aggregate all incoming data
                         aiMsg.Text = hiddenTextPayloadTracker;
 
-                        var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
-                        aiMsg.FormattedText = formattedResult.Text;
-
-                        await InvokeAsync(StateHasChanged);
-                        await ScrollToBottom();
+                        // INTERCEPTION VALVE: If the user just clicked open the panel mid-session,
+                        // stop updating the visible screen layout text until the sound card starts playing!
+                        if (!_isWaitingForAudioStreamHook)
+                        {
+                            var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
+                            aiMsg.FormattedText = formattedResult.Text;
+                            await InvokeAsync(StateHasChanged);
+                            await ScrollToBottom();
+                        }
                     }
 
                     await Task.Yield();
@@ -475,6 +484,7 @@
         {
             aiMsg.IsComplete = true;
             isDeceleratingHotSwap = false;
+            _isWaitingForAudioStreamHook = false;
 
             // Use our local tracking flag to safely verify if an audio session was actually used
             if (isAudioSessionInitialized && _avatarComponent is not null)
@@ -502,6 +512,14 @@
 
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete);
         if (activeAiMessage is null) activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
+
+        if (_isWaitingForAudioStreamHook && activeAiMessage is not null)
+        {
+            _isWaitingForAudioStreamHook = false;
+
+            // Fast-forward screen text layout to perfectly match the current buffer position
+            activeAiMessage.Text = hiddenTextPayloadTracker;
+        }
 
         if (activeAiMessage is not null)
         {
