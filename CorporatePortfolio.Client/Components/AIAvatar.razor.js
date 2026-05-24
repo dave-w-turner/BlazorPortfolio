@@ -283,4 +283,29 @@ export function resetAudioEngineState() {
     }
 }
 
+export function forceStopAndResetAudioContext() {
+    console.log("[JS-AUDIO-SYSTEM] Component disposed. Purging active timeline audio tracks...");
+
+    // 1. Clear out all pending sentence and audio array queues immediately
+    jsTextAccumulator = "";
+    pendingSentencesToFetchQueue = [];
+    downloadedAudioPayloadBufferQueue = [];
+    isJsFetchWorkerRunning = false;
+    isJsPlaybackWorkerRunning = false;
+
+    // 2. Shut down the browser's hardware sound context channel completely
+    if (globalAudioCtx) {
+        try {
+            // Closes the sound channel and frees up your device's audio hardware
+            globalAudioCtx.close();
+        } catch (e) {
+            console.error("Error closing audio context:", e);
+        }
+        globalAudioCtx = null;
+        nextPlayTime = 0;
+        lastBufferEndSamples = null;
+    }
+}
+
+window.forceStopAndResetAudioContext = forceStopAndResetAudioContext;
 window.resetAudioEngineState = resetAudioEngineState;

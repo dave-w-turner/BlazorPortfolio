@@ -8,6 +8,7 @@
 @inject IConfiguration Configuration
 @inject IHostEnvironment HostEnvironment
 @inject HttpClient Http
+@implements IDisposable
 
 <MudDialog Class="chat-dark" Style="@_customStyle" ContentClass="mudDialog">
     <TitleContent>
@@ -208,6 +209,7 @@
     // A simple guard token to ensure our greeting animation sequence logic only fires once
     private bool _hasGreetingRendered = false;
     string hiddenTextPayloadTracker = "";
+    private bool isDeceleratingHotSwap = false;
 
     protected override Task OnInitializedAsync()
     {
@@ -363,6 +365,7 @@
 
         var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };        
         bool isAudioSessionInitialized = false;
+        int hotSwapTypingDelay = 0;
 
         var chatRequest = new ChatRequest
         {
@@ -428,7 +431,6 @@
                     // ==============================================================================
                     if (_showAvatarPanel && _avatarComponent is not null && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
-                        // If the user hot-swapped the panel ON mid-stream, warm up the session instantly via global interop
                         if (!isAudioSessionInitialized)
                         {
                             try
@@ -436,14 +438,16 @@
                                 string pythonVoiceUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
                                 await JSRuntime.InvokeVoidAsync("initializeVoiceStreamSession", pythonVoiceUrl);
                                 isAudioSessionInitialized = true;
+
+                                // Trigger the UI layer to slow down its typing pace
+                                isDeceleratingHotSwap = true;
                             }
                             catch { /* Safety fallback */ }
                         }
 
                         string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
 
-                        // Route the token to JavaScript—but DO NOT write text to the screen bubble here!
-                        // This halts the generic output completely, allowing the voice track to drive typing.
+                        // PASS TO JAVASCRIPT INSTANTLY (Never delayed, keeping the audio pipeline fed!)
                         await JSRuntime.InvokeVoidAsync("accumulateAndStreamVoiceTokens", healedChunk);
                     }
                     else if (!_showAvatarPanel)
@@ -470,6 +474,7 @@
         finally
         {
             aiMsg.IsComplete = true;
+            isDeceleratingHotSwap = false;
 
             // Use our local tracking flag to safely verify if an audio session was actually used
             if (isAudioSessionInitialized && _avatarComponent is not null)
@@ -492,7 +497,6 @@
 
     private async Task HandleStreamingWordReceived(string nextWord)
     {
-        // 1. SILENTLY DROPOUT IF THE VISIBLE AVATAR FACE COMPONENT IS HIDDEN
         if (!_showAvatarPanel || string.IsNullOrWhiteSpace(nextWord))
             return;
 
@@ -501,9 +505,15 @@
 
         if (activeAiMessage is not null)
         {
+            // Turn off the deceleration lock as soon as the voice audio pipeline catches up to the streaming head
+            if (isDeceleratingHotSwap && !string.IsNullOrEmpty(hiddenTextPayloadTracker) &&
+                activeAiMessage.Text.Length >= hiddenTextPayloadTracker.Length)
+            {
+                isDeceleratingHotSwap = false;
+            }
+
             // ==============================================================================
-            // 2. THE CHAT WINDOW AUDIO-DRIVEN TYPEWRITER ENGINE
-            // Re-assembles spoken words smoothly back onto your monitor screen layout
+            // AUDIO-DRIVEN TYPEWRITER REASSEMBLY ENGINE
             // ==============================================================================
             if (string.IsNullOrEmpty(activeAiMessage.Text))
             {
@@ -533,16 +543,27 @@
             }
 
             var formattedResult = await ChatbotService.FormatMessage(
-                        activeAiMessage.Text,
-                        activeAiMessage.IsComplete,
-                        specificKeyword: null,
-                        applyEnhancedKeywordStyling: false
-                    );
+                activeAiMessage.Text,
+                activeAiMessage.IsComplete,
+                specificKeyword: null,
+                applyEnhancedKeywordStyling: false
+            );
 
             activeAiMessage.FormattedText = formattedResult.Text;
 
             await InvokeAsync(StateHasChanged);
             await InvokeAsync(ScrollToBottom);
+
+            // ==============================================================================
+            // VISUAL DECELERATION BRIDGE
+            // If hot-swapped open late, add a progressive visual padding delay to the screen text
+            // to smoothly blend the transition while the sound card fills its hardware queues
+            // ==============================================================================
+            if (isDeceleratingHotSwap)
+            {
+                // Applies a safe, non-blocking visual pacing break strictly to the screen layout update
+                await Task.Delay(45);
+            }
         }
     }
 
@@ -584,5 +605,17 @@
     public void Dispose()
     {
         _chatDialogRef?.Dispose();
+
+        // ==============================================================================
+        // THE MASTER DIALOG SHUTDOWN VALVE
+        // Triggers an immediate hardware mute pass the exact millisecond the user
+        // closes or navigates away from the active ChatDialog panel!
+        // ==============================================================================
+        try
+        {
+            // Fire-and-forget call down to the browser sound card layer
+            _ = JSRuntime.InvokeVoidAsync("forceStopAndResetAudioContext");
+        }
+        catch { /* Safe catch block in case window is already tearing down */ }
     }
 }
