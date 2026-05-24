@@ -207,6 +207,7 @@
 
     // A simple guard token to ensure our greeting animation sequence logic only fires once
     private bool _hasGreetingRendered = false;
+    string hiddenTextPayloadTracker = "";
 
     protected override Task OnInitializedAsync()
     {
@@ -360,8 +361,8 @@
         await InvokeAsync(StateHasChanged);
         await ScrollToBottom();
 
-        var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };
-        string hiddenTextPayloadTracker = "";
+        var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };        
+        bool isAudioSessionInitialized = false;
 
         var chatRequest = new ChatRequest
         {
@@ -412,6 +413,7 @@
                         if (_showAvatarPanel && _avatarComponent is not null)
                         {
                             await _avatarComponent.StartStreamingSession();
+                            isAudioSessionInitialized = true;
                         }
                     }
 
@@ -422,28 +424,40 @@
                     hiddenTextPayloadTracker += sanitizedChunk;
 
                     // ==============================================================================
-                    // 1. UNIFIED TYPEWRITER STREAM ENGINE (Always updates the screen text layout)
-                    // ==============================================================================
-                    aiMsg.Text = hiddenTextPayloadTracker;
-
-                    // Pass false for completion context to maintain a fluid typewriter animation
-                    var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
-                    aiMsg.FormattedText = formattedResult.Text;
-
-                    // ==============================================================================
-                    // 2. BACKGROUND VOICE ENGINES AUDIO TRANSIT VALVE
+                    // 1. DUAL-STREAMING ORCHESTRATOR GATING VALVE
                     // ==============================================================================
                     if (_showAvatarPanel && _avatarComponent is not null && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
+                        // If the user hot-swapped the panel ON mid-stream, warm up the session instantly via global interop
+                        if (!isAudioSessionInitialized)
+                        {
+                            try
+                            {
+                                string pythonVoiceUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
+                                await JSRuntime.InvokeVoidAsync("initializeVoiceStreamSession", pythonVoiceUrl);
+                                isAudioSessionInitialized = true;
+                            }
+                            catch { /* Safety fallback */ }
+                        }
+
                         string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
-                        await _avatarComponent.AppendStreamingToken(healedChunk);
+
+                        // Route the token to JavaScript—but DO NOT write text to the screen bubble here!
+                        // This halts the generic output completely, allowing the voice track to drive typing.
+                        await JSRuntime.InvokeVoidAsync("accumulateAndStreamVoiceTokens", healedChunk);
+                    }
+                    else if (!_showAvatarPanel)
+                    {
+                        // Fallback Track: If the avatar remains closed, handle standard fast typewriter text natively
+                        aiMsg.Text = hiddenTextPayloadTracker;
+
+                        var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
+                        aiMsg.FormattedText = formattedResult.Text;
+
+                        await InvokeAsync(StateHasChanged);
+                        await ScrollToBottom();
                     }
 
-                    // 3. FORCE WEB VIEWPORT DRAW FRAMES IMMEDIATELY
-                    await InvokeAsync(StateHasChanged);
-                    await ScrollToBottom();
-
-                    // 4. CRITICAL: Yield control to prevent thread lockups
                     await Task.Yield();
                 }
             }
@@ -457,7 +471,8 @@
         {
             aiMsg.IsComplete = true;
 
-            if (_showAvatarPanel && _avatarComponent is not null)
+            // Use our local tracking flag to safely verify if an audio session was actually used
+            if (isAudioSessionInitialized && _avatarComponent is not null)
             {
                 await _avatarComponent.FinalizeStreamingSession();
             }
@@ -477,33 +492,36 @@
 
     private async Task HandleStreamingWordReceived(string nextWord)
     {
+        // 1. SILENTLY DROPOUT IF THE VISIBLE AVATAR FACE COMPONENT IS HIDDEN
+        if (!_showAvatarPanel || string.IsNullOrWhiteSpace(nextWord))
+            return;
+
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete);
         if (activeAiMessage is null) activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
 
         if (activeAiMessage is not null)
         {
+            // ==============================================================================
+            // 2. THE CHAT WINDOW AUDIO-DRIVEN TYPEWRITER ENGINE
+            // Re-assembles spoken words smoothly back onto your monitor screen layout
+            // ==============================================================================
             if (string.IsNullOrEmpty(activeAiMessage.Text))
             {
                 activeAiMessage.Text = nextWord;
             }
             else
             {
-                // Remove hidden markdown formatting tokens to read the true string footprint
-                string cleanCurrent = System.Text.RegularExpressions.Regex.Replace(activeAiMessage.Text, @"[\[\]\(\)*_#\s]", "");
-                string cleanNext = System.Text.RegularExpressions.Regex.Replace(nextWord, @"[\[\]\(\)*_#\s]", "");
+                string cleanCurrent = System.Text.RegularExpressions.Regex.Replace(activeAiMessage.Text, @"[\[\]\(\)*_]", "");
+                string cleanNext = System.Text.RegularExpressions.Regex.Replace(nextWord, @"[\[\]\(\)*_]", "");
 
-                // 1. FIX OVER 10: If a word ends in letters and the next chunk starts with numbers, force a clean space!
-                if (cleanCurrent.Length > 0 && cleanNext.Length > 0 &&
-                    char.IsLetter(cleanCurrent[^1]) && char.IsDigit(cleanNext[0]))
+                if (cleanCurrent.Length > 0 && cleanNext.Length > 0 && char.IsLetter(cleanCurrent[^1]) && char.IsDigit(cleanNext[0]))
                 {
                     activeAiMessage.Text = activeAiMessage.Text.TrimEnd() + " " + nextWord.TrimStart();
                 }
-                // 2. FIX .NET SPACING: If appending an acronym suffix directly after a period symbol, touch them natively with ZERO spaces
-                else if (activeAiMessage.Text.TrimEnd().EndsWith(".") && cleanNext.Equals("NET", StringComparison.OrdinalIgnoreCase))
+                else if (activeAiMessage.Text.TrimEnd().EndsWith(".") && cleanNext.Contains("NET", StringComparison.OrdinalIgnoreCase))
                 {
                     activeAiMessage.Text = activeAiMessage.Text.TrimEnd() + nextWord.TrimStart();
                 }
-                // 3. STANDARD WORD SEPARATION PUNCTUATION
                 else if (activeAiMessage.Text.EndsWith(" ") || nextWord.StartsWith(" ") || nextWord.StartsWith(",") || nextWord.StartsWith("."))
                 {
                     activeAiMessage.Text += nextWord;
@@ -514,7 +532,13 @@
                 }
             }
 
-            var formattedResult = await ChatbotService.FormatMessage(activeAiMessage.Text, activeAiMessage.IsComplete);
+            var formattedResult = await ChatbotService.FormatMessage(
+                        activeAiMessage.Text,
+                        activeAiMessage.IsComplete,
+                        specificKeyword: null,
+                        applyEnhancedKeywordStyling: false
+                    );
+
             activeAiMessage.FormattedText = formattedResult.Text;
 
             await InvokeAsync(StateHasChanged);
