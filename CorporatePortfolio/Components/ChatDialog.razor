@@ -424,8 +424,20 @@
                     if (_showAvatarPanel && _avatarComponent is not null && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
                         string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
-
                         await _avatarComponent.AppendStreamingToken(healedChunk);
+                    }
+                    else if (!_showAvatarPanel)
+                    {
+                        // 1. Accumulate raw chunk text directly into our active screen message
+                        aiMsg.Text = hiddenTextPayloadTracker;
+
+                        // 2. Format with isComplete = false to keep markdown parsing fluid during typing
+                        var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
+                        aiMsg.FormattedText = formattedResult.Text;
+
+                        // 3. Force Blazor to draw the frame on screen instantly
+                        await InvokeAsync(StateHasChanged);
+                        await ScrollToBottom();
                     }
 
                     await Task.Yield();

@@ -249,7 +249,7 @@
             // Raw URLs 
             formatted = Regex.Replace(
                 formatted,
-                @"(?<!href=\x22|href=\'|\[|<)https?://[^\s<\"" \)]+|(?<=\s|^)/(?![^<>]*>)[^\s<\"" \)]*",
+                @"(?<!href=\x22|href=\'|\[|<)https?://[^\s<\"" \)]+|(?<=\s|^)/(?![^<>]*>)[a-zA-Z0-9_-]+[^\s<\"" \)]*",
                 "<a href=\"$0\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$0</a>",
                 RegexOptions.IgnoreCase
             );
@@ -381,10 +381,7 @@
                 {
                     if (!string.IsNullOrWhiteSpace(line))
                     {
-                        // Optional: Log to console here if you need to see it on the server
-                        // Console.WriteLine($"DEBUG: {line}");
-
-                        var chunk = System.Text.Json.JsonSerializer.Deserialize<OllamaResponse>(line);
+                        var chunk = JsonSerializer.Deserialize<OllamaResponse>(line);
                         if (chunk?.message?.content != null)
                         {
                             yield return chunk.message.content;

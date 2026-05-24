@@ -15,6 +15,11 @@ var downloadedAudioPayloadBufferQueue = typeof downloadedAudioPayloadBufferQueue
 export function initializeNeuralTts(dotNetRef) {
     dotNetReference = dotNetRef;
     console.log("[JS-MODULE] Studio Parallel Core Connected Safely.");
+
+    window.accumulateAndStreamVoiceTokens = accumulateAndStreamVoiceTokens;
+    window.initializeVoiceStreamSession = initializeVoiceStreamSession;
+    window.finalizeVoiceStreamSession = finalizeVoiceStreamSession;
+
     if (dotNetReference) {
         dotNetReference.invokeMethodAsync('OnEngineReady');
     }
@@ -36,21 +41,42 @@ export function initializeVoiceStreamSession(targetUrl) {
     }
 }
 
-
 export function accumulateAndStreamVoiceTokens(textChunk) {
     jsTextAccumulator += textChunk;
 
-    // Fix word-smashing safely at clear word-boundary anchors
+    // 1. Repair word-smashing boundary anomalies safely
     jsTextAccumulator = jsTextAccumulator.replace(/\b([A-Za-z]+)([0-9]+)\b/g, "$1 $2");
 
-    let match = jsTextAccumulator.match(/[^.!?]+[.!?](?=\s+[A-Z]|\s*$)/);
+    // ==============================================================================
+    // 2. UNIFIED STALL VALVE
+    // Stall the matching engine if the text ends with "C# ." so we wait for "NET"
+    // ==============================================================================
+    if (/C#\s*\.\s*$/i.test(jsTextAccumulator) || /C#\s*\.\s*\s+$/i.test(jsTextAccumulator)) {
+        return;
+    }
+
+    // ==============================================================================
+    // 3. SECURE PUNCTUATION BOUNDARY ENGINE
+    // Matches the FIRST valid sentence block from the start of the buffer (^)
+    // ==============================================================================
+    let match = jsTextAccumulator.match(/^[^.!?]+[.!?](?!(?:\s*NET)\b)(?=\s+|\s*$)/i);
 
     if (match) {
-        // CORRECTED FIX: Pull index 0 out of the regex result array block to run string trim mechanics safely!
-        let completedSentence = match[0].trim();
+        // Extract the raw text chunk exactly as matched by the regex pattern
+        let completedSentence = match[0];
 
-        // Advance the text pointer cleanly by the entire length of the sentence
-        jsTextAccumulator = jsTextAccumulator.substring(match.index + match[0].length);
+        // Advance the master buffer tracker safely past the precise match slice point
+        jsTextAccumulator = jsTextAccumulator.substring(match.index + completedSentence.length);
+
+        // Clean up the text sentence string natively
+        completedSentence = completedSentence.trim();
+
+        // ==============================================================================
+        // 4. FRAMEWORK LAYOUT RECOVERY
+        // Forces a clean formatting space between language and framework before queueing
+        // ==============================================================================
+        completedSentence = completedSentence.replace(/\bC#\s*\.?NET\b/gi, "C# .NET");
+        completedSentence = completedSentence.replace(/\bC\s*\+\s*\+/g, "C++");
 
         if (completedSentence.length > 3) {
             console.log("[JS-TEXT-LOOP] Intercepted Sentence:", completedSentence);
@@ -64,10 +90,17 @@ export function accumulateAndStreamVoiceTokens(textChunk) {
     }
 }
 
-
 // Flush whatever trailing sentence fragment is left when the LLM closes
 export function finalizeVoiceStreamSession() {
-    let finalSentence = jsTextAccumulator.trim();
+    // 3. APPLY MATCHING CORRECTIONS TO THE FLUSH VALVE BEFORE TRIMMING
+    // This catches instances where text was split across boundaries during streaming
+    let finalSentence = jsTextAccumulator;
+
+    finalSentence = finalSentence.replace(/\bC\s*#\s*\.\s*NET/gi, "C# .NET");
+    finalSentence = finalSentence.replace(/\bC\s*\+\s*\+/g, "C++");
+
+    finalSentence = finalSentence.trim();
+
     if (finalSentence.length > 0) {
         console.log("[JS-TEXT-LOOP] Final Sentence Flush:", finalSentence);
         pendingSentencesToFetchQueue.push(finalSentence);
@@ -185,7 +218,14 @@ function processHardwarePlaybackLoop() {
         if (dotNetReference && sentenceText) {
             // Strip out markdown link tags before splitting into individual words for the UI valve
             let sanitizedText = sentenceText.replace(/[\[\]]/g, "").replace(/\([^)]*\)/g, "");
-            const words = sanitizedText.trim().split(/\s+/);
+
+            // 1. Repair broken framework spaces before splitting into word tokens
+            sanitizedText = sanitizedText.replace(/\bC\s*#\s*\.?\s*NET\b/gi, "C# .NET");
+            sanitizedText = sanitizedText.replace(/\bC\s*\+\+\b/gi, "C++");
+            sanitizedText = sanitizedText.replace(/\bCI\s*\/\s*CD\b/gi, "CI/CD");
+
+            // 2. Now safely split the repaired text into individual words
+            const words = sanitizedText.trim().split(/(?<!\b(?:C#|F#|C\+\+|CI))\s+(?!(?:\.?NET|CD)\b)/gi);
 
             if (words.length > 0) {
                 const wordDisplayInterval = (audioBuffer.duration / words.length) * 1000;
@@ -226,3 +266,21 @@ function checkSystemIdleState() {
         }
     }
 }
+
+export function resetAudioEngineState() {
+    console.log("[JS-SYSTEM] Purging dirty pipeline buffers for new session...");
+
+    // 1. Wipe text accumulators completely
+    jsTextAccumulator = "";
+    pendingSentencesToFetchQueue = [];
+    isJsFetchWorkerRunning = false;
+
+    // 2. Reset hardware timeline clocks to the current audio context timeline space
+    if (globalAudioCtx) {
+        nextPlayTime = globalAudioCtx.currentTime + 0.1;
+    } else {
+        nextPlayTime = 0;
+    }
+}
+
+window.resetAudioEngineState = resetAudioEngineState;
