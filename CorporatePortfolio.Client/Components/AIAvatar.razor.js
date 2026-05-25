@@ -11,6 +11,7 @@ var isJsPlaybackWorkerRunning = typeof isJsPlaybackWorkerRunning !== 'undefined'
 
 var pendingSentencesToFetchQueue = typeof pendingSentencesToFetchQueue !== 'undefined' ? pendingSentencesToFetchQueue : [];
 var downloadedAudioPayloadBufferQueue = typeof downloadedAudioPayloadBufferQueue !== 'undefined' ? downloadedAudioPayloadBufferQueue : [];
+var activeWordTimeoutIdsPool = [];
 
 window.Blazor = window.Blazor || {};
 window.Blazor.registerChatDialogRef = function (dotNetRef) {
@@ -37,9 +38,8 @@ export function initializeVoiceStreamSession(targetUrl, liveDotNetRef) {
 
     // ==========================================================================
     // INSTANCE OVERRIDE VALVE
-    // If a fresh DotNetObjectReference is passed down during a hotswap re-entry, 
-    // update our global module pointer instantly so background worker loops stop
-    // calling dead, disposed component handles in memory!
+    // Force-update our isolated pointer handle to the live reference instance 
+    // passed from C# to completely eliminate Object Disposed exceptions!
     // ==========================================================================
     if (liveDotNetRef) {
         dotNetReference = liveDotNetRef;
@@ -281,29 +281,20 @@ function processHardwarePlaybackLoop() {
             const words = sanitizedText.trim().split(/(?<!\b(?:C#|F#|C\+\+|CI))\s+(?!(?:\.?NET|CD)\b)/gi);
 
             if (words.length > 0) {
-                // ==========================================================================
-                // HOTSWAP REALIGNMENT VALVE
-                // If this is the initial catch-up string payload context, clear the flag 
-                // and skip firing C# text updates so the typewriter timelines don't leak!
-                // ==========================================================================
-                if (window.isCatchingUpHotswap) {
-                    window.isCatchingUpHotswap = false;
-                    return;
-                }
-
                 const wordDisplayInterval = (audioBuffer.duration / words.length) * 1000;
                 const chunkScheduleStartTime = nextPlayTime;
 
                 words.forEach((word, index) => {
                     let wordDelayMs = Math.max(0, ((chunkScheduleStartTime - globalAudioCtx.currentTime) * 1000) + (index * wordDisplayInterval));
 
-                    setTimeout(() => {
-                        // FORCE CURRENT TRACK VERIFICATION: Ensure we always target our updated,
-                        // live instance context handle to prevent object tracking memory leaks!
+                    // Register timeout handles securely inside our global memory array
+                    let timeoutId = setTimeout(() => {
                         if (dotNetReference) {
                             dotNetReference.invokeMethodAsync('OnWordAudioTriggered', word);
                         }
                     }, wordDelayMs);
+
+                    activeWordTimeoutIdsPool.push(timeoutId);
                 });
             }
         }
@@ -356,19 +347,16 @@ export function resetAudioEngineState() {
 export function forceStopAndResetAudioContext() {
     console.log("[JS-AUDIO-SYSTEM] Component hidden. Purging active timeline audio tracks...");
 
-    // Clear out background variable buffers
+    // Clear out every single scheduled word highlight timer handle instantly
+    activeWordTimeoutIdsPool.forEach(id => clearTimeout(id));
+    activeWordTimeoutIdsPool = []; // Empty the memory pool completely
+
     jsTextAccumulator = "";
     pendingSentencesToFetchQueue = [];
     downloadedAudioPayloadBufferQueue = [];
-
     isJsFetchWorkerRunning = false;
     isJsPlaybackWorkerRunning = false;
 
-    // ==========================================================================
-    // CLEAR THE INTEROP TIMELINE TRACKS
-    // Force reset the hardware context completely to ensure old async timelines
-    // drop their pointers immediately, avoiding Object Disposed exceptions!
-    // ==========================================================================
     if (globalAudioCtx) {
         try {
             globalAudioCtx.close();

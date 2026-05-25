@@ -202,11 +202,7 @@
                 _showAvatarPanel = value;
                 if (value == true)
                 {
-                    // =============================================================
-                    // HARD CANCEL VAPOUR TRAILS
-                    // Terminate and dispose of any running recovery tasks instantly
-                    // before starting a new audio hotswap re-entry flight!
-                    // =============================================================
+                    // 1. Kill any lingering background recovery tasks instantly
                     if (_typewriterCts is not null)
                     {
                         try { _typewriterCts.Cancel(); } catch { }
@@ -230,9 +226,9 @@
                             {
                                 string pythonVoiceUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
 
+                                // Create a fresh, live instance reference tracking context for this sub-flight
                                 var avatarRef = DotNetObjectReference.Create(_avatarComponent);
                                 await JSRuntime.InvokeVoidAsync("initializeVoiceStreamSession", pythonVoiceUrl, avatarRef);
-                                 
                                 _isAudioSessionInitialized = true;
                                 isDeceleratingHotSwap = false;
 
@@ -244,7 +240,9 @@
 
                                     await JSRuntime.InvokeVoidAsync("synchronizeVoiceTextSessionHead", paddedTextHead);
 
+                                    // Calculate and slice out the exact text tokens that accumulated while hidden
                                     string remainingTextTokens = hiddenTextPayloadTracker[runningAiMessage.Text.Length..];
+
                                     if (!string.IsNullOrWhiteSpace(remainingTextTokens))
                                     {
                                         if (!remainingTextTokens.EndsWith(".") && !remainingTextTokens.EndsWith("?") && !remainingTextTokens.EndsWith("!"))
@@ -274,7 +272,6 @@
                     _isAudioTypingStarted = false;
                     _isAudioSessionInitialized = false;
 
-                    // Initialize a fresh token source for this specific recovery track run
                     _typewriterCts = new System.Threading.CancellationTokenSource();
                     var token = _typewriterCts.Token;
 
@@ -289,7 +286,6 @@
                                 {
                                     while (runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length)
                                     {
-                                        // Hard stop instantly if the user toggled the panel back open or cancelled
                                         if (token.IsCancellationRequested || _showAvatarPanel) break;
 
                                         int currentLength = runningAiMessage.Text.Length;
@@ -322,7 +318,7 @@
                                         if (_textField is not null) await _textField.FocusAsync();
                                     }
                                 }
-                                catch (TaskCanceledException) { /* Safe exit bypass */ }
+                                catch (TaskCanceledException) { }
                             }, token);
                         }
                     }
@@ -694,20 +690,19 @@
                 specificKeyword: null,
                 applyEnhancedKeywordStyling: false
             );
-
             activeAiMessage.FormattedText = formattedResult.Text;
+
+            // ==============================================================================
+            // UNBROKEN BRAKE LOCK
+            // Removed the old _isWaitingForAudioStreamHook flag adjustments from here.
+            // This stops oncoming word tokens from releasing your layout locks prematurely!
+            // ==============================================================================
 
             await InvokeAsync(StateHasChanged);
             await InvokeAsync(ScrollToBottom);
 
-            // ==============================================================================
-            // VISUAL DECELERATION BRIDGE
-            // If hot-swapped open late, add a progressive visual padding delay to the screen text
-            // to smoothly blend the transition while the sound card fills its hardware queues
-            // ==============================================================================
             if (isDeceleratingHotSwap)
             {
-                // Applies a safe, non-blocking visual pacing break strictly to the screen layout update
                 await Task.Delay(45);
             }
         }
