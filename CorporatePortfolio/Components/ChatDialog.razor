@@ -22,26 +22,26 @@
                 @if (HostEnvironment.IsDevelopment())
                 {
                     <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
+                                         id="f5-avatar-toggle-btn"
                                          Icon="@Icons.Material.Filled.VideocamOff"
                                          Color="@Color.Default"
                                          ToggledIcon="@Icons.Material.Filled.Videocam"
                                          ToggledColor="@Color.Primary"
                                          ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
-                                         Class="mr-8"
-                                         Disabled="@(_messages.Any(m => !m.IsUser) && _messages.LastOrDefault(m => !m.IsUser)?.IsComplete == true)" />
+                                         Class="mr-8" />
                 }
                 else
                 {
                     <AuthorizeView Roles="Admin">
                         <Authorized>
                             <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
+                                                 id="f5-avatar-toggle-btn"
                                                  Icon="@Icons.Material.Filled.VideocamOff"
                                                  Color="@Color.Default"
                                                  ToggledIcon="@Icons.Material.Filled.Videocam"
                                                  ToggledColor="@Color.Primary"
                                                  ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
-                                                 Class="mr-8"
-                                                 Disabled="@(_messages.Any(m => !m.IsUser) && _messages.LastOrDefault(m => !m.IsUser)?.IsComplete == true)" />
+                                                 Class="mr-8" />
                         </Authorized>
                     </AuthorizeView>
                 }
@@ -93,7 +93,6 @@
                                             <div style="color: #F8FAFC; line-height: 1.6; font-size: 1.02em; white-space: pre-wrap; word-break: break-word;">
                                                 @msg.FormattedText
 
-                                                @* HARDWARE HANDSHAKE VISUAL GAP FILLER *@
                                                 @if (_isWaitingForAudioStreamHook && !_isAudioTypingStarted && !msg.IsComplete && _messages.LastOrDefault(m => !m.IsUser) == msg)
                                                 {
                                                     <span class="ml-2" style="display: inline-flex; gap: 3px; align-items: center; vertical-align: middle;">
@@ -141,9 +140,10 @@
                 <div style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
                     <AIAvatar @ref="_avatarComponent"
                               OnWordSpoken="HandleStreamingWordReceived"
-                              OnAudioLive="HandlePhysicalAudioLive" />
+                              OnAudioLive="HandlePhysicalAudioLive"
+                              OnSpeechFinishedCallback="OnSpeechFinished" />
                 </div>
-            }
+            }   
             else
             {
                 <AuthorizeView Roles="Admin">
@@ -151,7 +151,8 @@
                         <div style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
                             <AIAvatar @ref="_avatarComponent"
                                       OnWordSpoken="HandleStreamingWordReceived"
-                                      OnAudioLive="HandlePhysicalAudioLive" />
+                                      OnAudioLive="HandlePhysicalAudioLive"
+                                      OnSpeechFinishedCallback="OnSpeechFinished" />
                         </div>
                     </Authorized>
                 </AuthorizeView>
@@ -202,55 +203,14 @@
                 _showAvatarPanel = value;
                 if (value == true)
                 {
-                    if (_typewriterCts is not null)
-                    {
-                        try { _typewriterCts.Cancel(); } catch { }
-                        _typewriterCts.Dispose();
-                        _typewriterCts = null;
-                    }
                     _isWaitingForAudioStreamHook = true;
                     _isAudioTypingStarted = false;
-                    var runningAiMessage = _messages.LastOrDefault(m => !m.IsUser);
-                    bool requiresAudioReboot = runningAiMessage is not null && !string.IsNullOrEmpty(hiddenTextPayloadTracker) && runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length;
 
-                    if (requiresAudioReboot && !_isAudioSessionInitialized && _avatarComponent is not null)
-                    {
-                        Task.Run(async () =>
-                        {
-                            try
-                            {
-                                // Route through encapsulated child wrapper cleanly!
-                                await _avatarComponent.StartStreamingSession();
-                                _isAudioSessionInitialized = true;
-                                isDeceleratingHotSwap = false;
-
-                                if (!string.IsNullOrEmpty(runningAiMessage.Text))
-                                {
-                                    string paddedTextHead = runningAiMessage.Text.EndsWith(" ") ? runningAiMessage.Text : runningAiMessage.Text + " ";
-                                    await _avatarComponent.SynchronizeVoiceTextSessionHead(paddedTextHead);
-
-                                    string remainingTextTokens = hiddenTextPayloadTracker[runningAiMessage.Text.Length..];
-                                    if (!string.IsNullOrWhiteSpace(remainingTextTokens))
-                                    {
-                                        if (!remainingTextTokens.EndsWith(".") && !remainingTextTokens.EndsWith("?") && !remainingTextTokens.EndsWith("!"))
-                                        {
-                                            remainingTextTokens += ".";
-                                        }
-                                        await _avatarComponent.AppendStreamingToken(remainingTextTokens);
-                                    }
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"[BLAZOR-ERROR] Re-initialization failed: {ex.Message}");
-                            }
-                        });
-                    }
                     _ = InvokeAsync(StateHasChanged);
                 }
                 if (value == false)
                 {
-                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Running typewriter recovery track.");
+                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Closing avatar panel and resetting audio states.");
 
                     if (_avatarComponent is not null)
                     {
@@ -260,79 +220,25 @@
                     _isWaitingForAudioStreamHook = false;
                     _isAudioTypingStarted = false;
                     _isAudioSessionInitialized = false;
-                    _typewriterCts = new System.Threading.CancellationTokenSource();
-                    var token = _typewriterCts.Token;
-                    var runningAiMessage = _messages.LastOrDefault(m => !m.IsUser);
 
-                    if (runningAiMessage is not null && !string.IsNullOrEmpty(hiddenTextPayloadTracker))
-                    {
-                        if (runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length)
-                        {
-                            _ = Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    while (runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length)
-                                    {
-                                        if (token.IsCancellationRequested || _showAvatarPanel) break;
-                                        int currentLength = runningAiMessage.Text.Length;
-                                        char nextChar = hiddenTextPayloadTracker[currentLength];
-                                        runningAiMessage.Text += nextChar;
-
-                                        if (char.IsWhiteSpace(nextChar) || currentLength + 1 == hiddenTextPayloadTracker.Length)
-                                        {
-                                            var formattedResult = await ChatbotService.FormatMessage(runningAiMessage.Text, false);
-                                            runningAiMessage.FormattedText = formattedResult.Text;
-                                            await InvokeAsync(StateHasChanged);
-                                            await ScrollToBottom();
-                                        }
-                                        await Task.Delay(8, token);
-                                    }
-
-                                    while (!_showAvatarPanel && !token.IsCancellationRequested)
-                                    {
-                                        bool isAudioStillPlaying = _avatarComponent is not null && await _avatarComponent.IsHardwareAudioQueueActive();
-                                        if (!isAudioStillPlaying) break;
-                                        await Task.Delay(250, token);
-                                    }
-
-                                    if (!_showAvatarPanel && !token.IsCancellationRequested && runningAiMessage.Text.Length >= hiddenTextPayloadTracker.Length)
-                                    {
-                                        runningAiMessage.IsComplete = true;
-                                        _isTyping = false;
-                                        _disableInput = false;
-                                        await InvokeAsync(StateHasChanged);
-                                        if (_textField is not null) await _textField.FocusAsync();
-                                    }
-                                }
-                                catch (TaskCanceledException) { }
-                            }, token);
-                        }
-                    }
-                    _ = InvokeAsync(StateHasChanged);
+                    _ = UpdateState();
                 }
             }
         }
     }
-    
+
     private bool _isExiting = false;
     private DotNetObjectReference<ChatDialog>? _chatDialogRef;
     private DotNetObjectReference<AIAvatar>? _persistentAvatarRef;
 
-    // A simple guard token to ensure our greeting animation sequence logic only fires once
     private bool _hasGreetingRendered = false;
-    string hiddenTextPayloadTracker = "";
-    private bool isDeceleratingHotSwap = false;
-
     private bool _isWaitingForAudioStreamHook = false;
     private bool _isAudioTypingStarted = false;
-    private System.Threading.CancellationTokenSource? _typewriterCts;
     private bool _isAudioSessionInitialized = false;
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
-        // LEAVE EMPTY: We move the greeting out of here to stop server-side pre-render duplication bugs!
-        return Task.CompletedTask;
+        await UpdateState();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -345,32 +251,25 @@
 
             if (!_hasGreetingRendered && !_messages.Any())
             {
-                // ==============================================================================
-                // INITIALIZATION UI GATE LOCK
-                // Force an immediate re-render on step one to lock the text entry controls
-                // BEFORE any heavy background Task.Delays block the execution thread!
-                // ==============================================================================
-                _hasGreetingRendered = true;
                 _disableInput = true;
                 _isExiting = false;
 
-                await InvokeAsync(StateHasChanged); // Snaps the input box disabled instantly!
-                // ==============================================================================
+                await UpdateState(); 
 
                 var connectionBar = new ChatMessage { IsConnecting = true };
                 _messages.Add(connectionBar);
-                await InvokeAsync(StateHasChanged);
+                await UpdateState();
 
                 await Task.Delay(4500);
 
                 _isExiting = true;
-                await InvokeAsync(StateHasChanged);
+                await UpdateState();
                 await Task.Delay(400);
 
                 _messages.Remove(connectionBar);
                 _isExiting = false;
                 _isTyping = true;
-                await InvokeAsync(StateHasChanged);
+                await UpdateState();
 
                 await Task.Delay(2500);
 
@@ -388,50 +287,44 @@
 
                 if (ShowAvatarPanel && _avatarComponent is not null)
                 {
-                    _isTyping = false;     // Clear bouncing loading dots instantly
-                    _disableInput = true;  // Keep user input field securely locked while greeting loads
-                    await InvokeAsync(StateHasChanged);
+                    _isTyping = false; // Clear bouncing loading dots instantly
+                    _disableInput = true; // Keep user input field securely locked while greeting loads
+                    await UpdateState();
 
                     // Initialize the parallel web audio background stream structures safely
                     await _avatarComponent.StartStreamingSession();
                     await _avatarComponent.AppendStreamingToken(fullGreetingText);
                     await _avatarComponent.FinalizeStreamingSession();
 
-                    // HARD TIMEOUT BYPASS RESILIENCY VALVE:
-                    // This acts strictly as an un-awaited background supervisor guard.
-                    // It will ONLY step in to unlock if a catastrophic initialization failure occurs!
                     _ = Task.Run(async () =>
                     {
-                        await Task.Delay(4000); // Extended to 4 seconds to cover backend cold-start generation
-
+                        await Task.Delay(2000);
                         await InvokeAsync(async () =>
-                                                {
-                                                    // If the system is still accidentally locked due to a network glitch, clear it safely
-                                                    if (_disableInput && _messages.Count == 1 && _messages.LastOrDefault()?.IsUser == false)
-                                                    {
-                                                        System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Hydration timeout hit. Enforcing fallback release.");
-                                                        _disableInput = false;
-                                                        _isTyping = false;
+                        {
+                            if (_disableInput && _messages.Count == 1 && _messages.LastOrDefault()?.IsUser == false)
+                            {
+                                System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Hydration timeout hit. Enforcing fallback release.");
+                                _disableInput = false;
+                                _isTyping = false;
+                                _isAudioTypingStarted = false;
 
-                                                        var currentActiveAiMsg = _messages.LastOrDefault(m => !m.IsUser);
-                                                        if (currentActiveAiMsg is not null) currentActiveAiMsg.IsComplete = true;
+                                var currentActiveAiMsg = _messages.LastOrDefault(m => !m.IsUser);
+                                if (currentActiveAiMsg is not null)
+                                {
+                                    currentActiveAiMsg.IsComplete = true;
+                                }
 
-                                                        StateHasChanged();
-
-                                                        if (_textField is not null)
-                                                        {
-                                                            await _textField.FocusAsync();
-                                                        }
-                                                    }
-                                                });
+                                await UpdateState();
+                                if (_textField is not null)
+                                {
+                                    await _textField.FocusAsync();
+                                }
+                            }
+                        });
                     });
                 }
                 else
                 {
-                    // ==============================================================================
-                    // FALLBACK ISOLATION VALVE: Only runs if the avatar face panel is completely closed!
-                    // This is the ONLY place where C# can immediately reset state variables.
-                    // ==============================================================================
                     string[] chunks = new string[] { "How ", "are you ", "today?" };
                     bool firstWord = true;
 
@@ -444,17 +337,17 @@
                         }
                         greetingMsg.Text += chunk;
                         greetingMsg.FormattedText = (await ChatbotService.FormatMessage(greetingMsg.Text)).Text;
-                        await InvokeAsync(StateHasChanged);
+                        await UpdateState();
                         await Task.Delay(new Random().Next(160, 280));
                     }
 
                     greetingMsg.IsComplete = true;
                     _disableInput = false; // Safely unlocks here ONLY if face panel is hidden
                     _isTyping = false;
-                    await InvokeAsync(StateHasChanged);
+                    _hasGreetingRendered = true;
+                    await UpdateState();
                     if (_textField is not null) await _textField.FocusAsync();
                 }
-                // ==============================================================================
             }
         }
     }
@@ -475,13 +368,15 @@
         _messages.Add(new ChatMessage { Text = userText, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl, IsComplete = true });
 
         _userInput = "";
-        await ScrollToBottom();
+        await UpdateState();
+
         _isTyping = true;
         _disableInput = true;
-        await InvokeAsync(StateHasChanged);
-        await ScrollToBottom();
+        await UpdateState();
 
-        var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };        
+        var aiMsg = new ChatMessage { Text = " ", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };        
+        _messages.Add(aiMsg);
+        await UpdateState();
 
         var chatRequest = new ChatRequest
         {
@@ -506,6 +401,8 @@
         request.SetBrowserResponseStreamingEnabled(true);
         request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/event-stream"));
 
+        string serverTextAccumulator = "";
+
         try
         {
             var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
@@ -522,11 +419,9 @@
                 if (line.StartsWith("data: "))
                 {
                     var chunk = line["data: ".Length..];
-
                     if (!firstWordReceived)
                     {
                         _isTyping = false;
-                        _messages.Add(aiMsg);
                         firstWordReceived = true;
 
                         if (_showAvatarPanel)
@@ -536,30 +431,17 @@
                         }
                     }
 
-                    string sanitizedChunk = string.IsNullOrEmpty(chunk)
-                        ? "\n"
-                        : chunk.Replace("\\n", "\n").Replace("\r", "");
+                    string sanitizedChunk = string.IsNullOrEmpty(chunk) ? "\n" : chunk.Replace("\\n", "\n").Replace("\r", "");
 
-                    hiddenTextPayloadTracker += sanitizedChunk;
+                    serverTextAccumulator += sanitizedChunk;
 
-                    // ==============================================================================
-                    // 1. DUAL-STREAMING ORCHESTRATOR GATING VALVE
-                    // ==============================================================================
                     if (_showAvatarPanel && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
                         if (!_isAudioSessionInitialized && _avatarComponent is not null)
                         {
-                            try
-                            {
-                                await _avatarComponent.StartStreamingSession();
-                                _isAudioSessionInitialized = true;
-                                isDeceleratingHotSwap = true;
-                            }
-                            catch { }
+                            try { await _avatarComponent.StartStreamingSession(); _isAudioSessionInitialized = true; } catch { }
                         }
                         string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
-
-                        // SAFE CALL INTO MODULE HANDLER:
                         if (_avatarComponent is not null)
                         {
                             await _avatarComponent.AppendStreamingToken(healedChunk);
@@ -568,24 +450,14 @@
 
                     if (!_showAvatarPanel)
                     {
-                        // HOTSWAP RECOVERY CATCH-UP:
-                        // If we just toggled the panel off, the layout text might be behind
-                        // the background network tracker. To prevent a freeze, we force the string
-                        // to sync up to what is currently tracked, and let it stream forward smoothly.
-                        if (aiMsg.Text != hiddenTextPayloadTracker)
-                        {
-                            aiMsg.Text = hiddenTextPayloadTracker;
-                        }
-
+                        aiMsg.Text = serverTextAccumulator;
                         var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
                         aiMsg.FormattedText = formattedResult.Text;
-                        await InvokeAsync(StateHasChanged);
-                        await ScrollToBottom();
+                        await UpdateState();
                     }
-                    else if (_showAvatarPanel && _isWaitingForAudioStreamHook)
+                    else
                     {
-                        // HOTSWAP TRANSITION LOCK: Hold layout updates during audio buffering
-                        await Task.Delay(45);
+                        await Task.Yield();
                     }
 
                     await Task.Yield();
@@ -600,76 +472,51 @@
         finally
         {
             aiMsg.IsComplete = true;
-            isDeceleratingHotSwap = false;
             _isWaitingForAudioStreamHook = false;
             _isAudioTypingStarted = false;
 
-            if (!_showAvatarPanel)
-            {
-                var finalMsg = _messages.LastOrDefault(m => !m.IsUser);
-                if (finalMsg is not null && (string.IsNullOrEmpty(hiddenTextPayloadTracker) || finalMsg.Text.Length >= hiddenTextPayloadTracker.Length))
-                {
-                    finalMsg.IsComplete = true;
-                    _isTyping = false;
-                    _disableInput = false;
-                }
-            }
-
-            // Use our local tracking flag to safely verify if an audio session was actually used
             if (_isAudioSessionInitialized && _avatarComponent is not null && _showAvatarPanel)
             {
                 await _avatarComponent.FinalizeStreamingSession();
             }
-            else
+
+            if (!_showAvatarPanel)
             {
-                aiMsg.Text = hiddenTextPayloadTracker;
+                if (string.IsNullOrWhiteSpace(aiMsg.Text))
+                {
+                    aiMsg.Text = serverTextAccumulator;
+                }
+
                 var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, aiMsg.IsComplete);
                 aiMsg.FormattedText = formattedResult.Text;
-            }
 
-            _isTyping = false;
-            _disableInput = false;
-            await InvokeAsync(StateHasChanged);
-            await ScrollToBottom();
+                _isTyping = false;
+                _disableInput = false;
+                await UpdateState();
+            }
+            else
+            {
+                await InvokeAsync(StateHasChanged);
+            }
         }
     }
 
     private async Task HandleStreamingWordReceived(string nextWord)
     {
-        if (!_showAvatarPanel || string.IsNullOrWhiteSpace(nextWord))
-            return;
+        if (!_showAvatarPanel || string.IsNullOrWhiteSpace(nextWord)) return;
 
-        var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete);
-        if (activeAiMessage is null) activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
+        var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete)
+                             ?? _messages.LastOrDefault(m => !m.IsUser);
 
         if (activeAiMessage is not null)
         {
-            // Turn off the deceleration lock as soon as the voice audio pipeline catches up to the streaming head
-            if (isDeceleratingHotSwap && !string.IsNullOrEmpty(hiddenTextPayloadTracker) &&
-                activeAiMessage.Text.Length >= hiddenTextPayloadTracker.Length)
+            if (string.IsNullOrWhiteSpace(activeAiMessage.Text) || activeAiMessage.Text == " ")
             {
-                isDeceleratingHotSwap = false;
+                activeAiMessage.Text = nextWord;
             }
-
-            if (!string.IsNullOrEmpty(hiddenTextPayloadTracker))
+            else if (!activeAiMessage.Text.EndsWith(nextWord))
             {
-                int currentPos = activeAiMessage.Text.Length;
-
-                if (hiddenTextPayloadTracker.Length > currentPos)
-                {
-                    // 1. Initial rough forward push based on token size
-                    activeAiMessage.Text = hiddenTextPayloadTracker[..Math.Min(hiddenTextPayloadTracker.Length, currentPos + nextWord.Length + 2)];
-
-                    // 2. FIXED: Search from the last known boundary zone instead of strictly currentPos
-                    // to safely tolerate tiny string length offsets caused by multi-toggle hotswaps!
-                    int searchStart = Math.Max(0, currentPos - 10);
-                    int expectedIndex = hiddenTextPayloadTracker.IndexOf(nextWord, searchStart, StringComparison.OrdinalIgnoreCase);
-
-                    if (expectedIndex != -1)
-                    {
-                        activeAiMessage.Text = hiddenTextPayloadTracker[..(expectedIndex + nextWord.Length)];
-                    }
-                }
+                activeAiMessage.Text += (activeAiMessage.Text.EndsWith(" ") ? "" : " ") + nextWord;
             }
 
             var formattedResult = await ChatbotService.FormatMessage(
@@ -680,19 +527,34 @@
             );
             activeAiMessage.FormattedText = formattedResult.Text;
 
-            // ==============================================================================
-            // UNBROKEN BRAKE LOCK
-            // Removed the old _isWaitingForAudioStreamHook flag adjustments from here.
-            // This stops oncoming word tokens from releasing your layout locks prematurely!
-            // ==============================================================================
+            await UpdateState();
+        }
+    }
 
-            await InvokeAsync(StateHasChanged);
-            await InvokeAsync(ScrollToBottom);
-
-            if (isDeceleratingHotSwap)
-            {
-                await Task.Delay(45);
+    private async Task ToggleAvatarButtonLock()
+    {
+        if (_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook)
+        {
+            await JSRuntime.InvokeVoidAsync("eval", @"
+            var btn = document.querySelector('#f5-avatar-toggle-btn');
+            if (btn) {
+                btn.setAttribute('disabled', 'disabled');
+                btn.style.pointerEvents = 'none';
+                btn.style.opacity = '0.35';
             }
+        ");
+        }
+        else
+        {
+            // Re-enable click actions and restore normal visibility
+            await JSRuntime.InvokeVoidAsync("eval", @"
+            var btn = document.querySelector('#f5-avatar-toggle-btn');
+            if (btn) {
+                btn.removeAttribute('disabled');
+                btn.style.pointerEvents = 'auto';
+                btn.style.opacity = '1';
+            }
+        ");
         }
     }
 
@@ -700,19 +562,25 @@
     public async Task OnSpeechFinished()
     {
         System.Diagnostics.Debug.WriteLine("[BLAZOR-DIALOG] Audio pipelines empty. Unlocking inputs.");
-
-        // 1. Release UI input controls cleanly
         _isTyping = false;
+        _isAudioTypingStarted = false;
         _disableInput = false;
 
-        // 2. Mark the greeting or chat response bubble complete so formatting engines finalize
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
-        if (activeAiMessage is not null) activeAiMessage.IsComplete = true;
+        if (activeAiMessage is not null)
+        {
+            activeAiMessage.IsComplete = true;
 
-        await InvokeAsync(StateHasChanged);
-        await InvokeAsync(ScrollToBottom);
+            var finalFormatResult = await ChatbotService.FormatMessage(
+                activeAiMessage.Text,
+                activeAiMessage.IsComplete,
+                specificKeyword: null,
+                applyEnhancedKeywordStyling: false
+            );
+            activeAiMessage.FormattedText = finalFormatResult.Text;
+        }
 
-        // 3. Force focus back to your text entry bar automatically
+        await UpdateState();
         if (_textField is not null)
         {
             await _textField.FocusAsync();
@@ -724,21 +592,10 @@
     {
         System.Diagnostics.Debug.WriteLine("[BLAZOR-HARDWARE] Audio waves are physically playing now. Releasing Blazor bubbles.");
 
-        // 1. Drop the bubbles at the exact millisecond sound waves play
         _isWaitingForAudioStreamHook = false;
         _isAudioTypingStarted = true;
 
-        // 2. Catch up our text container layout to match the background thread allocations
-        var activeMsg = _messages.LastOrDefault(m => !m.IsUser);
-        if (activeMsg is not null)
-        {
-            activeMsg.Text = hiddenTextPayloadTracker;
-            var catchUpResult = await ChatbotService.FormatMessage(activeMsg.Text, false);
-            activeMsg.FormattedText = catchUpResult.Text;
-        }
-
-        await InvokeAsync(StateHasChanged);
-        await ScrollToBottom();
+        await UpdateState();
     }
 
     [JSInvokable]
@@ -753,50 +610,34 @@
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
     }
 
-    public async Task TriggerPhysicalAudioHandoff()
-    {
-        // 1. Drop the bubbles at this exact millisecond
-        _isWaitingForAudioStreamHook = false;
-
-        // 2. Catch up our text display layout to match background thread collections
-        var activeMsg = _messages.LastOrDefault(m => !m.IsUser);
-        if (activeMsg is not null)
-        {
-            activeMsg.Text = hiddenTextPayloadTracker;
-            var catchUpResult = await ChatbotService.FormatMessage(activeMsg.Text, false);
-            activeMsg.FormattedText = catchUpResult.Text;
-        }
-
-        await InvokeAsync(StateHasChanged);
-        await ScrollToBottom();
-    }
-
     private async Task HandlePhysicalAudioLive()
     {
         System.Diagnostics.Debug.WriteLine("[BLAZOR-HARDWARE] Audio waves are physically playing now. Shifting layout tracks.");
 
-        // 1. Drop the bubbles at this exact millisecond
         _isWaitingForAudioStreamHook = false;
         _isAudioTypingStarted = true;
 
-        // ==========================================================================
-        // REMOVED: activeMsg.Text = hiddenTextPayloadTracker; (and its FormatMessage blocks)
-        // By pulling this out, the layout stays locked onto its current index position,
-        // allowing HandleStreamingWordReceived to type the text forward organically word-by-word!
-        // ==========================================================================
+        await UpdateState();
+    }
 
+    private async Task UpdateState()
+    {
+        await ToggleAvatarButtonLock();
         await InvokeAsync(StateHasChanged);
         await ScrollToBottom();
     }
 
     public void Dispose()
     {
-        if (_typewriterCts is not null)
+        if (JSRuntime is not null)
         {
-            try { _typewriterCts.Cancel(); } catch { }
-            _typewriterCts.Dispose();
-            _typewriterCts = null;
+            try
+            {
+                _ = JSRuntime.InvokeVoidAsync("forceStopAndResetAudioContext");
+            }
+            catch { }
         }
+
         _chatDialogRef?.Dispose();
         _persistentAvatarRef?.Dispose();
     }

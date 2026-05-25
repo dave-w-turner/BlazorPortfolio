@@ -1,5 +1,4 @@
-﻿// AIAvatar.razor.js - Thread-Safe Stable Production Parallel Audio Core
-var dotNetReference = null;
+﻿var dotNetReference = null;
 var globalAudioCtx = null;
 var nextPlayTime = 0;
 var lastBufferEndSamples = null;
@@ -45,27 +44,20 @@ export function initializeVoiceStreamSession(targetUrl, liveDotNetRef) {
     }
 }
 
-export function synchronizeVoiceTextSessionHead(alreadyRenderedText) {
-    console.log("[JS-HARDWARE] Multi-toggle reset: Syncing audio clock.");
-    downloadedAudioPayloadBufferQueue = [];
-    jsTextAccumulator = "";
-    if (globalAudioCtx) {
-        nextPlayTime = globalAudioCtx.currentTime + 0.1;
-    } else {
-        nextPlayTime = 0;
-    }
-    window.isWaitingForAudioHandshake = true;
-}
-
 export function accumulateAndStreamVoiceTokens(textChunk) {
     jsTextAccumulator += textChunk;
     jsTextAccumulator = jsTextAccumulator.replace(/\b([A-Za-z]+)([0-9]+)\b/g, "$1 $2");
 
+    // Existing safety check for C# text streaming chunks
     if (/C#\s*\.\s*$/i.test(jsTextAccumulator) || /C#\s*\.\s*\s+$/i.test(jsTextAccumulator)) {
         return;
     }
 
-    let match = jsTextAccumulator.match(/^[^.!?]+[.!?](?!(?:\s*NET)\b)(?=\s+|\s*$)/i);
+    if (/\b[A-Za-z]+\s*\.\s*$/i.test(jsTextAccumulator)) {
+        return;
+    }
+
+    let match = jsTextAccumulator.match(/^[^.!?]+[.!?](?!(?:[\s\r\n]*[Nn][Ee][Tt])\b)(?=\s+|\s*$)/i);
     if (match) {
         let completedSentence = match[0];
         jsTextAccumulator = jsTextAccumulator.substring(match.index + completedSentence.length);
@@ -83,6 +75,7 @@ export function accumulateAndStreamVoiceTokens(textChunk) {
         }
     }
 }
+
 
 // Flush whatever trailing sentence fragment is left when the LLM closes
 export function finalizeVoiceStreamSession() {
@@ -103,9 +96,6 @@ export function finalizeVoiceStreamSession() {
     }
 }
 
-// ==============================================================================
-// PIPELINE 1: BACKGROUND NETWORK FETCH WORKER (Runs at max hardware speed)
-// ==============================================================================
 async function processBackgroundFetchLoop() {
     if (!globalAudioCtx || pendingSentencesToFetchQueue.length === 0) {
         isJsFetchWorkerRunning = false;
@@ -157,9 +147,6 @@ async function processBackgroundFetchLoop() {
     }
 }
 
-// ==============================================================================
-// PIPELINE 2: HARDWARE PLAYBACK SCHEDULER (Runs smoothly on the sound card clock)
-// ==============================================================================
 function processHardwarePlaybackLoop() {
     if (!globalAudioCtx || downloadedAudioPayloadBufferQueue.length === 0) {
         isJsPlaybackWorkerRunning = false;
@@ -225,9 +212,6 @@ function processHardwarePlaybackLoop() {
     }
 }
 
-// ==============================================================================
-// PIPELINE 3: RECOVERY SYSTEM CONTROL VALVE MONITOR
-// ==============================================================================
 function checkSystemIdleState() {
     if (!isJsFetchWorkerRunning && !isJsPlaybackWorkerRunning && pendingSentencesToFetchQueue.length === 0 && downloadedAudioPayloadBufferQueue.length === 0) {
         if (dotNetReference) {
@@ -239,12 +223,10 @@ function checkSystemIdleState() {
 export function resetAudioEngineState() {
     console.log("[JS-SYSTEM] Purging dirty pipeline buffers for new session...");
 
-    // 1. Wipe text accumulators completely
     jsTextAccumulator = "";
     pendingSentencesToFetchQueue = [];
     isJsFetchWorkerRunning = false;
 
-    // 2. Reset hardware timeline clocks to the current audio context timeline space
     if (globalAudioCtx) {
         nextPlayTime = globalAudioCtx.currentTime + 0.1;
     } else {
@@ -273,12 +255,6 @@ export function forceStopAndResetAudioContext() {
     }
 }
 
-export function isHardwareAudioQueueActive() {
-    if (!globalAudioCtx) return false;
-    return nextPlayTime > globalAudioCtx.currentTime;
-}
-
-window.isHardwareAudioQueueActive = isHardwareAudioQueueActive;
 window.forceStopAndResetAudioContext = forceStopAndResetAudioContext;
 window.resetAudioEngineState = resetAudioEngineState;
 window.Blazor = window.Blazor || {};
