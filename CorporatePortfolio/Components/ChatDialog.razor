@@ -202,54 +202,41 @@
                 _showAvatarPanel = value;
                 if (value == true)
                 {
-                    // 1. Kill any lingering background recovery tasks instantly
                     if (_typewriterCts is not null)
                     {
                         try { _typewriterCts.Cancel(); } catch { }
                         _typewriterCts.Dispose();
                         _typewriterCts = null;
                     }
-
                     _isWaitingForAudioStreamHook = true;
                     _isAudioTypingStarted = false;
-
                     var runningAiMessage = _messages.LastOrDefault(m => !m.IsUser);
-                    bool requiresAudioReboot = runningAiMessage is not null &&
-                                               !string.IsNullOrEmpty(hiddenTextPayloadTracker) &&
-                                               runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length;
+                    bool requiresAudioReboot = runningAiMessage is not null && !string.IsNullOrEmpty(hiddenTextPayloadTracker) && runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length;
 
-                    if (requiresAudioReboot && !_isAudioSessionInitialized)
+                    if (requiresAudioReboot && !_isAudioSessionInitialized && _avatarComponent is not null)
                     {
-                        _ = Task.Run(async () =>
+                        Task.Run(async () =>
                         {
                             try
                             {
-                                string pythonVoiceUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
-
-                                // Create a fresh, live instance reference tracking context for this sub-flight
-                                var avatarRef = DotNetObjectReference.Create(_avatarComponent);
-                                await JSRuntime.InvokeVoidAsync("initializeVoiceStreamSession", pythonVoiceUrl, avatarRef);
+                                // Route through encapsulated child wrapper cleanly!
+                                await _avatarComponent.StartStreamingSession();
                                 _isAudioSessionInitialized = true;
                                 isDeceleratingHotSwap = false;
 
                                 if (!string.IsNullOrEmpty(runningAiMessage.Text))
                                 {
-                                    string paddedTextHead = runningAiMessage.Text.EndsWith(" ")
-                                        ? runningAiMessage.Text
-                                        : runningAiMessage.Text + " ";
+                                    string paddedTextHead = runningAiMessage.Text.EndsWith(" ") ? runningAiMessage.Text : runningAiMessage.Text + " ";
+                                    await _avatarComponent.SynchronizeVoiceTextSessionHead(paddedTextHead);
 
-                                    await JSRuntime.InvokeVoidAsync("synchronizeVoiceTextSessionHead", paddedTextHead);
-
-                                    // Calculate and slice out the exact text tokens that accumulated while hidden
                                     string remainingTextTokens = hiddenTextPayloadTracker[runningAiMessage.Text.Length..];
-
                                     if (!string.IsNullOrWhiteSpace(remainingTextTokens))
                                     {
                                         if (!remainingTextTokens.EndsWith(".") && !remainingTextTokens.EndsWith("?") && !remainingTextTokens.EndsWith("!"))
                                         {
                                             remainingTextTokens += ".";
                                         }
-                                        await JSRuntime.InvokeVoidAsync("accumulateAndStreamVoiceTokens", remainingTextTokens);
+                                        await _avatarComponent.AppendStreamingToken(remainingTextTokens);
                                     }
                                 }
                             }
@@ -259,23 +246,24 @@
                             }
                         });
                     }
-
                     _ = InvokeAsync(StateHasChanged);
                 }
                 if (value == false)
                 {
-                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] User hid avatar panel. Running safe typewriter recovery track.");
+                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Running typewriter recovery track.");
 
-                    _ = JSRuntime.InvokeVoidAsync("forceStopAndResetAudioContext");
+                    if (_avatarComponent is not null)
+                    {
+                        _ = _avatarComponent.ForceStopAndResetAudioContext();
+                    }
 
                     _isWaitingForAudioStreamHook = false;
                     _isAudioTypingStarted = false;
                     _isAudioSessionInitialized = false;
-
                     _typewriterCts = new System.Threading.CancellationTokenSource();
                     var token = _typewriterCts.Token;
-
                     var runningAiMessage = _messages.LastOrDefault(m => !m.IsUser);
+
                     if (runningAiMessage is not null && !string.IsNullOrEmpty(hiddenTextPayloadTracker))
                     {
                         if (runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length)
@@ -287,7 +275,6 @@
                                     while (runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length)
                                     {
                                         if (token.IsCancellationRequested || _showAvatarPanel) break;
-
                                         int currentLength = runningAiMessage.Text.Length;
                                         char nextChar = hiddenTextPayloadTracker[currentLength];
                                         runningAiMessage.Text += nextChar;
@@ -304,7 +291,7 @@
 
                                     while (!_showAvatarPanel && !token.IsCancellationRequested)
                                     {
-                                        bool isAudioStillPlaying = await JSRuntime.InvokeAsync<bool>("isHardwareAudioQueueActive");
+                                        bool isAudioStillPlaying = _avatarComponent is not null && await _avatarComponent.IsHardwareAudioQueueActive();
                                         if (!isAudioStillPlaying) break;
                                         await Task.Delay(250, token);
                                     }
@@ -330,6 +317,7 @@
     
     private bool _isExiting = false;
     private DotNetObjectReference<ChatDialog>? _chatDialogRef;
+    private DotNetObjectReference<AIAvatar>? _persistentAvatarRef;
 
     // A simple guard token to ensure our greeting animation sequence logic only fires once
     private bool _hasGreetingRendered = false;
@@ -559,23 +547,23 @@
                     // ==============================================================================
                     if (_showAvatarPanel && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
-                        // If the panel was opened but initialization was missed, handle it as a safe fallback
-                        if (!_isAudioSessionInitialized)
+                        if (!_isAudioSessionInitialized && _avatarComponent is not null)
                         {
                             try
                             {
-                                string pythonVoiceUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
-                                await JSRuntime.InvokeVoidAsync("initializeVoiceStreamSession", pythonVoiceUrl);
+                                await _avatarComponent.StartStreamingSession();
                                 _isAudioSessionInitialized = true;
                                 isDeceleratingHotSwap = true;
                             }
-                            catch { /* Safety fallback */ }
+                            catch { }
                         }
-
                         string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
 
-                        // PASS TO JAVASCRIPT INSTANTLY
-                        await JSRuntime.InvokeVoidAsync("accumulateAndStreamVoiceTokens", healedChunk);
+                        // SAFE CALL INTO MODULE HANDLER:
+                        if (_avatarComponent is not null)
+                        {
+                            await _avatarComponent.AppendStreamingToken(healedChunk);
+                        }
                     }
 
                     if (!_showAvatarPanel)
@@ -803,20 +791,13 @@
 
     public void Dispose()
     {
-        // 1. Force immediate thread termination loop abort
         if (_typewriterCts is not null)
         {
             try { _typewriterCts.Cancel(); } catch { }
             _typewriterCts.Dispose();
             _typewriterCts = null;
         }
-
         _chatDialogRef?.Dispose();
-
-        try
-        {
-            _ = JSRuntime.InvokeVoidAsync("forceStopAndResetAudioContext");
-        }
-        catch { /* Safe catch during teardown */ }
+        _persistentAvatarRef?.Dispose();
     }
 }

@@ -29,7 +29,6 @@
         {
             _objRef = DotNetObjectReference.Create(this);
             _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./Components/AIAvatar.razor.js");
-
             await _module.InvokeVoidAsync("initializeNeuralTts", _objRef);
         }
     }
@@ -53,14 +52,8 @@
     {
         if (_module is null) return;
         string pythonStreamUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
-
-        await InvokeAsync(() =>
-        {
-            _isSpeaking = true;
-            StateHasChanged();
-        });
-
-        await _module.InvokeVoidAsync("initializeVoiceStreamSession", pythonStreamUrl);
+        await InvokeAsync(() => { _isSpeaking = true; StateHasChanged(); });
+        await _module.InvokeVoidAsync("initializeVoiceStreamSession", pythonStreamUrl, _objRef);
     }
 
     public async Task AppendStreamingToken(string token)
@@ -75,16 +68,28 @@
         await _module.InvokeVoidAsync("finalizeVoiceStreamSession");
     }
 
+    public async Task SynchronizeVoiceTextSessionHead(string paddedTextHead)
+    {
+        if (_module is null) return;
+        await _module.InvokeVoidAsync("synchronizeVoiceTextSessionHead", paddedTextHead);
+    }
+
+    public async Task ForceStopAndResetAudioContext()
+    {
+        if (_module is null) return;
+        await _module.InvokeVoidAsync("forceStopAndResetAudioContext");
+    }
+
+    public async Task<bool> IsHardwareAudioQueueActive()
+    {
+        if (_module is null) return false;
+        return await _module.InvokeAsync<bool>("isHardwareAudioQueueActive");
+    }
+
     public async Task SpeakLocally(string text)
     {
         if (_module is null || string.IsNullOrWhiteSpace(text)) return;
-
-        await InvokeAsync(() =>
-        {
-            _isSpeaking = true;
-            StateHasChanged();
-        });
-
+        await InvokeAsync(() => { _isSpeaking = true; StateHasChanged(); });
         try
         {
             string pythonStreamUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
@@ -93,44 +98,27 @@
         catch (Exception ex)
         {
             Console.WriteLine($"[BLAZOR-STREAM-CATCH]: {ex.Message}");
-            await InvokeAsync(() =>
-            {
-                _isSpeaking = false;
-                StateHasChanged();
-            });
+            await InvokeAsync(() => { _isSpeaking = false; StateHasChanged(); });
         }
     }
 
-    private async Task OnGenerateSpeechClicked()
-    {
-        await SpeakLocally(_textPrompt);
-    }
+    private async Task OnGenerateSpeechClicked() => await SpeakLocally(_textPrompt);
 
-    [JSInvokable]
-    public void OnEngineReady()
-    {
-        _isEngineReady = true;
-        StateHasChanged();
-    }
-
-    [JSInvokable]
-    public void OnSpeechFinished()
-    {
-        _isSpeaking = false;
-        StateHasChanged();
-    }
+    [JSInvokable] public void OnEngineReady() { _isEngineReady = true; StateHasChanged(); }
+    [JSInvokable] public void OnSpeechFinished() { _isSpeaking = false; StateHasChanged(); }
 
     [JSInvokable("OnAudioStarted")]
     public async Task OnPhysicalAudioStarted()
     {
-        if (OnAudioLive.HasDelegate)
-        {
-            await OnAudioLive.InvokeAsync();
-        }
+        if (OnAudioLive.HasDelegate) await OnAudioLive.InvokeAsync();
     }
 
     public void Dispose()
     {
         _objRef?.Dispose();
+        if (_module is not null)
+        {
+            _ = _module.DisposeAsync().AsTask();
+        }
     }
 }

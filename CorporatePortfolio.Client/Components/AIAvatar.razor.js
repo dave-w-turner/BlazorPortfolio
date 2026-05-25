@@ -1,16 +1,14 @@
 ﻿// AIAvatar.razor.js - Thread-Safe Stable Production Parallel Audio Core
-var dotNetReference = typeof dotNetReference !== 'undefined' ? dotNetReference : null;
-var globalAudioCtx = typeof globalAudioCtx !== 'undefined' ? globalAudioCtx : null;
-var nextPlayTime = typeof nextPlayTime !== 'undefined' ? nextPlayTime : 0;
-var lastBufferEndSamples = typeof lastBufferEndSamples !== 'undefined' ? lastBufferEndSamples : null;
-
-var jsActiveTargetUrl = typeof jsActiveTargetUrl !== 'undefined' ? jsActiveTargetUrl : "";
-var jsTextAccumulator = typeof jsTextAccumulator !== 'undefined' ? jsTextAccumulator : "";
-var isJsFetchWorkerRunning = typeof isJsFetchWorkerRunning !== 'undefined' ? isJsFetchWorkerRunning : false;
-var isJsPlaybackWorkerRunning = typeof isJsPlaybackWorkerRunning !== 'undefined' ? isJsPlaybackWorkerRunning : false;
-
-var pendingSentencesToFetchQueue = typeof pendingSentencesToFetchQueue !== 'undefined' ? pendingSentencesToFetchQueue : [];
-var downloadedAudioPayloadBufferQueue = typeof downloadedAudioPayloadBufferQueue !== 'undefined' ? downloadedAudioPayloadBufferQueue : [];
+var dotNetReference = null;
+var globalAudioCtx = null;
+var nextPlayTime = 0;
+var lastBufferEndSamples = null;
+var jsActiveTargetUrl = "";
+var jsTextAccumulator = "";
+var isJsFetchWorkerRunning = false;
+var isJsPlaybackWorkerRunning = false;
+var pendingSentencesToFetchQueue = [];
+var downloadedAudioPayloadBufferQueue = [];
 var activeWordTimeoutIdsPool = [];
 
 window.Blazor = window.Blazor || {};
@@ -21,11 +19,6 @@ window.Blazor.registerChatDialogRef = function (dotNetRef) {
 export function initializeNeuralTts(dotNetRef) {
     dotNetReference = dotNetRef;
     console.log("[JS-MODULE] Studio Parallel Core Connected Safely.");
-
-    window.accumulateAndStreamVoiceTokens = accumulateAndStreamVoiceTokens;
-    window.initializeVoiceStreamSession = initializeVoiceStreamSession;
-    window.finalizeVoiceStreamSession = finalizeVoiceStreamSession;
-
     if (dotNetReference) {
         dotNetReference.invokeMethodAsync('OnEngineReady');
     }
@@ -36,15 +29,9 @@ export function initializeVoiceStreamSession(targetUrl, liveDotNetRef) {
     jsActiveTargetUrl = targetUrl;
     window.isWaitingForAudioHandshake = true;
 
-    // ==========================================================================
-    // INSTANCE OVERRIDE VALVE
-    // Force-update our isolated pointer handle to the live reference instance 
-    // passed from C# to completely eliminate Object Disposed exceptions!
-    // ==========================================================================
     if (liveDotNetRef) {
         dotNetReference = liveDotNetRef;
     }
-
     jsTextAccumulator = "";
     pendingSentencesToFetchQueue = [];
     downloadedAudioPayloadBufferQueue = [];
@@ -59,68 +46,36 @@ export function initializeVoiceStreamSession(targetUrl, liveDotNetRef) {
 }
 
 export function synchronizeVoiceTextSessionHead(alreadyRenderedText) {
-    console.log("[JS-HARDWARE] Multi-toggle reset: Syncing audio clock to word boundaries.");
-
-    // 1. Flush any leftover chunk byte arrays from the old muted track stream
+    console.log("[JS-HARDWARE] Multi-toggle reset: Syncing audio clock.");
     downloadedAudioPayloadBufferQueue = [];
-
-    // 2. Hard reset the text accumulator buffer so it doesn't duplicate historical phrases
     jsTextAccumulator = "";
-
-    // ==========================================================================
-    // HARD TIMELINE REALIGNMENT VALVE
-    // Sync the scheduling tracker strictly to the fresh browser AudioContext timeline!
-    // ==========================================================================
     if (globalAudioCtx) {
         nextPlayTime = globalAudioCtx.currentTime + 0.1;
     } else {
         nextPlayTime = 0;
     }
-
     window.isWaitingForAudioHandshake = true;
 }
 
 export function accumulateAndStreamVoiceTokens(textChunk) {
     jsTextAccumulator += textChunk;
-
-    // 1. Repair word-smashing boundary anomalies safely
     jsTextAccumulator = jsTextAccumulator.replace(/\b([A-Za-z]+)([0-9]+)\b/g, "$1 $2");
 
-    // ==============================================================================
-    // 2. UNIFIED STALL VALVE
-    // Stall the matching engine if the text ends with "C# ." so we wait for "NET"
-    // ==============================================================================
     if (/C#\s*\.\s*$/i.test(jsTextAccumulator) || /C#\s*\.\s*\s+$/i.test(jsTextAccumulator)) {
         return;
     }
 
-    // ==============================================================================
-    // 3. SECURE PUNCTUATION BOUNDARY ENGINE
-    // Matches the FIRST valid sentence block from the start of the buffer (^)
-    // ==============================================================================
     let match = jsTextAccumulator.match(/^[^.!?]+[.!?](?!(?:\s*NET)\b)(?=\s+|\s*$)/i);
-
     if (match) {
-        // Extract the raw text chunk exactly as matched by the regex pattern
         let completedSentence = match[0];
-
-        // Advance the master buffer tracker safely past the precise match slice point
         jsTextAccumulator = jsTextAccumulator.substring(match.index + completedSentence.length);
-
-        // Clean up the text sentence string natively
         completedSentence = completedSentence.trim();
-
-        // ==============================================================================
-        // 4. FRAMEWORK LAYOUT RECOVERY
-        // Forces a clean formatting space between language and framework before queueing
-        // ==============================================================================
         completedSentence = completedSentence.replace(/\bC#\s*\.?NET\b/gi, "C# .NET");
         completedSentence = completedSentence.replace(/\bC\s*\+\s*\+/g, "C++");
 
         if (completedSentence.length > 3) {
             console.log("[JS-TEXT-LOOP] Intercepted Sentence:", completedSentence);
             pendingSentencesToFetchQueue.push(completedSentence);
-
             if (!isJsFetchWorkerRunning) {
                 isJsFetchWorkerRunning = true;
                 processBackgroundFetchLoop();
@@ -131,20 +86,14 @@ export function accumulateAndStreamVoiceTokens(textChunk) {
 
 // Flush whatever trailing sentence fragment is left when the LLM closes
 export function finalizeVoiceStreamSession() {
-    // 3. APPLY MATCHING CORRECTIONS TO THE FLUSH VALVE BEFORE TRIMMING
-    // This catches instances where text was split across boundaries during streaming
     let finalSentence = jsTextAccumulator;
-
     finalSentence = finalSentence.replace(/\bC\s*#\s*\.\s*NET/gi, "C# .NET");
     finalSentence = finalSentence.replace(/\bC\s*\+\s*\+/g, "C++");
-
     finalSentence = finalSentence.trim();
-
     if (finalSentence.length > 0) {
         console.log("[JS-TEXT-LOOP] Final Sentence Flush:", finalSentence);
         pendingSentencesToFetchQueue.push(finalSentence);
         jsTextAccumulator = "";
-
         if (!isJsFetchWorkerRunning) {
             isJsFetchWorkerRunning = true;
             processBackgroundFetchLoop();
@@ -158,41 +107,32 @@ export function finalizeVoiceStreamSession() {
 // PIPELINE 1: BACKGROUND NETWORK FETCH WORKER (Runs at max hardware speed)
 // ==============================================================================
 async function processBackgroundFetchLoop() {
-    if (pendingSentencesToFetchQueue.length === 0) {
+    if (!globalAudioCtx || pendingSentencesToFetchQueue.length === 0) {
         isJsFetchWorkerRunning = false;
         checkSystemIdleState();
         return;
     }
-
     let textToGenerate = pendingSentencesToFetchQueue.shift();
-    console.log("[GPU-FETCHER] Sending segment to Python endpoint instantly:", textToGenerate);
-
     try {
         const response = await fetch(jsActiveTargetUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: textToGenerate })
         });
-
         if (!response.ok) throw new Error("FastAPI generation request rejected.");
-
         const reader = response.body.getReader();
         let phraseBuffers = [];
-
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
             const int16Array = new Int16Array(value.buffer, value.byteOffset, value.byteLength / 2);
             if (int16Array.length === 0) continue;
-
             const float32Array = new Float32Array(int16Array.length);
             for (let i = 0; i < int16Array.length; i++) {
                 float32Array[i] = int16Array[i] / 32768.0;
             }
             phraseBuffers.push(float32Array);
         }
-
         if (phraseBuffers.length > 0) {
             let totalLength = phraseBuffers.reduce((acc, b) => acc + b.length, 0);
             let mergedFloats = new Float32Array(totalLength);
@@ -201,10 +141,7 @@ async function processBackgroundFetchLoop() {
                 mergedFloats.set(buffer, offset);
                 offset += buffer.length;
             }
-
             downloadedAudioPayloadBufferQueue.push({ audioData: mergedFloats, text: textToGenerate });
-            console.log("[GPU-FETCHER] Generation complete, cached in memory. Queue size:", downloadedAudioPayloadBufferQueue.length);
-
             if (!isJsPlaybackWorkerRunning) {
                 isJsPlaybackWorkerRunning = true;
                 processHardwarePlaybackLoop();
@@ -215,36 +152,30 @@ async function processBackgroundFetchLoop() {
         isJsFetchWorkerRunning = false;
         checkSystemIdleState();
     }
-
-    setTimeout(processBackgroundFetchLoop, 0);
+    if (isJsFetchWorkerRunning) {
+        setTimeout(processBackgroundFetchLoop, 0);
+    }
 }
 
 // ==============================================================================
 // PIPELINE 2: HARDWARE PLAYBACK SCHEDULER (Runs smoothly on the sound card clock)
 // ==============================================================================
 function processHardwarePlaybackLoop() {
-    if (downloadedAudioPayloadBufferQueue.length === 0) {
+    if (!globalAudioCtx || downloadedAudioPayloadBufferQueue.length === 0) {
         isJsPlaybackWorkerRunning = false;
-        checkSystemIdleState(); // Calls OnSpeechFinished inside Blazor thread-safely
+        checkSystemIdleState();
         return;
     }
-
     try {
         let payload = downloadedAudioPayloadBufferQueue.shift();
         let mergedFloats = payload.audioData;
         let sentenceText = payload.text;
 
-        // ==============================================================================
-        // HARDWARE HANDSHAKE TRIGGER
-        // Fires your exact native C# method in AIAvatar.razor to drop the loading bubbles!
-        // ==============================================================================
         if (dotNetReference && window.isWaitingForAudioHandshake) {
             window.isWaitingForAudioHandshake = false;
             let physicalStartDelayMs = Math.max(0, (nextPlayTime - globalAudioCtx.currentTime) * 1000);
-
             setTimeout(() => {
-                console.log("[JS-HARDWARE] Audio waves are physically playing now. Releasing Blazor bubbles.");
-                dotNetReference.invokeMethodAsync('OnAudioStarted');
+                if (dotNetReference) dotNetReference.invokeMethodAsync('OnAudioStarted');
             }, physicalStartDelayMs);
         }
 
@@ -261,39 +192,24 @@ function processHardwarePlaybackLoop() {
 
         const audioBuffer = globalAudioCtx.createBuffer(1, mergedFloats.length, 24000);
         audioBuffer.getChannelData(0).set(mergedFloats);
-
         const source = globalAudioCtx.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(globalAudioCtx.destination);
-
         source.start(nextPlayTime);
 
         if (dotNetReference && sentenceText) {
-            // Strip out markdown link tags before splitting into individual words for the UI valve
             let sanitizedText = sentenceText.replace(/[\[\]]/g, "").replace(/\([^)]*\)/g, "");
-
-            // 1. Repair broken framework spaces before splitting into word tokens
-            sanitizedText = sanitizedText.replace(/\bC\s*#\s*\.?\s*NET\b/gi, "C# .NET");
+            sanitizedText = sanitizedText.replace(/\bC\s*#\s*.\s*NET\b/gi, "C# .NET");
             sanitizedText = sanitizedText.replace(/\bC\s*\+\+\b/gi, "C++");
-            sanitizedText = sanitizedText.replace(/\bCI\s\/\sCD\b/gi, "CI/CD");
-
-            // 2. Now safely split the repaired text into individual words
             const words = sanitizedText.trim().split(/(?<!\b(?:C#|F#|C\+\+|CI))\s+(?!(?:\.?NET|CD)\b)/gi);
-
             if (words.length > 0) {
                 const wordDisplayInterval = (audioBuffer.duration / words.length) * 1000;
                 const chunkScheduleStartTime = nextPlayTime;
-
                 words.forEach((word, index) => {
                     let wordDelayMs = Math.max(0, ((chunkScheduleStartTime - globalAudioCtx.currentTime) * 1000) + (index * wordDisplayInterval));
-
-                    // Register timeout handles securely inside our global memory array
                     let timeoutId = setTimeout(() => {
-                        if (dotNetReference) {
-                            dotNetReference.invokeMethodAsync('OnWordAudioTriggered', word);
-                        }
+                        if (dotNetReference) dotNetReference.invokeMethodAsync('OnWordAudioTriggered', word);
                     }, wordDelayMs);
-
                     activeWordTimeoutIdsPool.push(timeoutId);
                 });
             }
@@ -301,11 +217,9 @@ function processHardwarePlaybackLoop() {
 
         let duration = audioBuffer.duration;
         nextPlayTime += duration;
-
         setTimeout(processHardwarePlaybackLoop, duration * 1000 - 15);
-
     } catch (playbackError) {
-        console.error("[PLAYBACK-CRITICAL-FAULT]: Bypassing to preserve UI state locks.", playbackError);
+        console.error("[PLAYBACK-CRITICAL-FAULT]: Preserving state.", playbackError);
         isJsPlaybackWorkerRunning = false;
         checkSystemIdleState();
     }
@@ -315,13 +229,7 @@ function processHardwarePlaybackLoop() {
 // PIPELINE 3: RECOVERY SYSTEM CONTROL VALVE MONITOR
 // ==============================================================================
 function checkSystemIdleState() {
-    if (!isJsFetchWorkerRunning &&
-        !isJsPlaybackWorkerRunning &&
-        pendingSentencesToFetchQueue.length === 0 &&
-        downloadedAudioPayloadBufferQueue.length === 0) {
-
-        console.log("[JS-SYSTEM] Audio pipelines empty and idle. Re-enabling Blazor UI input nodes.");
-
+    if (!isJsFetchWorkerRunning && !isJsPlaybackWorkerRunning && pendingSentencesToFetchQueue.length === 0 && downloadedAudioPayloadBufferQueue.length === 0) {
         if (dotNetReference) {
             dotNetReference.invokeMethodAsync('OnSpeechFinished');
         }
@@ -345,18 +253,14 @@ export function resetAudioEngineState() {
 }
 
 export function forceStopAndResetAudioContext() {
-    console.log("[JS-AUDIO-SYSTEM] Component hidden. Purging active timeline audio tracks...");
-
-    // Clear out every single scheduled word highlight timer handle instantly
+    console.log("[JS-AUDIO-SYSTEM] Purging timeline audio tracks...");
     activeWordTimeoutIdsPool.forEach(id => clearTimeout(id));
-    activeWordTimeoutIdsPool = []; // Empty the memory pool completely
-
+    activeWordTimeoutIdsPool = [];
     jsTextAccumulator = "";
     pendingSentencesToFetchQueue = [];
     downloadedAudioPayloadBufferQueue = [];
     isJsFetchWorkerRunning = false;
     isJsPlaybackWorkerRunning = false;
-
     if (globalAudioCtx) {
         try {
             globalAudioCtx.close();
@@ -370,12 +274,7 @@ export function forceStopAndResetAudioContext() {
 }
 
 export function isHardwareAudioQueueActive() {
-    if (!globalAudioCtx) {
-        return false;
-    }
-
-    // If the next planned audio frame timestamp is further out than 
-    // the hardware context's live running clock, audio is still playing!
+    if (!globalAudioCtx) return false;
     return nextPlayTime > globalAudioCtx.currentTime;
 }
 
