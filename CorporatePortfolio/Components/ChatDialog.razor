@@ -200,16 +200,16 @@
             if (_showAvatarPanel != value)
             {
                 _showAvatarPanel = value;
-
                 if (value == true)
                 {
                     // =============================================================
-                    // KILL SWITCH: Cancel and dispose of any running recovery typewriter
-                    // tasks instantly to prevent multi-threaded UI thread pollution!
+                    // HARD CANCEL VAPOUR TRAILS
+                    // Terminate and dispose of any running recovery tasks instantly
+                    // before starting a new audio hotswap re-entry flight!
                     // =============================================================
                     if (_typewriterCts is not null)
                     {
-                        _typewriterCts.Cancel();
+                        try { _typewriterCts.Cancel(); } catch { }
                         _typewriterCts.Dispose();
                         _typewriterCts = null;
                     }
@@ -218,36 +218,48 @@
                     _isAudioTypingStarted = false;
 
                     var runningAiMessage = _messages.LastOrDefault(m => !m.IsUser);
-
                     bool requiresAudioReboot = runningAiMessage is not null &&
-                                                                   !string.IsNullOrEmpty(hiddenTextPayloadTracker) &&
-                                                                   runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length;
+                                               !string.IsNullOrEmpty(hiddenTextPayloadTracker) &&
+                                               runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length;
 
                     if (requiresAudioReboot && !_isAudioSessionInitialized)
                     {
-                        try
+                        _ = Task.Run(async () =>
                         {
-                            string pythonVoiceUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
-
-                            _ = JSRuntime.InvokeVoidAsync("initializeVoiceStreamSession", pythonVoiceUrl);
-                            _isAudioSessionInitialized = true;
-                            isDeceleratingHotSwap = true;
-
-                            if (!string.IsNullOrEmpty(runningAiMessage.Text))
+                            try
                             {
-                                // Add a trailing space padding if missing so the next oncoming words
-                                // compile as isolated text tokens instead of cutting old words in half!
-                                string paddedTextHead = runningAiMessage.Text.EndsWith(" ")
-                                    ? runningAiMessage.Text
-                                    : runningAiMessage.Text + " ";
+                                string pythonVoiceUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
 
-                                _ = JSRuntime.InvokeVoidAsync("synchronizeVoiceTextSessionHead", paddedTextHead);
+                                var avatarRef = DotNetObjectReference.Create(_avatarComponent);
+                                await JSRuntime.InvokeVoidAsync("initializeVoiceStreamSession", pythonVoiceUrl, avatarRef);
+                                 
+                                _isAudioSessionInitialized = true;
+                                isDeceleratingHotSwap = false;
+
+                                if (!string.IsNullOrEmpty(runningAiMessage.Text))
+                                {
+                                    string paddedTextHead = runningAiMessage.Text.EndsWith(" ")
+                                        ? runningAiMessage.Text
+                                        : runningAiMessage.Text + " ";
+
+                                    await JSRuntime.InvokeVoidAsync("synchronizeVoiceTextSessionHead", paddedTextHead);
+
+                                    string remainingTextTokens = hiddenTextPayloadTracker[runningAiMessage.Text.Length..];
+                                    if (!string.IsNullOrWhiteSpace(remainingTextTokens))
+                                    {
+                                        if (!remainingTextTokens.EndsWith(".") && !remainingTextTokens.EndsWith("?") && !remainingTextTokens.EndsWith("!"))
+                                        {
+                                            remainingTextTokens += ".";
+                                        }
+                                        await JSRuntime.InvokeVoidAsync("accumulateAndStreamVoiceTokens", remainingTextTokens);
+                                    }
+                                }
                             }
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[BLAZOR-ERROR] Re-initialization failed: {ex.Message}");
-                        }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[BLAZOR-ERROR] Re-initialization failed: {ex.Message}");
+                            }
+                        });
                     }
 
                     _ = InvokeAsync(StateHasChanged);
@@ -256,85 +268,70 @@
                 {
                     System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] User hid avatar panel. Running safe typewriter recovery track.");
 
-                    // 1. Instantly silence browser sound card tracks
                     _ = JSRuntime.InvokeVoidAsync("forceStopAndResetAudioContext");
 
-                    // 2. Reset the transition and initialization flags cleanly
                     _isWaitingForAudioStreamHook = false;
                     _isAudioTypingStarted = false;
                     _isAudioSessionInitialized = false;
 
-                    // Create a clean cancellation token source
+                    // Initialize a fresh token source for this specific recovery track run
                     _typewriterCts = new System.Threading.CancellationTokenSource();
                     var token = _typewriterCts.Token;
 
                     var runningAiMessage = _messages.LastOrDefault(m => !m.IsUser);
                     if (runningAiMessage is not null && !string.IsNullOrEmpty(hiddenTextPayloadTracker))
                     {
-                        _ = Task.Run(async () =>
+                        if (runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length)
                         {
-                            try
+                            _ = Task.Run(async () =>
                             {
-                                while (runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length)
+                                try
                                 {
-                                    if (token.IsCancellationRequested || _showAvatarPanel) break;
-
-                                    int currentLength = runningAiMessage.Text.Length;
-                                    char nextChar = hiddenTextPayloadTracker[currentLength];
-
-                                    runningAiMessage.Text += nextChar;
-
-                                    if (char.IsWhiteSpace(nextChar) || currentLength + 1 == hiddenTextPayloadTracker.Length)
+                                    while (runningAiMessage.Text.Length < hiddenTextPayloadTracker.Length)
                                     {
-                                        var formattedResult = await ChatbotService.FormatMessage(runningAiMessage.Text, false);
-                                        runningAiMessage.FormattedText = formattedResult.Text;
+                                        // Hard stop instantly if the user toggled the panel back open or cancelled
+                                        if (token.IsCancellationRequested || _showAvatarPanel) break;
+
+                                        int currentLength = runningAiMessage.Text.Length;
+                                        char nextChar = hiddenTextPayloadTracker[currentLength];
+                                        runningAiMessage.Text += nextChar;
+
+                                        if (char.IsWhiteSpace(nextChar) || currentLength + 1 == hiddenTextPayloadTracker.Length)
+                                        {
+                                            var formattedResult = await ChatbotService.FormatMessage(runningAiMessage.Text, false);
+                                            runningAiMessage.FormattedText = formattedResult.Text;
+                                            await InvokeAsync(StateHasChanged);
+                                            await ScrollToBottom();
+                                        }
+                                        await Task.Delay(8, token);
+                                    }
+
+                                    while (!_showAvatarPanel && !token.IsCancellationRequested)
+                                    {
+                                        bool isAudioStillPlaying = await JSRuntime.InvokeAsync<bool>("isHardwareAudioQueueActive");
+                                        if (!isAudioStillPlaying) break;
+                                        await Task.Delay(250, token);
+                                    }
+
+                                    if (!_showAvatarPanel && !token.IsCancellationRequested && runningAiMessage.Text.Length >= hiddenTextPayloadTracker.Length)
+                                    {
+                                        runningAiMessage.IsComplete = true;
+                                        _isTyping = false;
+                                        _disableInput = false;
                                         await InvokeAsync(StateHasChanged);
-                                        await ScrollToBottom();
+                                        if (_textField is not null) await _textField.FocusAsync();
                                     }
-
-                                    await Task.Delay(8, token);
                                 }
-
-                                // =============================================================
-                                // AUDIO-AWARE SESSION COMPLETION VALVE
-                                // Once the text finishes typing, we check if the hardware audio context
-                                // queue is still processing waves in the background before shutting down!
-                                // =============================================================
-                                while (!_showAvatarPanel && !token.IsCancellationRequested)
-                                {
-                                    // Query JavaScript to see if there are still audio fragments actively scheduled
-                                    bool isAudioStillPlaying = await JSRuntime.InvokeAsync<bool>("isHardwareAudioQueueActive");
-
-                                    if (!isAudioStillPlaying)
-                                    {
-                                        // BOTH tracks are entirely done! Safely shut down the session locks.
-                                        break;
-                                    }
-
-                                    // Hold here and check back every quarter of a second
-                                    await Task.Delay(250, token);
-                                }
-
-                                if (!_showAvatarPanel && !token.IsCancellationRequested)
-                                {
-                                    runningAiMessage.IsComplete = true;
-                                    _isTyping = false;
-                                    _disableInput = false;
-
-                                    await InvokeAsync(StateHasChanged);
-                                    if (_textField is not null) await _textField.FocusAsync();
-                                }
-                            }
-                            catch (TaskCanceledException) { /* Safe exit bypass */ }
-                        }, token);
+                                catch (TaskCanceledException) { /* Safe exit bypass */ }
+                            }, token);
+                        }
                     }
-
                     _ = InvokeAsync(StateHasChanged);
                 }
             }
         }
     }
-
+    
     private bool _isExiting = false;
     private DotNetObjectReference<ChatDialog>? _chatDialogRef;
 
@@ -700,12 +697,6 @@
 
             activeAiMessage.FormattedText = formattedResult.Text;
 
-            if (!_isAudioTypingStarted)
-            {
-                _isAudioTypingStarted = true;
-                _isWaitingForAudioStreamHook = false; // Safety fallback clearance
-            }
-
             await InvokeAsync(StateHasChanged);
             await InvokeAsync(ScrollToBottom);
 
@@ -750,10 +741,11 @@
     {
         System.Diagnostics.Debug.WriteLine("[BLAZOR-HARDWARE] Audio waves are physically playing now. Releasing Blazor bubbles.");
 
-        // 1. Drop the bubbles ONLY at this exact millisecond
+        // 1. Drop the bubbles at the exact millisecond sound waves play
         _isWaitingForAudioStreamHook = false;
+        _isAudioTypingStarted = true;
 
-        // 2. Synchronize our display text state to match the complete background buffer context
+        // 2. Catch up our text container layout to match the background thread allocations
         var activeMsg = _messages.LastOrDefault(m => !m.IsUser);
         if (activeMsg is not null)
         {
@@ -802,15 +794,13 @@
 
         // 1. Drop the bubbles at this exact millisecond
         _isWaitingForAudioStreamHook = false;
+        _isAudioTypingStarted = true;
 
-        // 2. Catch up our text container layout to match the background thread allocations
-        var activeMsg = _messages.LastOrDefault(m => !m.IsUser);
-        if (activeMsg is not null)
-        {
-            activeMsg.Text = hiddenTextPayloadTracker;
-            var catchUpResult = await ChatbotService.FormatMessage(activeMsg.Text, false);
-            activeMsg.FormattedText = catchUpResult.Text;
-        }
+        // ==========================================================================
+        // REMOVED: activeMsg.Text = hiddenTextPayloadTracker; (and its FormatMessage blocks)
+        // By pulling this out, the layout stays locked onto its current index position,
+        // allowing HandleStreamingWordReceived to type the text forward organically word-by-word!
+        // ==========================================================================
 
         await InvokeAsync(StateHasChanged);
         await ScrollToBottom();
@@ -818,18 +808,20 @@
 
     public void Dispose()
     {
+        // 1. Force immediate thread termination loop abort
+        if (_typewriterCts is not null)
+        {
+            try { _typewriterCts.Cancel(); } catch { }
+            _typewriterCts.Dispose();
+            _typewriterCts = null;
+        }
+
         _chatDialogRef?.Dispose();
 
-        // ==============================================================================
-        // THE MASTER DIALOG SHUTDOWN VALVE
-        // Triggers an immediate hardware mute pass the exact millisecond the user
-        // closes or navigates away from the active ChatDialog panel!
-        // ==============================================================================
         try
         {
-            // Fire-and-forget call down to the browser sound card layer
             _ = JSRuntime.InvokeVoidAsync("forceStopAndResetAudioContext");
         }
-        catch { /* Safe catch block in case window is already tearing down */ }
+        catch { /* Safe catch during teardown */ }
     }
 }

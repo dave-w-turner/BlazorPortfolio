@@ -31,9 +31,20 @@ export function initializeNeuralTts(dotNetRef) {
 }
 
 // Warm up the target URL context right when the LLM begins streaming tokens
-export function initializeVoiceStreamSession(targetUrl) {
+export function initializeVoiceStreamSession(targetUrl, liveDotNetRef) {
     jsActiveTargetUrl = targetUrl;
     window.isWaitingForAudioHandshake = true;
+
+    // ==========================================================================
+    // INSTANCE OVERRIDE VALVE
+    // If a fresh DotNetObjectReference is passed down during a hotswap re-entry, 
+    // update our global module pointer instantly so background worker loops stop
+    // calling dead, disposed component handles in memory!
+    // ==========================================================================
+    if (liveDotNetRef) {
+        dotNetReference = liveDotNetRef;
+    }
+
     jsTextAccumulator = "";
     pendingSentencesToFetchQueue = [];
     downloadedAudioPayloadBufferQueue = [];
@@ -50,26 +61,22 @@ export function initializeVoiceStreamSession(targetUrl) {
 export function synchronizeVoiceTextSessionHead(alreadyRenderedText) {
     console.log("[JS-HARDWARE] Multi-toggle reset: Syncing audio clock to word boundaries.");
 
-    // 1. Flush any leftover byte arrays from the old muted stream
+    // 1. Flush any leftover chunk byte arrays from the old muted track stream
     downloadedAudioPayloadBufferQueue = [];
 
-    // 2. Align our string tracker to match the visual display text state
-    jsTextAccumulator = alreadyRenderedText || "";
+    // 2. Hard reset the text accumulator buffer so it doesn't duplicate historical phrases
+    jsTextAccumulator = "";
 
     // ==========================================================================
     // HARD TIMELINE REALIGNMENT VALVE
-    // Force the scheduling timeline clock to sync exactly with the browser's live
-    // AudioContext clock, ensuring that the very next word highlight maps perfectly!
+    // Sync the scheduling tracker strictly to the fresh browser AudioContext timeline!
     // ==========================================================================
     if (globalAudioCtx) {
-        // Pushes the hardware timeline track exactly 100ms ahead of the active sound card
         nextPlayTime = globalAudioCtx.currentTime + 0.1;
     } else {
         nextPlayTime = 0;
     }
 
-    // 3. Clear out your custom token/word tracking offsets if you are counting 
-    // word markers via loops, ensuring arrays evaluate from the new slice head index!
     window.isWaitingForAudioHandshake = true;
 }
 
@@ -274,21 +281,26 @@ function processHardwarePlaybackLoop() {
             const words = sanitizedText.trim().split(/(?<!\b(?:C#|F#|C\+\+|CI))\s+(?!(?:\.?NET|CD)\b)/gi);
 
             if (words.length > 0) {
-                const wordDisplayInterval = (audioBuffer.duration / words.length) * 1000;
+                // ==========================================================================
+                // HOTSWAP REALIGNMENT VALVE
+                // If this is the initial catch-up string payload context, clear the flag 
+                // and skip firing C# text updates so the typewriter timelines don't leak!
+                // ==========================================================================
+                if (window.isCatchingUpHotswap) {
+                    window.isCatchingUpHotswap = false;
+                    return;
+                }
 
-                // ==============================================================================
-                // STABLE TIMELINE SNAPSHOT
-                // Freeze exactly when this specific chunk is planned to play out of the speaker.
-                // ==============================================================================
+                const wordDisplayInterval = (audioBuffer.duration / words.length) * 1000;
                 const chunkScheduleStartTime = nextPlayTime;
 
                 words.forEach((word, index) => {
-                    // Calculate the exact milliseconds relative to the physical sound wave
                     let wordDelayMs = Math.max(0, ((chunkScheduleStartTime - globalAudioCtx.currentTime) * 1000) + (index * wordDisplayInterval));
 
                     setTimeout(() => {
+                        // FORCE CURRENT TRACK VERIFICATION: Ensure we always target our updated,
+                        // live instance context handle to prevent object tracking memory leaks!
                         if (dotNetReference) {
-                            // Streams individual word markers natively up to ChatDialog typewriter
                             dotNetReference.invokeMethodAsync('OnWordAudioTriggered', word);
                         }
                     }, wordDelayMs);
@@ -342,19 +354,23 @@ export function resetAudioEngineState() {
 }
 
 export function forceStopAndResetAudioContext() {
-    console.log("[JS-AUDIO-SYSTEM] Component disposed. Purging active timeline audio tracks...");
+    console.log("[JS-AUDIO-SYSTEM] Component hidden. Purging active timeline audio tracks...");
 
-    // 1. Clear out all pending sentence and audio array queues immediately
+    // Clear out background variable buffers
     jsTextAccumulator = "";
     pendingSentencesToFetchQueue = [];
     downloadedAudioPayloadBufferQueue = [];
+
     isJsFetchWorkerRunning = false;
     isJsPlaybackWorkerRunning = false;
 
-    // 2. Shut down the browser's hardware sound context channel completely
+    // ==========================================================================
+    // CLEAR THE INTEROP TIMELINE TRACKS
+    // Force reset the hardware context completely to ensure old async timelines
+    // drop their pointers immediately, avoiding Object Disposed exceptions!
+    // ==========================================================================
     if (globalAudioCtx) {
         try {
-            // Closes the sound channel and frees up your device's audio hardware
             globalAudioCtx.close();
         } catch (e) {
             console.error("Error closing audio context:", e);

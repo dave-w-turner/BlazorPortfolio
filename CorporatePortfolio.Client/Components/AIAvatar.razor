@@ -120,12 +120,11 @@
         StateHasChanged();
     }
 
-    [JSInvokable]
+    [JSInvokable("OnAudioStarted")]
     public async Task OnPhysicalAudioStarted()
     {
-        if (OnWordSpoken.HasDelegate)
+        if (OnAudioLive.HasDelegate)
         {
-            // Force-feed the matching token up to ChatDialog's gating valve
             await OnAudioLive.InvokeAsync();
         }
     }
