@@ -32,6 +32,7 @@
                 }
                 else
                 {
+                    <CascadingAuthenticationState>
                     <AuthorizeView Roles="Admin">
                         <Authorized>
                             <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
@@ -44,6 +45,7 @@
                                                  Class="mr-8" />
                         </Authorized>
                     </AuthorizeView>
+                    </CascadingAuthenticationState>
                 }
             </div>
         </div>
