@@ -50,4 +50,6 @@ Click the Install service button at the bottom. NSSM will instantly hook your sc
 5. The .env file you created to run the service from powershell will not be able to be read by the NETWORK SERVICE account on the local machine so you must add a Windows Environment Variable
    called HF_TOKEN instead. You must also add the environment variable KMP_DUPLICATE_LIB_OK and set the value to TRUE. Make sure you add these under the SYSTEM VARIABLES.
 
+6. You must also add the environment variable "F5_SHARED_SECRET_TOKEN" with a secret token to access the F5 voice service.
+
 7. Set the Logon for the Windows Service to Local System Account using the GUI editor launched with "nssm edit F5VoiceService" from the command line.

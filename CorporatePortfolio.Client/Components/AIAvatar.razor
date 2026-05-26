@@ -45,10 +45,19 @@
     public async Task StartStreamingSession()
     {
         if (_module is null) return;
-        string pythonStreamUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
+
+        string pythonStreamUrl = !string.IsNullOrEmpty(Configuration["VoiceEngineUrl"]) ?
+                $"{Configuration["VoiceEngineUrl"]}/api/tts" : "http://localhost:5000/api/tts";
+
+        // Read the secret bearer token from your App Settings
+        string apiToken = Configuration["VoiceEngineToken"] ?? throw new Exception("No F5 voice service engine token provided!");
+
         await InvokeAsync(() => { _isSpeaking = true; StateHasChanged(); });
-        await _module.InvokeVoidAsync("initializeVoiceStreamSession", pythonStreamUrl, _objRef);
+
+        // Pass the token as a third argument to your JavaScript initializer
+        await _module.InvokeVoidAsync("initializeVoiceStreamSession", pythonStreamUrl, _objRef, apiToken);
     }
+
 
     public async Task AppendStreamingToken(string token)
     {
@@ -74,8 +83,13 @@
         await InvokeAsync(() => { _isSpeaking = true; StateHasChanged(); });
         try
         {
-            string pythonStreamUrl = Configuration["VoiceEngineUrl"] ?? "http://localhost:5000/api/tts";
-            await _module.InvokeVoidAsync("synthesizeClonedVoiceStream", pythonStreamUrl, text);
+            string pythonStreamUrl = !string.IsNullOrEmpty(Configuration["VoiceEngineUrl"]) ?
+                $"{Configuration["VoiceEngineUrl"]}/api/tts" : "http://localhost:5000/api/tts";
+
+            // Read the secret bearer token from your App Settings
+            string apiToken = Configuration["VoiceEngineToken"] ?? throw new Exception("No F5 voice service engine token provided!");
+
+            await _module.InvokeVoidAsync("synthesizeClonedVoiceStream", pythonStreamUrl, text, apiToken);
         }
         catch (Exception ex)
         {

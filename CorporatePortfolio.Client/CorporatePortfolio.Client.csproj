@@ -8,6 +8,7 @@
     <EnableDefaultRazorGenerateItems>true</EnableDefaultRazorGenerateItems>
     <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
     <StaticWebAssetsEnabled>true</StaticWebAssetsEnabled>
+    <UserSecretsId>f77a313f-16a9-49da-b072-eba9538352da</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

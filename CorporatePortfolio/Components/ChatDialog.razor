@@ -713,7 +713,7 @@
 
     private async Task VerifyServerHealth()
     {
-        string healthCheckUrl = Configuration["VoiceEngineUrl"] != null ? $"{Configuration["VoiceEngineUrl"]}/docs" : null ?? "http://localhost:5000/docs";
+        string healthCheckUrl = Configuration["VoiceEngineUrl"] != null ? $"{Configuration["VoiceEngineUrl"]}/docs" : null ?? $"http://localhost:5000/docs";
 
         try
         {

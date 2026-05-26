@@ -32,11 +32,31 @@ torchaudio.load = soundfile_load_fallback
 print("[PATCH] torchaudio.load successfully bound to pure Python Soundfile wrapper.")
 # ==============================================================================
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from f5_tts.api import F5TTS
+from starlette.status import HTTP_403_FORBIDDEN
+
+# --- NEW AUTH CONFIGURATION ---
+# Create a secure password token. Change this to whatever you want!
+SHARED_SECRET_TOKEN = os.environ.get("F5_SHARED_SECRET_TOKEN", "TOKEN_NOT_SET_IN_ENV_FILE") 
+
+if SHARED_SECRET_TOKEN == "TOKEN_NOT_SET_IN_ENV_FILE":
+    print("[WARNING] F5_SHARED_SECRET_TOKEN env variable is missing! Check your local .env file.")
+
+security_bearer = HTTPBearer(auto_error=False) 
+
+async def verify_azure_token(credentials: HTTPAuthorizationCredentials = Depends(security_bearer)):
+    if credentials and credentials.credentials == SHARED_SECRET_TOKEN:
+        return credentials.credentials
+    raise HTTPException(
+        status_code=HTTP_403_FORBIDDEN, 
+        detail="Access Denied: Invalid or missing Authorization Bearer Token."
+    )
+# ------------------------------
 
 app = FastAPI()
 
@@ -55,7 +75,7 @@ class TTSRequest(BaseModel):
     text: str
 
 @app.post("/api/tts")
-async def generate_voice_clone(request: TTSRequest):
+async def generate_voice_clone(request: TTSRequest, token: str = Depends(verify_azure_token)):
     try:
         ref_audio_file = "david_voice_sample.wav"
         

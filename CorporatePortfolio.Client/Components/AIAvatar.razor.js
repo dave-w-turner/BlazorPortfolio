@@ -9,6 +9,7 @@ var isJsPlaybackWorkerRunning = false;
 var pendingSentencesToFetchQueue = [];
 var downloadedAudioPayloadBufferQueue = [];
 var activeWordTimeoutIdsPool = [];
+let jsBearerToken = "";
 
 window.Blazor = window.Blazor || {};
 window.Blazor.registerChatDialogRef = function (dotNetRef) {
@@ -24,9 +25,10 @@ export function initializeNeuralTts(dotNetRef) {
 }
 
 // Warm up the target URL context right when the LLM begins streaming tokens
-export function initializeVoiceStreamSession(targetUrl, liveDotNetRef) {
+export function initializeVoiceStreamSession(targetUrl, liveDotNetRef, bearerToken) {
     jsActiveTargetUrl = targetUrl;
     window.isWaitingForAudioHandshake = true;
+    jsBearerToken = bearerToken;
 
     if (liveDotNetRef) {
         dotNetReference = liveDotNetRef;
@@ -106,7 +108,7 @@ async function processBackgroundFetchLoop() {
     try {
         const response = await fetch(jsActiveTargetUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jsBearerToken}` },
             body: JSON.stringify({ text: textToGenerate })
         });
         if (!response.ok) throw new Error("FastAPI generation request rejected.");
