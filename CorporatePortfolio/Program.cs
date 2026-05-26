@@ -42,6 +42,9 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
 });
 
+builder.Services.AddAuthorizationCore();
+builder.Services.AddCascadingAuthenticationState();
+
 authBuilder.AddIdentityCookies();
 builder.Services.AddAntiforgery(options =>
 {
@@ -109,6 +112,7 @@ builder.Services.AddMudServices();
 builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMemoryCache();
+builder.WebHost.UseStaticWebAssets();
 
 builder.Services.AddScoped(sp =>
 {
