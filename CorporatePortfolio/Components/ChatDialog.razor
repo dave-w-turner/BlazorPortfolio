@@ -623,8 +623,14 @@
 
     private async Task ScrollToBottom()
     {
-        await Task.Delay(100);
-        await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
+        try
+        {
+            await Task.Delay(100);
+            await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
+        }
+        catch
+        {
+        }
     }
 
     private async Task HandlePhysicalAudioLive()
