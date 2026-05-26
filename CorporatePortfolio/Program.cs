@@ -20,6 +20,13 @@ if (Debugger.IsAttached)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
+builder.Services.AddServerSideBlazor()
+    .AddHubOptions(options =>
+    {
+        // Raise the WebSocket threshold size to handle rapid interop streaming traffic smoothly
+        options.MaximumReceiveMessageSize = 1024 * 1024; // 1 MB
+    });
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
@@ -145,9 +152,16 @@ builder.Services.AddSingleton(provider =>
 builder.Services.AddScoped<ChatState>();
 builder.Services.AddScoped<AppState>();
 
-builder.WebHost.UseStaticWebAssets();
-
 var app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin");
+    context.Response.Headers.Append("Cross-Origin-Embedder-Policy", "require-corp");
+    await next();
+});
+
+app.UseStaticFiles();
 
 if (app.Environment.IsDevelopment())
 {
@@ -160,9 +174,6 @@ else
 }
 
 app.UseHttpsRedirection();
-
-app.UseStaticFiles();
-
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();

@@ -2,6 +2,9 @@
 
 namespace CorporatePortfolio.Services
 {
+    /// <summary>
+    /// Used for splitting the photos out of the headshot_grid images.
+    /// </summary>
     public class ImageSplitter
     {
         public static async Task<List<MagickImage>> SplitGridImage(string imagePath, int totalColumns, int totalRows)

@@ -53,7 +53,6 @@ namespace CorporatePortfolio.Services
                     var roleDetails = string.Empty;
                     var projectDetailsSb = new StringBuilder();
 
-
                     if (!isExperience && !isContactInfo && !isCompetencies && !isProject)
                         currentBmSb.Append($"# {bm.Name.ToUpper()}\r\n");
 
@@ -86,7 +85,16 @@ namespace CorporatePortfolio.Services
                             }
                             else if (isContactInfo)
                             {
-                                currentBmSb.AppendLine($"{text}");
+                                string cleanLine = text;
+                                int portfolioIdx = text.IndexOf("| Portfolio:", StringComparison.OrdinalIgnoreCase);
+
+                                if (portfolioIdx >= 0)
+                                {
+                                    // Slice the string from index 0 up to where the pipe marker starts, then clean up trailing spaces
+                                    cleanLine = text[..portfolioIdx].TrimEnd();
+                                }
+
+                                currentBmSb.AppendLine($"{cleanLine}");
                             }
                             else if (isExperience)
                             {

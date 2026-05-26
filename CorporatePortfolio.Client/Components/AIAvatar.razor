@@ -1,0 +1,125 @@
+﻿@inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
+@implements IDisposable
+
+<div class="pa-4 style-container">
+    <MudText Typo="Typo.body2" Class="mb-4">Voice Clone Prompt Sandbox Context</MudText>
+
+    <MudTextField @bind-Value="_textPrompt" Label="Type speech string here..." Variant="Variant.Outlined" Lines="3" Class="mb-4" />
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnGenerateSpeechClicked" Disabled="@(!_isEngineReady || _isSpeaking)">
+        @(_isSpeaking ? "Speaking Cloned Audio..." : (_isEngineReady ? "Generate Speech" : "Loading Neural Voice Engine..."))
+    </MudButton>
+</div>
+
+@code {
+    [Parameter] public EventCallback<string> OnWordSpoken { get; set; }
+    [Parameter] public EventCallback OnSpeechFinishedCallback { get; set; }
+    [Parameter] public EventCallback OnAudioLive { get; set; }
+
+    private string _textPrompt = "Hello, this is David Turner speaking directly out of your local web browser hardware framework.";
+    private bool _isEngineReady = false;
+    private bool _isSpeaking = false;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<AIAvatar>? _objRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _objRef = DotNetObjectReference.Create(this);
+            _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./Components/AIAvatar.razor.js");
+            await _module.InvokeVoidAsync("initializeNeuralTts", _objRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnWordAudioTriggered(string nextWord)
+    {
+        if (OnWordSpoken.HasDelegate)
+        {
+            await OnWordSpoken.InvokeAsync(nextWord);
+        }
+    }
+
+    public async Task StartStreamingSession()
+    {
+        if (_module is null) return;
+
+        string pythonStreamUrl = !string.IsNullOrEmpty(Configuration["VoiceEngineUrl"]) ?
+                $"{Configuration["VoiceEngineUrl"]}/api/tts" : "http://localhost:5000/api/tts";
+
+        // Read the secret bearer token from your App Settings
+        string apiToken = Configuration["VoiceEngineToken"] ?? throw new Exception("No F5 voice service engine token provided!");
+
+        await InvokeAsync(() => { _isSpeaking = true; StateHasChanged(); });
+
+        // Pass the token as a third argument to your JavaScript initializer
+        await _module.InvokeVoidAsync("initializeVoiceStreamSession", pythonStreamUrl, _objRef, apiToken);
+    }
+
+
+    public async Task AppendStreamingToken(string token)
+    {
+        if (_module is null || string.IsNullOrEmpty(token)) return;
+        await _module.InvokeVoidAsync("accumulateAndStreamVoiceTokens", token);
+    }
+
+    public async Task FinalizeStreamingSession()
+    {
+        if (_module is null) return;
+        await _module.InvokeVoidAsync("finalizeVoiceStreamSession");
+    }
+
+    public async Task ForceStopAndResetAudioContext()
+    {
+        if (_module is null) return;
+        await _module.InvokeVoidAsync("forceStopAndResetAudioContext");
+    }
+
+    public async Task SpeakLocally(string text)
+    {
+        if (_module is null || string.IsNullOrWhiteSpace(text)) return;
+        await InvokeAsync(() => { _isSpeaking = true; StateHasChanged(); });
+        try
+        {
+            string pythonStreamUrl = !string.IsNullOrEmpty(Configuration["VoiceEngineUrl"]) ?
+                $"{Configuration["VoiceEngineUrl"]}/api/tts" : "http://localhost:5000/api/tts";
+
+            // Read the secret bearer token from your App Settings
+            string apiToken = Configuration["VoiceEngineToken"] ?? throw new Exception("No F5 voice service engine token provided!");
+
+            await _module.InvokeVoidAsync("synthesizeClonedVoiceStream", pythonStreamUrl, text, apiToken);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[BLAZOR-STREAM-CATCH]: {ex.Message}");
+            await InvokeAsync(() => { _isSpeaking = false; StateHasChanged(); });
+        }
+    }
+
+    private async Task OnGenerateSpeechClicked() => await SpeakLocally(_textPrompt);
+
+    [JSInvokable] public void OnEngineReady() { _isEngineReady = true; StateHasChanged(); }
+
+    [JSInvokable]
+    public async Task OnSpeechFinished()
+    {
+        if (OnSpeechFinishedCallback.HasDelegate) await OnSpeechFinishedCallback.InvokeAsync();
+    }
+
+    [JSInvokable("OnAudioStarted")]
+    public async Task OnPhysicalAudioStarted()
+    {
+        if (OnAudioLive.HasDelegate) await OnAudioLive.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        _objRef?.Dispose();
+        if (_module is not null)
+        {
+            _ = _module.DisposeAsync().AsTask();
+        }
+    }
+}

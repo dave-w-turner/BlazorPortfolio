@@ -2,109 +2,160 @@
 @using CorporatePortfolio.Services
 @using CorporatePortfolio.Services.DTO
 @using Microsoft.AspNetCore.Components.WebAssembly.Http
-@using System.Text.RegularExpressions
 @inject NavigationManager NavigationManager
 @inject ChatState State
 @inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
 @inject IHostEnvironment HostEnvironment
 @inject HttpClient Http
+@implements IDisposable
 
 <MudDialog Class="chat-dark" Style="@_customStyle" ContentClass="mudDialog">
     <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.SmartToy" Class="mr-3 mb-n1" />
-            David Turner
-        </MudText>
-    </TitleContent>
-    <DialogContent>
-        <div id="chat-container" style="flex-grow: 1; overflow-y: auto;" class="pa-4">
-            @foreach (var msg in _messages)
-            {
-                @if (msg.IsConnecting)
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.SmartToy" Class="mr-3 mb-n1" />
+                David Turner
+            </MudText>
+
+            <div @onclick:stopPropagation="true">
+                @if (HostEnvironment.IsDevelopment())
                 {
-                    @* The class handles the slide-in and the slide-out via the boolean *@
-                    <div class="connecting-status-bar @(_isExiting ? "fade-out-down" : "fade-in-down")">
-                        <div class="connecting-dot-glow"></div>
-                        <span class="connecting-text">Connecting with David Turner...</span>
-                        <div class="scanner-sweep"></div>
-                    </div>
+                    <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
+                                         id="f5-avatar-toggle-btn"
+                                         Icon="@Icons.Material.Filled.VideocamOff"
+                                         Color="@Color.Default"
+                                         ToggledIcon="@Icons.Material.Filled.Videocam"
+                                         ToggledColor="@Color.Primary"
+                                         ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
+                                         Class="mr-8" />
                 }
                 else
                 {
-                    @* Normal message bubble rendering for both bot and user *@
-                    <div style="display: flex; flex-direction: @(msg.IsUser ? "row-reverse" : "row");" class="mb-6 gap-3">
-                        <MudAvatar Size="Size.Medium" Elevation="2">
-                            @if (!string.IsNullOrEmpty(msg.AvatarUrl))
-                            {
-                                <MudImage Src="@msg.AvatarUrl" />
-                            }
-                            else
-                            {
-                                <MudIcon Icon="@(msg.IsUser ? Icons.Material.Filled.Person : Icons.Material.Filled.SmartToy)" />
-                            }
-                        </MudAvatar>
+                    <AuthorizeView Roles="Admin">
+                        <Authorized>
+                            <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
+                                                 id="f5-avatar-toggle-btn"
+                                                 Icon="@Icons.Material.Filled.VideocamOff"
+                                                 Color="@Color.Default"
+                                                 ToggledIcon="@Icons.Material.Filled.Videocam"
+                                                 ToggledColor="@Color.Primary"
+                                                 ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
+                                                 Class="mr-8" />
+                        </Authorized>
+                    </AuthorizeView>
+                }
+            </div>
+        </div>
+    </TitleContent>
 
-                        <div style="max-width: 75%; display: flex; flex-direction: column; align-items: @(msg.IsUser ? "flex-end" : "flex-start");">
-                            <span class="chat-sender-name">
-                                @(msg.IsUser ? "You" : "David")
-                            </span>
+    <DialogContent>
+        <div style="display: flex; width: 100%; height: 100%; min-height: 450px;">
+            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid rgba(255,255,255,0.05);">
+                <div id="chat-container" style="flex-grow: 1; overflow-y: auto;" class="pa-4">
+                    @foreach (var msg in _messages)
+                    {
+                        @if (msg.IsConnecting)
+                        {
+                            <div class="connecting-status-bar @(_isExiting ? "fade-out-down" : "fade-in-down")">
+                                <div class="connecting-dot-glow"></div>
+                                <span class="connecting-text">Connecting with David Turner...</span>
+                                <div class="scanner-sweep"></div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div style="display: flex; flex-direction: @(msg.IsUser ? "row-reverse" : "row");" class="mb-6 gap-3">
+                                <MudAvatar Size="Size.Medium" Elevation="2">
+                                    @if (!string.IsNullOrEmpty(msg.AvatarUrl))
+                                    {
+                                        <MudImage Src="@msg.AvatarUrl" />
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@(msg.IsUser ? Icons.Material.Filled.Person : Icons.Material.Filled.SmartToy)" />
+                                    }
+                                </MudAvatar>
+                                <div style="max-width: 75%; display: flex; flex-direction: column; align-items: @(msg.IsUser ? "flex-end" : "flex-start");">
+                                    <span class="chat-sender-name">@(msg.IsUser ? "You" : "David")</span>
+                                    <MudPaper Class="pa-4 message-fade-in" Elevation="1"
+                                              Style="@(msg.IsUser ? "background-color: var(--mud-palette-primary); color: white; border-radius: 15px 15px 0 15px;" : "background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);")">
+                                        @if (!msg.IsUser && !msg.IsComplete && string.IsNullOrWhiteSpace(msg.Text))
+                                        {
+                                            <div style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
+                                                <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></div>
+                                                <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></div>
+                                                <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></div>
+                                            </div>
+                                        }
+                                        else if (!msg.IsUser)
+                                        {
+                                            <div style="color: #F8FAFC; line-height: 1.6; font-size: 1.02em; white-space: pre-wrap; word-break: break-word;">
+                                                @msg.FormattedText
 
-                            <MudPaper Class="pa-4 message-fade-in" 
-                                      Elevation="1"
-                                      Style="@(msg.IsUser ?
-                                        "background-color: var(--mud-palette-primary); color: white; border-radius: 15px 15px 0 15px;" :
-                                        "background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);")">
-                    
-                                @* Target the newly added bot message while waiting for the server/typewriter loop *@
-                                @if (!msg.IsUser && !msg.IsComplete && string.IsNullOrWhiteSpace(msg.Text))
-                                {
-                                    <div style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
+                                                @if (_isWaitingForAudioStreamHook && !_isAudioTypingStarted && !msg.IsComplete && _messages.LastOrDefault(m => !m.IsUser) == msg)
+                                                {
+                                                    <span class="ml-2" style="display: inline-flex; gap: 3px; align-items: center; vertical-align: middle;">
+                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></span>
+                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></span>
+                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></span>
+                                                    </span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">
+                                                @msg.Text
+                                            </MudText>
+                                        }
+                                    </MudPaper>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    @if (_isTyping && (_messages.LastOrDefault()?.IsUser == true || _messages.Count == 0))
+                    {
+                        <div style="display: flex; flex-direction: row;" class="bubble-entrance mb-6 gap-3">
+                            <MudAvatar Size="Size.Medium" Elevation="2">
+                                <MudImage Src="@_avatarUrl" />
+                            </MudAvatar>
+                            <div style="display: flex; flex-direction: column;">
+                                <MudPaper Class="pa-4" Elevation="1" Style="background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);">
+                                    <div class="typing-indicator" style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
                                         <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></div>
                                         <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></div>
                                         <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></div>
                                     </div>
-                                }
-                                @* Target the streaming state or completed bot message *@
-                                else if (!msg.IsUser)
-                                {
-                                    @* Use a consistent container for all bot text *@
-                                    <div style="color: #F8FAFC; line-height: 1.6; font-size: 1.02em; white-space: pre-wrap; word-break: break-word;">
-                                        @msg.FormattedText
-                                    </div>
-                                }
-                                @* User message rendering *@
-                                else
-                                {
-                                    <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">
-                                        @msg.Text
-                                    </MudText>
-                                }
-                            </MudPaper>
-                        </div>
-                    </div>
-                }
-            }
-
-            @* Show bubbles if _isTyping is true AND (User just spoke OR we are starting the chat) *@
-            @if (_isTyping && (_messages.LastOrDefault()?.IsUser == true || _messages.Count == 0))
-            {
-                <div style="display: flex; flex-direction: row;" class="bubble-entrance mb-6 gap-3">
-                    <MudAvatar Size="Size.Medium" Elevation="2">
-                        <MudImage Src="@_avatarUrl" />
-                    </MudAvatar>
-                    <div style="display: flex; flex-direction: column;">
-                        @* Apply David's dark message bubble style directly to this container *@
-                        <MudPaper Class="pa-4" 
-                                  Elevation="1"
-                                  Style="background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);">
-                            <div class="typing-indicator" style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
-                                <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></div>
-                                <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></div>
-                                <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></div>
+                                </MudPaper>
                             </div>
-                        </MudPaper>
-                    </div>
+                        </div>
+                    }
                 </div>
+            </div>
+
+            @if (HostEnvironment.IsDevelopment())
+            {
+                <div style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
+                    <AIAvatar @ref="_avatarComponent"
+                              OnWordSpoken="HandleStreamingWordReceived"
+                              OnAudioLive="HandlePhysicalAudioLive"
+                              OnSpeechFinishedCallback="OnSpeechFinished" />
+                </div>
+            }   
+            else
+            {
+                <AuthorizeView Roles="Admin">
+                    <Authorized>
+                        <div style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
+                            <AIAvatar @ref="_avatarComponent"
+                                      OnWordSpoken="HandleStreamingWordReceived"
+                                      OnAudioLive="HandlePhysicalAudioLive"
+                                      OnSpeechFinishedCallback="OnSpeechFinished" />
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
             }
         </div>
     </DialogContent>
@@ -130,106 +181,185 @@
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public string Class { get; set; } = "chat-dark";
     private MudTextField<string> _textField = default!;
-
-    // Let our global CSS handle ALL positioning and sizes so it never shrinks
     private string _customStyle => State.HasPosition
-        ? $"position: fixed; margin: 0; top: {State.Top}; left: {State.Left}; width: {State.Width}; height: {State.Height}; max-width: none; z-index: 3500 !important;"
+        ? $"position: fixed; margin: 0; top: {State.Top}; left: {State.Left}; width: {(_showAvatarPanel ? "770px" : (string.IsNullOrEmpty(State.Width) ? "450px" : State.Width))}; height: {State.Height}; max-width: none; z-index: 3500 !important;"
         : "z-index: 3500 !important;";
 
-    // 2. Chat Variables
     private List<ChatMessage> _messages = new();
     private string _userInput = "";
     private bool _isTyping = false;
-    private bool _disableInput = false;
+    private bool _disableInput = true;
     private const string _avatarUrl = "images/my-profile-pic.jpg";
     private const string _userAvatarUrl = "images/user-profile-pic.png";
-    private bool _isExiting = false;
-
-    // 3. Lifecycle & Initialization
-    protected override async Task OnInitializedAsync()
+    private AIAvatar _avatarComponent;
+    private bool _showAvatarPanel = false;
+    private bool ShowAvatarPanel
     {
-        if (!_messages.Any())
+        get => _showAvatarPanel;
+        set
         {
-            _disableInput = true;
-            _isExiting = false;
-
-            // PHASE 1: The Connection Bar
-            var connectionBar = new ChatMessage { IsConnecting = true };
-            _messages.Add(connectionBar);
-            StateHasChanged();
-
-            await Task.Delay(4500); // Initial delay
-
-            // PHASE 2: Transition Out
-            _isExiting = true;
-            StateHasChanged();
-            await Task.Delay(400); // Let CSS slide-out finish
-
-            // PHASE 3: The "Thinking" Dots
-            _messages.Remove(connectionBar); // List is now empty
-            _isExiting = false;
-            _isTyping = true;                // Razor now sees Count == 0 and shows bubbles
-            StateHasChanged();
-
-            await Task.Delay(2500); // 2.5s of pure bouncing dots
-
-            // PHASE 4: The Greeting
-            var greetingMsg = new ChatMessage
+            if (_showAvatarPanel != value)
             {
-                Text = "",
-                IsUser = false,
-                UserName = "David",
-                AvatarUrl = _avatarUrl,
-                IsComplete = false
-            };
-            _messages.Add(greetingMsg);
-
-            string[] chunks = new string[] { "How ", "are you ", "today?" };
-            bool firstWord = true;
-
-            foreach (var chunk in chunks)
-            {
-                if (firstWord)
+                _showAvatarPanel = value;
+                if (value == true)
                 {
-                    _isTyping = false; // Bubbles vanish as text arrives
-                    firstWord = false;
-                }
-                greetingMsg.Text += chunk;
-                greetingMsg.FormattedText = (await ChatbotService.FormatMessage(greetingMsg.Text)).Text;
-                StateHasChanged();
-                await Task.Delay(new Random().Next(160, 280));
-            }
+                    _isWaitingForAudioStreamHook = true;
+                    _isAudioTypingStarted = false;
 
-            greetingMsg.IsComplete = true;
-            _disableInput = false;
-            StateHasChanged();
-            await _textField.FocusAsync();
+                    _ = InvokeAsync(StateHasChanged);
+                }
+                if (value == false)
+                {
+                    System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Closing avatar panel and resetting audio states.");
+
+                    if (_avatarComponent is not null)
+                    {
+                        _ = _avatarComponent.ForceStopAndResetAudioContext();
+                    }
+
+                    _isWaitingForAudioStreamHook = false;
+                    _isAudioTypingStarted = false;
+                    _isAudioSessionInitialized = false;
+
+                    _ = UpdateState();
+                }
+            }
         }
     }
 
-    // Small helper method to check viewport bounds on the fly
-    private bool IsMobileViewport()
+    private bool _isExiting = false;
+    private DotNetObjectReference<ChatDialog>? _chatDialogRef;
+    private DotNetObjectReference<AIAvatar>? _persistentAvatarRef;
+
+    private bool _hasGreetingRendered = false;
+    private bool _isWaitingForAudioStreamHook = false;
+    private bool _isAudioTypingStarted = false;
+    private bool _isAudioSessionInitialized = false;
+    private PeriodicTimer? _healthCheckTimer;
+    private readonly CancellationTokenSource _healthCheckCts = new();
+    private bool _isF5ServerConnected = false;
+
+    protected override async Task OnInitializedAsync()
     {
-        // If the saved horizontal coordinate is larger than the screen width, drop explicit positioning
-        if (string.IsNullOrEmpty(State.Left)) return false;
-        if (int.TryParse(State.Left.Replace("px", ""), out int leftValue))
-        {
-            return leftValue > 600; // Returns true if the coordinates cannot fit in a mobile screen
-        }
-        return false;
+        await VerifyServerHealth();
+        await UpdateState();
+        _ = StartBackgroundHealthCheckLoop();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            _chatDialogRef = DotNetObjectReference.Create(this);
             await Task.Delay(150);
-            var objRef = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initChatDrag", objRef);
+            await JSRuntime.InvokeVoidAsync("initChatDrag", _chatDialogRef);
+
+            await Task.Delay(50);
+            await ToggleAvatarButtonLock();
+
+            if (!_hasGreetingRendered && !_messages.Any())
+            {
+                _disableInput = true;
+                _isExiting = false;
+
+                await UpdateState(); 
+
+                var connectionBar = new ChatMessage { IsConnecting = true };
+                _messages.Add(connectionBar);
+                await UpdateState();
+
+                await Task.Delay(4500);
+
+                _isExiting = true;
+                await UpdateState();
+                await Task.Delay(400);
+
+                _messages.Remove(connectionBar);
+                _isExiting = false;
+                _isTyping = true;
+                await UpdateState();
+
+                await Task.Delay(2500);
+
+                var greetingMsg = new ChatMessage
+                {
+                    Text = "",
+                    IsUser = false,
+                    UserName = "David",
+                    AvatarUrl = _avatarUrl,
+                    IsComplete = false
+                };
+                _messages.Add(greetingMsg);
+
+                string fullGreetingText = "How are you today?";
+
+                if (ShowAvatarPanel && _avatarComponent is not null)
+                {
+                    _isTyping = false; // Clear bouncing loading dots instantly
+                    _disableInput = true; // Keep user input field securely locked while greeting loads
+                    await UpdateState();
+
+                    // Initialize the parallel web audio background stream structures safely
+                    await _avatarComponent.StartStreamingSession();
+                    await _avatarComponent.AppendStreamingToken(fullGreetingText);
+                    await _avatarComponent.FinalizeStreamingSession();
+
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(2000);
+                        await InvokeAsync(async () =>
+                        {
+                            if (_disableInput && _messages.Count == 1 && _messages.LastOrDefault()?.IsUser == false)
+                            {
+                                System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Hydration timeout hit. Enforcing fallback release.");
+                                _disableInput = false;
+                                _isTyping = false;
+                                _isAudioTypingStarted = false;
+
+                                var currentActiveAiMsg = _messages.LastOrDefault(m => !m.IsUser);
+                                if (currentActiveAiMsg is not null)
+                                {
+                                    currentActiveAiMsg.IsComplete = true;
+                                }
+
+                                await UpdateState();
+                                if (_textField is not null)
+                                {
+                                    await _textField.FocusAsync();
+                                }
+                            }
+                        });
+                    });
+                }
+                else
+                {
+                    string[] chunks = new string[] { "How ", "are you ", "today?" };
+                    bool firstWord = true;
+
+                    foreach (var chunk in chunks)
+                    {
+                        if (firstWord)
+                        {
+                            _isTyping = false;
+                            firstWord = false;
+                        }
+                        greetingMsg.Text += chunk;
+                        greetingMsg.FormattedText = (await ChatbotService.FormatMessage(greetingMsg.Text)).Text;
+                        await UpdateState();
+                        await Task.Delay(new Random().Next(160, 280));
+                    }
+
+                    greetingMsg.IsComplete = true;
+                    _disableInput = false; // Safely unlocks here ONLY if face panel is hidden
+                    _isTyping = false;
+                    _hasGreetingRendered = true;
+                    await UpdateState();
+                    if (_textField is not null) await _textField.FocusAsync();
+                }
+            }
         }
     }
 
-    // 4. Methods
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter" && !_disableInput && !string.IsNullOrWhiteSpace(_userInput))
@@ -240,19 +370,21 @@
 
     private async Task SendMessage()
     {
-        if (string.IsNullOrWhiteSpace(_userInput) || _isTyping) return;
+        if (string.IsNullOrWhiteSpace(_userInput) || _isTyping || _disableInput) return;
 
         var userText = _userInput;
         _messages.Add(new ChatMessage { Text = userText, IsUser = true, UserName = "You", AvatarUrl = _userAvatarUrl, IsComplete = true });
 
         _userInput = "";
-        await ScrollToBottom();
-        _isTyping = true; // Displays the dots until the first word appears
-        _disableInput = true;
-        await InvokeAsync(StateHasChanged);
-        await ScrollToBottom();
+        await UpdateState();
 
-        var aiMsg = new ChatMessage { Text = "", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };
+        _isTyping = true;
+        _disableInput = true;
+        await UpdateState();
+
+        var aiMsg = new ChatMessage { Text = " ", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };        
+        _messages.Add(aiMsg);
+        await UpdateState();
 
         var chatRequest = new ChatRequest
         {
@@ -267,7 +399,7 @@
                 Timestamp = m.Timestamp,
                 UserName = m.UserName
             }).ToList()
-        };        
+        };
 
         var request = new HttpRequestMessage(HttpMethod.Post, $"{NavigationManager.BaseUri}api/chat")
         {
@@ -276,6 +408,8 @@
 
         request.SetBrowserResponseStreamingEnabled(true);
         request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+        string serverTextAccumulator = "";
 
         try
         {
@@ -293,32 +427,47 @@
                 if (line.StartsWith("data: "))
                 {
                     var chunk = line["data: ".Length..];
-
-                    // Handle initial typing state
                     if (!firstWordReceived)
                     {
                         _isTyping = false;
-                        _messages.Add(aiMsg);
                         firstWordReceived = true;
+
+                        if (_showAvatarPanel)
+                        {
+                            await _avatarComponent.StartStreamingSession();
+                            _isAudioSessionInitialized = true;
+                        }
                     }
 
-                    // Check if the chunk is an actual empty line/newline sent by the LLM
-                    if (string.IsNullOrEmpty(chunk))
+                    string sanitizedChunk = string.IsNullOrEmpty(chunk) ? "\n" : chunk.Replace("\\n", "\n").Replace("\r", "");
+
+                    serverTextAccumulator += sanitizedChunk;
+
+                    if (_showAvatarPanel && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
-                        aiMsg.Text += "\n";
+                        if (!_isAudioSessionInitialized && _avatarComponent is not null)
+                        {
+                            try { await _avatarComponent.StartStreamingSession(); _isAudioSessionInitialized = true; } catch { }
+                        }
+                        string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
+                        if (_avatarComponent is not null)
+                        {
+                            await _avatarComponent.AppendStreamingToken(healedChunk);
+                        }
+                    }
+
+                    if (!_showAvatarPanel)
+                    {
+                        aiMsg.Text = serverTextAccumulator;
+                        var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, false);
+                        aiMsg.FormattedText = formattedResult.Text;
+                        await UpdateState();
                     }
                     else
                     {
-                        // FIX: Explicitly normalize escaped or stripped newlines during data streaming
-                        string sanitizedChunk = chunk.Replace("\\n", "\n").Replace("\r", "");
-                        aiMsg.Text += sanitizedChunk;
+                        await Task.Yield();
                     }
 
-                    var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, aiMsg.IsComplete);
-                    aiMsg.FormattedText = formattedResult.Text;
-
-                    await InvokeAsync(StateHasChanged);
-                    await InvokeAsync(ScrollToBottom);
                     await Task.Yield();
                 }
             }
@@ -327,17 +476,137 @@
         {
             aiMsg.Text = "An error occurred while getting a response.";
             System.Diagnostics.Debug.WriteLine(ex.Message);
+
+            await HandleServerFailure();
         }
         finally
         {
             aiMsg.IsComplete = true;
-            _isTyping = false;
-            _disableInput = false;
-            await InvokeAsync(StateHasChanged);
-            await ScrollToBottom();
+            _isWaitingForAudioStreamHook = false;
+            _isAudioTypingStarted = false;
 
-            await _textField.FocusAsync(); 
+            if (_isAudioSessionInitialized && _avatarComponent is not null && _showAvatarPanel)
+            {
+                await _avatarComponent.FinalizeStreamingSession();
+            }
+
+            if (!_showAvatarPanel)
+            {
+                if (string.IsNullOrWhiteSpace(aiMsg.Text))
+                {
+                    aiMsg.Text = serverTextAccumulator;
+                }
+
+                var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, aiMsg.IsComplete);
+                aiMsg.FormattedText = formattedResult.Text;
+
+                _isTyping = false;
+                _disableInput = false;
+                await UpdateState();
+            }
+            else
+            {
+                await InvokeAsync(StateHasChanged);
+            }
         }
+    }
+
+    private async Task HandleStreamingWordReceived(string nextWord)
+    {
+        if (!_showAvatarPanel || string.IsNullOrWhiteSpace(nextWord)) return;
+
+        var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete)
+                             ?? _messages.LastOrDefault(m => !m.IsUser);
+
+        if (activeAiMessage is not null)
+        {
+            if (string.IsNullOrWhiteSpace(activeAiMessage.Text) || activeAiMessage.Text == " ")
+            {
+                activeAiMessage.Text = nextWord;
+            }
+            else if (!activeAiMessage.Text.EndsWith(nextWord))
+            {
+                activeAiMessage.Text += (activeAiMessage.Text.EndsWith(" ") ? "" : " ") + nextWord;
+            }
+
+            var formattedResult = await ChatbotService.FormatMessage(
+                activeAiMessage.Text,
+                activeAiMessage.IsComplete,
+                specificKeyword: null,
+                applyEnhancedKeywordStyling: false
+            );
+            activeAiMessage.FormattedText = formattedResult.Text;
+
+            await UpdateState();
+        }
+    }
+
+    private async Task ToggleAvatarButtonLock()
+    {
+        // Added logical OR check for server failure flag at the beginning
+        if (!_isF5ServerConnected || _isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook)
+        {
+            await JSRuntime.InvokeVoidAsync("eval", @"
+            var btn = document.querySelector('#f5-avatar-toggle-btn');
+            if (btn) {
+                btn.setAttribute('disabled', 'disabled');
+                btn.style.pointerEvents = 'none';
+                btn.style.opacity = '0.35';
+            }
+        ");
+        }
+        else
+        {
+            // Re-enable click actions and restore normal visibility
+            await JSRuntime.InvokeVoidAsync("eval", @"
+            var btn = document.querySelector('#f5-avatar-toggle-btn');
+            if (btn) {
+                btn.removeAttribute('disabled');
+                btn.style.pointerEvents = 'auto';
+                btn.style.opacity = '1';
+            }
+        ");
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnSpeechFinished()
+    {
+        System.Diagnostics.Debug.WriteLine("[BLAZOR-DIALOG] Audio pipelines empty. Unlocking inputs.");
+        _isTyping = false;
+        _isAudioTypingStarted = false;
+        _disableInput = false;
+
+        var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
+        if (activeAiMessage is not null)
+        {
+            activeAiMessage.IsComplete = true;
+
+            var finalFormatResult = await ChatbotService.FormatMessage(
+                activeAiMessage.Text,
+                activeAiMessage.IsComplete,
+                specificKeyword: null,
+                applyEnhancedKeywordStyling: false
+            );
+            activeAiMessage.FormattedText = finalFormatResult.Text;
+        }
+
+        await UpdateState();
+        if (_textField is not null)
+        {
+            await _textField.FocusAsync();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnPhysicalAudioStarted()
+    {
+        System.Diagnostics.Debug.WriteLine("[BLAZOR-HARDWARE] Audio waves are physically playing now. Releasing Blazor bubbles.");
+
+        _isWaitingForAudioStreamHook = false;
+        _isAudioTypingStarted = true;
+
+        await UpdateState();
     }
 
     [JSInvokable]
@@ -350,5 +619,132 @@
     {
         await Task.Delay(100);
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-container");
-    }      
+    }
+
+    private async Task HandlePhysicalAudioLive()
+    {
+        System.Diagnostics.Debug.WriteLine("[BLAZOR-HARDWARE] Audio waves are physically playing now. Shifting layout tracks.");
+
+        _isWaitingForAudioStreamHook = false;
+        _isAudioTypingStarted = true;
+
+        await UpdateState();
+    }
+
+    private async Task UpdateState()
+    {
+        await ToggleAvatarButtonLock();
+        await InvokeAsync(StateHasChanged);
+        await ScrollToBottom();
+    }
+
+    private async Task HandleServerFailure()
+    {
+        _isF5ServerConnected = false;
+
+        if (_showAvatarPanel)
+        {
+            System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] F5 Server offline event. Enforcing emergency stream closure.");
+
+            if (_avatarComponent is not null)
+            {
+                try
+                {
+                    await _avatarComponent.ForceStopAndResetAudioContext();
+                }
+                catch { }
+            }
+
+            _showAvatarPanel = false;
+            _isWaitingForAudioStreamHook = false;
+            _isAudioTypingStarted = false;
+            _isAudioSessionInitialized = false;
+        }
+
+        await UpdateState();
+    }
+
+    private async Task StartBackgroundHealthCheckLoop()
+    {
+        _healthCheckTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+
+        try
+        {
+            while (await _healthCheckTimer.WaitForNextTickAsync(_healthCheckCts.Token))
+            {
+                try
+                {
+                    bool previouslyConnected = _isF5ServerConnected;
+
+                    await VerifyServerHealth();
+
+                    if (_isF5ServerConnected)
+                    {
+                        if (!previouslyConnected)
+                        {
+                            await InvokeAsync(async () =>
+                            {
+                                await UpdateState();
+                                await ToggleAvatarButtonLock();
+                            });
+                        }
+                    }
+                    else
+                    {
+                        if (previouslyConnected)
+                        {
+                            await InvokeAsync(HandleServerFailure);
+                        }
+                    }
+                }
+                catch
+                {
+                    if (_isF5ServerConnected)
+                    {
+                        await InvokeAsync(HandleServerFailure);
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task VerifyServerHealth()
+    {
+        string healthCheckUrl = Configuration["VoiceEngineUrl"] != null ? $"{Configuration["VoiceEngineUrl"]}/docs" : null ?? $"http://localhost:5000/docs";
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            var response = await Http.GetAsync(healthCheckUrl, cts.Token);
+
+            _isF5ServerConnected = response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            _isF5ServerConnected = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _healthCheckCts.Cancel();
+        _healthCheckCts.Dispose();
+
+        _healthCheckTimer?.Dispose();
+
+        if (JSRuntime is not null)
+        {
+            try
+            {
+                _ = JSRuntime.InvokeVoidAsync("forceStopAndResetAudioContext");
+            }
+            catch { }
+        }
+        _chatDialogRef?.Dispose();
+        _persistentAvatarRef?.Dispose();
+    }
 }

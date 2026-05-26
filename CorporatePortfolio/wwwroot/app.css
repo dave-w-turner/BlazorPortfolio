@@ -2512,3 +2512,11 @@ CHAT DIALOG SENDER NAME TEXT LABELS
         background-position: -200% 0;
     }
 }
+
+html:has(.chat-no-overlay),
+body:has(.chat-no-overlay) {
+    overflow: hidden !important;
+    height: 100% !important;
+    position: fixed !important;
+    width: 100% !important;
+}

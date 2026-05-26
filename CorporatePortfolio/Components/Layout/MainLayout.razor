@@ -2,7 +2,6 @@
 @inherits LayoutComponentBase
 @inject AppState State
 
-@* CRITICAL FIXED SECTION: Explicitly mark layout providers as interactive *@
 <MudThemeProvider @rendermode="InteractiveServer" IsDarkMode="true" Theme="_darkTheme" />
 <MudDialogProvider @rendermode="InteractiveServer" />
 <MudSnackbarProvider @rendermode="InteractiveServer" />

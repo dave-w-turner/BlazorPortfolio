@@ -1,0 +1,55 @@
+1. Create new isolated virtual environment
+python -m venv env
+
+2. Active the environment
+.\env\Scripts\Activate.ps1
+
+3. Install dependencies and NVIDIA GPU Drivers
+pip install fastapi uvicorn soundfile librosa f5-tts pydantic python-dotenv
+* Ignore any fsspec errors during installation, they are not relevant to this project and should not affect functionality.
+
+4. Add a .env file to this solutions VoiceServices folder using the following Powershell command and you must be within that folder at the commandline:
+python -c "with open('.env', 'w', encoding='utf-8') as f: f.write('HF_TOKEN=YOURHUGGINGFACESAPIKEY\n')"
+
+5. Update the .gitignore file to include the .env file, add to to the very end if it is not already there.
+
+4. Start the server
+python f5_server.py
+* Ignore any ffmpeg errors during server startup, they are not relevant to this project and should not affect functionality.
+* Run it at least once first from powershell and make sure it starts up.
+
+INFO:     Started server process [44008]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+
+
+You can install it as a windows service using the following command from an elevated powershell command line:
+
+1. 'winget install nssm' **Downloads service manager utility. If prompted to source contract scripts, type Y and hit enter.
+2. 'nssm install F5VoiceService' **Configures background service.
+3. A small graphic layout window will pop up on your screen. Fill out the three parameter rows exactly like this:
+	- Path: Set this to the absolute location of your Anaconda environment's Python executable file.Path String: C:\Users\user\anaconda3\python.exe
+	- Startup directory: Set this to your exact project solution's subfolder tracking path.Path String: C:\Users\user\source\repos\user\CorporatePortfolio\CorporatePortfolio\VoiceServices
+	- Arguments: Type the literal file name of your server script file:
+		- Argument String: f5_server.py
+
+Click the Install service button at the bottom. NSSM will instantly hook your script into the core Windows kernel tracking ledger.
+
+4. Setup the service, use the following powershell commands:
+
+	# 1. Set the service to start automatically every time your machine boots up
+	Set-Service -Name F5VoiceService -StartupType Automatic
+
+	# 2. Fire up the background listener engine right now
+	Start-Service -Name F5VoiceService
+
+	# 3. Verify that it is running cleanly in the background
+	Get-Service -Name F5VoiceService
+
+5. The .env file you created to run the service from powershell will not be able to be read by the NETWORK SERVICE account on the local machine so you must add a Windows Environment Variable
+   called HF_TOKEN instead. You must also add the environment variable KMP_DUPLICATE_LIB_OK and set the value to TRUE. Make sure you add these under the SYSTEM VARIABLES.
+
+6. You must also add the environment variable "F5_SHARED_SECRET_TOKEN" with a secret token to access the F5 voice service.
+
+7. Set the Logon for the Windows Service to Local System Account using the GUI editor launched with "nssm edit F5VoiceService" from the command line.
