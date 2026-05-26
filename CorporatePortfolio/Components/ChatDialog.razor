@@ -543,30 +543,36 @@
 
     private async Task ToggleAvatarButtonLock()
     {
-        // Added logical OR check for server failure flag at the beginning
-        if (!_isF5ServerConnected || _isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook)
+        try
         {
-            await JSRuntime.InvokeVoidAsync("eval", @"
-            var btn = document.querySelector('#f5-avatar-toggle-btn');
-            if (btn) {
-                btn.setAttribute('disabled', 'disabled');
-                btn.style.pointerEvents = 'none';
-                btn.style.opacity = '0.35';
+            // Added logical OR check for server failure flag at the beginning
+            if (!_isF5ServerConnected || _isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook)
+            {
+                await JSRuntime.InvokeVoidAsync("eval", @"
+                var btn = document.querySelector('#f5-avatar-toggle-btn');
+                if (btn) {
+                    btn.setAttribute('disabled', 'disabled');
+                    btn.style.pointerEvents = 'none';
+                    btn.style.opacity = '0.35';
+                }
+            ");
             }
-        ");
+            else
+            {
+                // Re-enable click actions and restore normal visibility
+                await JSRuntime.InvokeVoidAsync("eval", @"
+                var btn = document.querySelector('#f5-avatar-toggle-btn');
+                if (btn) {
+                    btn.removeAttribute('disabled');
+                    btn.style.pointerEvents = 'auto';
+                    btn.style.opacity = '1';
+                }
+            ");
+            }
         }
-        else
+        catch
         {
-            // Re-enable click actions and restore normal visibility
-            await JSRuntime.InvokeVoidAsync("eval", @"
-            var btn = document.querySelector('#f5-avatar-toggle-btn');
-            if (btn) {
-                btn.removeAttribute('disabled');
-                btn.style.pointerEvents = 'auto';
-                btn.style.opacity = '1';
-            }
-        ");
-        }
+        }        
     }
 
     [JSInvokable]
