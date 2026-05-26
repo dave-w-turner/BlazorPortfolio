@@ -33,18 +33,18 @@
                 else
                 {
                     <CascadingAuthenticationState>
-                    <AuthorizeView Roles="Admin">
-                        <Authorized>
-                            <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
-                                                 id="f5-avatar-toggle-btn"
-                                                 Icon="@Icons.Material.Filled.VideocamOff"
-                                                 Color="@Color.Default"
-                                                 ToggledIcon="@Icons.Material.Filled.Videocam"
-                                                 ToggledColor="@Color.Primary"
-                                                 ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
-                                                 Class="mr-8" />
-                        </Authorized>
-                    </AuthorizeView>
+                        <AuthorizeView Roles="Admin">
+                            <Authorized>
+                                <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
+                                                     id="f5-avatar-toggle-btn"
+                                                     Icon="@Icons.Material.Filled.VideocamOff"
+                                                     Color="@Color.Default"
+                                                     ToggledIcon="@Icons.Material.Filled.Videocam"
+                                                     ToggledColor="@Color.Primary"
+                                                     ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
+                                                     Class="mr-8" />
+                            </Authorized>
+                        </AuthorizeView>
                     </CascadingAuthenticationState>
                 }
             </div>
