@@ -31,7 +31,8 @@ namespace CorporatePortfolio.Services
 
                 foreach (var bm in _document.Bookmarks)
                 {
-                    var isExperience = bm.Name.StartsWith("Experience_");
+                    var isExperience = bm.Name.StartsWith("Experience_") && !bm.Name.EndsWith("_Details");
+                    var isExperienceDetails = bm.Name.StartsWith("Experience_") && bm.Name.EndsWith("_Details");
                     var isContactInfo = bm.Name.Equals("Contact_Info", StringComparison.OrdinalIgnoreCase);
                     var isCompetencies = bm.Name.Equals("Competencies", StringComparison.OrdinalIgnoreCase);
                     var isProject = bm.Name.StartsWith("Project_", StringComparison.OrdinalIgnoreCase);
@@ -53,19 +54,27 @@ namespace CorporatePortfolio.Services
                     var roleDetails = string.Empty;
                     var projectDetailsSb = new StringBuilder();
 
-                    if (!isExperience && !isContactInfo && !isCompetencies && !isProject)
-                        currentBmSb.Append($"# {bm.Name.ToUpper()}\r\n");
+                    if (!isExperience && !isExperienceDetails && !isContactInfo && !isCompetencies && !isProject)
+                        currentBmSb.Append($"## {bm.Name.ToUpper()}\r\n");
 
                     if (isContactInfo)
                         currentBmSb.AppendLine("<contact_data>");
 
                     if (isCompetencies)
+                    {
+                        currentBmSb.AppendLine("## TECHNICAL SKILLS");
                         currentBmSb.AppendLine("<competencies_data>");
+                    }
 
                     if (isProject && !projects)
                     {
-                        currentBmSb.AppendLine("#PROJECTS");
+                        currentBmSb.AppendLine("##PROJECTS");
                         projects = true;
+                    }
+
+                    if (isExperienceDetails)
+                    {
+                        currentBmSb.AppendLine($"## {bm.Name.Replace("Experience_", "Duties_").Replace("_Details", "").ToUpper()}\r\n");
                     }
 
                     while (currentParagraph != null)
@@ -79,9 +88,9 @@ namespace CorporatePortfolio.Services
                                 currentBmSb.AppendLine($"# {text.ToString().Split(":").First().Trim()}");
                                 currentBmSb.AppendLine($" - {text.ToString().Split(":").Last().Trim()}");
                             }
-                            else if (bm.Name.Equals("Education"))
+                            else if (bm.Name.Equals("Education") || isExperienceDetails)
                             {
-                                currentBmSb.Append($"* {text}\r\n");
+                                currentBmSb.Append($"- {text}\r\n");
                             }
                             else if (isContactInfo)
                             {
@@ -144,7 +153,7 @@ namespace CorporatePortfolio.Services
                         {
                             experienceGroups[cleanCompanyKey] = [];
                         }
-                        experienceGroups[cleanCompanyKey].Add($"  * {roleDetails.Trim()}");
+                        experienceGroups[cleanCompanyKey].Add($"  - {roleDetails.Trim()}");
                     }
                     else if (isContactInfo)
                     {
@@ -168,10 +177,10 @@ namespace CorporatePortfolio.Services
                 // Append the consolidated EXPERIENCE section exactly how the AI needs it
                 if (experienceGroups.Count > 0)
                 {
-                    documentTextSb.AppendLine("# EXPERIENCE");
+                    documentTextSb.AppendLine("## EXPERIENCE");
                     foreach (var company in experienceGroups)
                     {
-                        documentTextSb.AppendLine($"* {company.Key}");
+                        documentTextSb.AppendLine($"# {company.Key}");
                         foreach (var role in company.Value)
                         {
                             documentTextSb.AppendLine(role);
@@ -240,10 +249,10 @@ namespace CorporatePortfolio.Services
                 {
                     skill.Summary = await _chatbotService.Generate(
                         $@"Please summarize this skill: '{skill.Name}'. DO NOT MENTION SUMMARY IN YOUR ANSWER. DO NOT MENTION THE EMPLOYERS. 
-                JUST SUMMARIZE THE SKILL AND INCLUDE THE SKILL NAME ONLY ONCE WITHIN THE SUMMARY ITSELF.
-                Provide a concise summary of 2 sentences that highlights the key aspects and importance of this skill in the context of
-                the resume data provided. Avoid generic descriptions and focus on what makes this skill valuable to potential employers.
-                Only 1 paragraph MAX! Instead of mentioning developers, speak in the first person context.",
+                            JUST SUMMARIZE THE SKILL AND INCLUDE THE SKILL NAME ONLY ONCE WITHIN THE SUMMARY ITSELF.
+                            Provide a concise summary of 2 sentences that highlights the key aspects and importance of this skill in the context of
+                            the resume data provided. Avoid generic descriptions and focus on what makes this skill valuable to potential employers.
+                            Only 1 paragraph MAX! Instead of mentioning developers, speak in the first person context.",
                         resumeText);
                 }
 

@@ -135,7 +135,8 @@
                     <AIAvatar @ref="_avatarComponent"
                               OnWordSpoken="HandleStreamingWordReceived"
                               OnAudioLive="HandlePhysicalAudioLive"
-                              OnSpeechFinishedCallback="OnSpeechFinished" />
+                              OnSpeechFinishedCallback="OnSpeechFinished"
+                              IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
                 </div>
             }   
             else
@@ -146,7 +147,8 @@
                             <AIAvatar @ref="_avatarComponent"
                                       OnWordSpoken="HandleStreamingWordReceived"
                                       OnAudioLive="HandlePhysicalAudioLive"
-                                      OnSpeechFinishedCallback="OnSpeechFinished" />
+                                      OnSpeechFinishedCallback="OnSpeechFinished"
+                                      IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
                         </div>
                     </Authorized>
                 </AuthorizeView>
@@ -440,7 +442,10 @@
                         if (sanitizedChunk.Contains("#") ||
                             sanitizedChunk.Contains(" -") ||
                             serverTextAccumulator.Contains("# Core Tech") ||
-                            serverTextAccumulator.Contains("# Azure"))
+                            serverTextAccumulator.Contains("# Azure") ||
+                            sanitizedChunk.Contains("<contact_data>") ||
+                            serverTextAccumulator.Contains("<contact_data>") ||
+                            serverTextAccumulator.Contains("## CONTACT"))
                         {
                             if (!_isMutedForSummary)
                             {
@@ -529,6 +534,7 @@
             }
 
             await UpdateState();
+            if (_textField is not null) await _textField.FocusAsync();
         }
     }
 
@@ -544,7 +550,19 @@
             await UpdateState();
 
             // 2. Fetch the clean verbal brief from Llama
-            string generatedSummary = await ChatbotService.GenerateVerbalSummary(completeFormattedText);
+            string generatedSummary = "";
+
+            // --- DETECT CONTACT BLOCK IN ACCUMULATED TEXT ---
+            if (completeFormattedText.Contains("<contact_data>") || completeFormattedText.Contains("dave.w.turner@outlook.com"))
+            {
+                // Overrides the robotic overview with your custom conversational line!
+                generatedSummary = "If you'd like to get in touch with me, I've gone ahead and placed my direct contact details right inside our chat window.";
+            }
+            else
+            {
+                // Normal summary behavior for skills and projects
+                generatedSummary = await ChatbotService.GenerateVerbalSummary(completeFormattedText);
+            }
 
             if (_avatarComponent is not null && _showAvatarPanel)
             {
@@ -624,6 +642,23 @@
     {
         if (!_showAvatarPanel || string.IsNullOrWhiteSpace(nextWord)) return;
 
+        // --- ADD THIS SENTINEL INTERCEPT GATING CHECK ---
+        if (nextWord == "[SANDBOX_START]")
+        {
+            _messages.Add(new ChatMessage
+            {
+                Text = "",
+                IsUser = false,
+                UserName = "David",
+                AvatarUrl = _avatarUrl,
+                IsComplete = false
+            });
+
+            await UpdateState();
+            return;
+        }
+
+        // --- Your original layout logic remains completely untouched below here ---
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete)
                              ?? _messages.LastOrDefault(m => !m.IsUser);
 

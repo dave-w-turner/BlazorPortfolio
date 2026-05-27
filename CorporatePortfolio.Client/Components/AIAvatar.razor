@@ -1,21 +1,27 @@
-﻿@inject IJSRuntime JSRuntime
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
 @implements IDisposable
 
 <div class="pa-4 style-container">
-    <MudText Typo="Typo.body2" Class="mb-4">Voice Clone Prompt Sandbox Context</MudText>
-
-    <MudTextField @bind-Value="_textPrompt" Label="Type speech string here..." Variant="Variant.Outlined" Lines="3" Class="mb-4" />
-
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnGenerateSpeechClicked" Disabled="@(!_isEngineReady || _isSpeaking)">
-        @(_isSpeaking ? "Speaking Cloned Audio..." : (_isEngineReady ? "Generate Speech" : "Loading Neural Voice Engine..."))
-    </MudButton>
+    <CascadingAuthenticationState>
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                    <MudText Typo="Typo.body2" Class="mb-4">Voice Clone Prompt Sandbox Context</MudText>
+                    <MudTextField @bind-Value="_textPrompt" Label="Type speech string here..." Variant="Variant.Outlined" Lines="3" Class="mb-4" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnGenerateSpeechClicked" Disabled="@(!_isEngineReady || _isSpeaking || IsParentUiLocked)">
+                        @(_isSpeaking ? "Speaking Cloned Audio..." : (_isEngineReady ? "Generate Speech" : "Loading Neural Voice Engine..."))
+                    </MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </CascadingAuthenticationState>
 </div>
 
 @code {
     [Parameter] public EventCallback<string> OnWordSpoken { get; set; }
     [Parameter] public EventCallback OnSpeechFinishedCallback { get; set; }
     [Parameter] public EventCallback OnAudioLive { get; set; }
+    [Parameter] public bool IsParentUiLocked { get; set; }
 
     private bool _isWordTrackingMuted = false;
     private string _textPrompt = "Hello, this is David Turner speaking directly out of your local web browser hardware framework.";
@@ -30,7 +36,11 @@
         {
             _objRef = DotNetObjectReference.Create(this);
             _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./Components/AIAvatar.razor.js");
-            await _module.InvokeVoidAsync("initializeNeuralTts", _objRef);
+            try
+            {
+                await _module.InvokeVoidAsync("initializeNeuralTts", _objRef);
+            }
+            catch { }
         }
     }
 
@@ -66,37 +76,63 @@
 
         await InvokeAsync(() => { _isSpeaking = true; StateHasChanged(); });
 
-        await _module.InvokeVoidAsync("initializeVoiceStreamSession", pythonStreamUrl, _objRef, apiToken);
+        try
+        {
+            await _module.InvokeVoidAsync("initializeVoiceStreamSession", pythonStreamUrl, _objRef, apiToken);
+        }
+        catch { }
     }
 
     public async Task AppendStreamingToken(string token)
     {
         if (_module is null || string.IsNullOrEmpty(token)) return;
-        await _module.InvokeVoidAsync("accumulateAndStreamVoiceTokens", token);
+
+        try
+        {
+            await _module.InvokeVoidAsync("accumulateAndStreamVoiceTokens", token);
+        }
+        catch { }
     }
 
     public async Task FinalizeStreamingSession()
     {
         if (_module is null) return;
-        await _module.InvokeVoidAsync("finalizeVoiceStreamSession");
+
+        try
+        {
+            await _module.InvokeVoidAsync("finalizeVoiceStreamSession");
+        }
+        catch { }
     }
 
     public async Task ForceStopAndResetAudioContext()
     {
         if (_module is null) return;
-        await _module.InvokeVoidAsync("forceStopAndResetAudioContext");
+        try
+        {
+            await _module.InvokeVoidAsync("forceStopAndResetAudioContext");
+        }
+        catch { }
     }
 
     public async Task SpeakLocally(string text)
     {
         if (_module is null || string.IsNullOrWhiteSpace(text)) return;
         await InvokeAsync(() => { _isSpeaking = true; StateHasChanged(); });
+
         try
         {
+            // --- ADD THIS HOOK LINE ---
+            // If an event subscriber is listening, push a special flag token up
+            // to signal that a sandbox session is initializing.
+            if (OnWordSpoken.HasDelegate)
+            {
+                await OnWordSpoken.InvokeAsync("[SANDBOX_START]");
+            }
+
             string pythonStreamUrl = !string.IsNullOrEmpty(Configuration["VoiceEngineUrl"]) ?
                 $"{Configuration["VoiceEngineUrl"]}/api/tts" : "http://localhost:5000/api/tts";
 
-            // Read the secret bearer token from your App Settings
             string apiToken = Configuration["VoiceEngineToken"] ?? throw new Exception("No F5 voice service engine token provided!");
 
             await _module.InvokeVoidAsync("synthesizeClonedVoiceStream", pythonStreamUrl, text, apiToken);
@@ -107,6 +143,8 @@
             await InvokeAsync(() => { _isSpeaking = false; StateHasChanged(); });
         }
     }
+
+
 
     private async Task OnGenerateSpeechClicked() => await SpeakLocally(_textPrompt);
 
@@ -128,7 +166,7 @@
 
         if (OnSpeechFinishedCallback.HasDelegate)
         {
-            await OnSpeechFinishedCallback.InvokeAsync();
+            await OnSpeechFinishedCallback.InvokeAsync(_textPrompt);
         }
     }
 

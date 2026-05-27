@@ -26,7 +26,10 @@
                 new { role = "system", content = systemContent }
             };
 
-            var historyToProcess = isDevelopment ? history.TakeLast(10) : history.TakeLast(5);
+            // FIX 1: Reduce sliding history window window to prevent attention decay on small models.
+            // Llama 3.2 1B/3B maintains its persona best with a max history of 4 messages (2 full turns).
+            int historyCountToTake = isDevelopment ? 4 : 4;
+            var historyToProcess = history.TakeLast(historyCountToTake);
             var historyList = historyToProcess.Where(m => !string.IsNullOrWhiteSpace(m.Text)).ToList();
 
             for (int i = 0; i < historyList.Count; i++)
@@ -39,8 +42,14 @@
                 messages.Add(new { role = msg.IsUser ? "user" : "assistant", content = msg.Text });
             }
 
-            // 5. Add the Current Question
-            messages.Add(new { role = "user", content = question });
+            //string secureQuestion = question;
+            //if (historyList.Count >= 2)
+            //{
+            //    secureQuestion += " (Context: I am speaking directly to David Turner, a real human full-stack engineer on his job hunt.)";
+            //}
+
+            //// 5. Add the Current Question
+            //messages.Add(new { role = "user", content = secureQuestion });
 
             object payload;
 
@@ -54,13 +63,15 @@
                     stream = true,
                     options = new
                     {
-                        num_ctx = 4096,
-                        num_batch = 256,
+                        num_ctx = 8192,
+                        num_batch = 512,
+                        presence_penalty = 0.0,
                         temperature = 0.0,
-                        repeat_penalty = 1.1,
-                        num_predict = 250,
-                        top_p = 0.9,
-                        top_k = 40,
+                        repeat_penalty = 1.2,
+                        repeat_last_n = 128,
+                        num_predict = 1500,
+                        top_p = 0.01,
+                        top_k = 1,
                         num_thread = 4
                     }
                 };
@@ -78,10 +89,10 @@
                     model = _ollamaModel,
                     messages = cleanMessages,
                     stream = true,
-                    temperature = 0.0,
-                    max_tokens = 250
+                    temperature = 0.65, // Lowered from 0.7 to enforce strict persona alignment in production
+                    max_tokens = 1500
                 };
-            }                   
+            }
 
             var request = new HttpRequestMessage(HttpMethod.Post, isDevelopment ? "api/chat" : "chat/completions")
             {
@@ -177,16 +188,15 @@
 
         public async Task<string> GenerateVerbalSummary(string unformattedResponse)
         {
-            var systemContent = "You are David Turner, summarizing your resume information into a concise verbal overview suitable for spoken delivery. Respond in FIRST PERSON.\n\n" +
-                    "CRITICAL INSTRUCTIONS:\n" +
-                    "1. STRICT LENGTH LIMIT: Your response must be an absolute maximum of 2 short sentences. Keep it under 40 words total.\n" +
-                    "2. MANDATORY PHRASE: You MUST explicitly state that your full skills and experience have been output to the chat window.\n" +
-                    "3. Start your response IMMEDIATELY with the summary content.\n" +
-                    "4. DO NOT include any introductory phrases, greetings, or conversational pre-ambles (e.g., Do NOT say 'Here is a summary...', 'Sure, let me clean this up...', or 'Here's a concise verbal summary...').\n" +
-                    "5. Output ONLY the raw spoken paragraph itself.\n\n" +
-                    "TASK DESCRIPTION:\n" +
-                    "Given the following resume content, create an ultra-brief, high-level overview that highlights your primary engineering expertise in a conversational tone. You must explicitly direct the user to look at the screen for the complete details. Avoid using bullet points, lists, asterisks, or markdown. Craft a single, punchy, natural-sounding paragraph that can be easily read aloud by an avatar narrator in a few seconds.\n\n" +
-                    "Resume Content:\n" +
+            var systemContent = "You are David Turner, a seasoned software engineer speaking naturally in a casual conversation about your professional background. Respond in FIRST PERSON.\n\n" +
+                    "CRITICAL CONSTRUCTIONS:\n" +
+                    "1. VOICE STYLE: Speak like an actual human developer talking to a colleague. Use natural transitions. Avoid stiff corporate vocabulary or resume jargon.\n" +
+                    "2. STRICT LENGTH LIMIT: Create exactly ONE cohesive, flowing paragraph of 2 to 3 short sentences. Keep the total count strictly under 45 words.\n" +
+                    "3. NO filler intros or structural pre-ambles (Do NOT say 'Here is a brief summary...', 'Sure thing...', or 'Based on my resume...'). Start speaking your actual thoughts instantly.\n" +
+                    "4. NO markdown symbols, asterisks, bullet indicators, or lists. Output purely raw, unformatted conversational speech text.\n\n" +
+                    "CONVERSATIONAL TASK:\n" +
+                    "Review the technical content below and summarize the highest-level theme of your engineering expertise in a punchy, confident tone. Focus on what you love building or your core strength, rather than rattling off an alphabetical list of tools or acronyms.\n\n" +
+                    "Resume Data:\n" +
                     unformattedResponse;
 
             object payload;
@@ -257,7 +267,7 @@
             return message;
         }
 
-        public static async Task<FormattedText> FormatMessage(string text,   bool isComplete = true, string? specificKeyword = null, bool applyEnhancedKeywordStyling = false)
+        public static async Task<FormattedText> FormatMessage(string text, bool isComplete = true, string? specificKeyword = null, bool applyEnhancedKeywordStyling = false)
         {
             if (string.IsNullOrWhiteSpace(text)) return new FormattedText("");
 
@@ -299,10 +309,10 @@
             // Repair conversational bullet points smashed against punctuation AND parentheses
             formatted = Regex.Replace(formatted, @"(?<=[.:)])\s*([\*-])\s*", "\n$1 ");
 
-            // Sentence fixer: ignore line breaks and PROTECT .NET from being split
+            // Sentence fixer: ignore line breaks and PROTECT .NET from being split across lines
             formatted = Regex.Replace(
                 formatted,
-                @"(?<=[a-z])\s*([.!?])\s*(?=[A-Z])(?!NET)(?! [^\n]*\n)",
+                @"(?<=[a-zA-Z])\s*([.!?])\s*(?=[A-Z])(?!NET)(?! [^\n]*\n)",
                 "$1 "
             );
 
@@ -331,7 +341,7 @@
             // Raw URLs 
             formatted = Regex.Replace(
                 formatted,
-                @"(?<!href=\x22|href=\'|\[|<)https?://[^\s<\"" \)]+|(?<=\s|^)/(?![^<>]*>)[a-zA-Z0-9_-]+[^\s<\"" \)]*",
+                @"(?<!href=\x22|href=\x27|\[|<|>\s*)https?://[^\s<\x22\x27)]+",
                 "<a href=\"$0\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$0</a>",
                 RegexOptions.IgnoreCase
             );
