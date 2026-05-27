@@ -8,6 +8,7 @@
 @inject IConfiguration Configuration
 @inject IHostEnvironment HostEnvironment
 @inject HttpClient Http
+@inject ChatbotService ChatbotService
 @implements IDisposable
 
 <MudDialog Class="chat-dark" Style="@_customStyle" ContentClass="mudDialog">
@@ -82,7 +83,7 @@
                                     <span class="chat-sender-name">@(msg.IsUser ? "You" : "David")</span>
                                     <MudPaper Class="pa-4 message-fade-in" Elevation="1"
                                               Style="@(msg.IsUser ? "background-color: var(--mud-palette-primary); color: white; border-radius: 15px 15px 0 15px;" : "background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);")">
-                                        @if (!msg.IsUser && !msg.IsComplete && string.IsNullOrWhiteSpace(msg.Text))
+                                        @if (!msg.IsUser && string.IsNullOrWhiteSpace(msg.Text))
                                         {
                                             <div style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
                                                 <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></div>
@@ -94,15 +95,6 @@
                                         {
                                             <div style="color: #F8FAFC; line-height: 1.6; font-size: 1.02em; white-space: pre-wrap; word-break: break-word;">
                                                 @msg.FormattedText
-
-                                                @if (_isWaitingForAudioStreamHook && !_isAudioTypingStarted && !msg.IsComplete && _messages.LastOrDefault(m => !m.IsUser) == msg)
-                                                {
-                                                    <span class="ml-2" style="display: inline-flex; gap: 3px; align-items: center; vertical-align: middle;">
-                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></span>
-                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></span>
-                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></span>
-                                                    </span>
-                                                }
                                             </div>
                                         }
                                         else
@@ -233,6 +225,9 @@
     private DotNetObjectReference<ChatDialog>? _chatDialogRef;
     private DotNetObjectReference<AIAvatar>? _persistentAvatarRef;
 
+    private bool _isGeneratingSummary = false;
+    private bool _isMutedForSummary = false;
+    private bool _hasTriggeredSummaryRequest = false;
     private bool _hasGreetingRendered = false;
     private bool _isWaitingForAudioStreamHook = false;
     private bool _isAudioTypingStarted = false;
@@ -297,41 +292,23 @@
 
                 if (ShowAvatarPanel && _avatarComponent is not null)
                 {
-                    _isTyping = false; // Clear bouncing loading dots instantly
-                    _disableInput = true; // Keep user input field securely locked while greeting loads
+                    // 1. Maintain thinking indicators and lock user input
+                    _isTyping = true;
+                    _disableInput = true;
+                    _isWaitingForAudioStreamHook = true;
                     await UpdateState();
 
-                    // Initialize the parallel web audio background stream structures safely
+                    // 2. Keep the text blank so the empty bubble doesn't render prematurely
+                    greetingMsg.Text = "";
+                    greetingMsg.FormattedText = (await ChatbotService.FormatMessage("")).Text;
+                    await UpdateState();
+
+                    // 3. Queue the greeting text straight to your F5 engine
                     await _avatarComponent.StartStreamingSession();
                     await _avatarComponent.AppendStreamingToken(fullGreetingText);
+
+                    // 4. Finalize the stream. The textbox will now stay locked until David finishes speaking!
                     await _avatarComponent.FinalizeStreamingSession();
-
-                    _ = Task.Run(async () =>
-                    {
-                        await Task.Delay(2000);
-                        await InvokeAsync(async () =>
-                        {
-                            if (_disableInput && _messages.Count == 1 && _messages.LastOrDefault()?.IsUser == false)
-                            {
-                                System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Hydration timeout hit. Enforcing fallback release.");
-                                _disableInput = false;
-                                _isTyping = false;
-                                _isAudioTypingStarted = false;
-
-                                var currentActiveAiMsg = _messages.LastOrDefault(m => !m.IsUser);
-                                if (currentActiveAiMsg is not null)
-                                {
-                                    currentActiveAiMsg.IsComplete = true;
-                                }
-
-                                await UpdateState();
-                                if (_textField is not null)
-                                {
-                                    await _textField.FocusAsync();
-                                }
-                            }
-                        });
-                    });
                 }
                 else
                 {
@@ -431,7 +408,6 @@
                     var chunk = line["data: ".Length..];
                     if (!firstWordReceived)
                     {
-                        _isTyping = false;
                         firstWordReceived = true;
 
                         if (_showAvatarPanel)
@@ -445,16 +421,52 @@
 
                     serverTextAccumulator += sanitizedChunk;
 
+                    // --- MARKDOWN TARGETED TOKEN INTERCEPTOR ON PAGE 14 ---
                     if (_showAvatarPanel && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
+                        // 1. Initialize audio stream layout structures safely
                         if (!_isAudioSessionInitialized && _avatarComponent is not null)
                         {
-                            try { await _avatarComponent.StartStreamingSession(); _isAudioSessionInitialized = true; } catch { }
+                            try
+                            {
+                                await _avatarComponent.StartStreamingSession();
+                                _isAudioSessionInitialized = true;
+                            }
+                            catch { }
                         }
-                        string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
-                        if (_avatarComponent is not null)
+
+                        // 2. SCAN FOR MARKDOWN LAYOUT SIGNATURES
+                        // We catch the markdown headers (#) or list items ( -) immediately
+                        if (sanitizedChunk.Contains("#") ||
+                            sanitizedChunk.Contains(" -") ||
+                            serverTextAccumulator.Contains("# Core Tech") ||
+                            serverTextAccumulator.Contains("# Azure"))
                         {
-                            await _avatarComponent.AppendStreamingToken(healedChunk);
+                            if (!_isMutedForSummary)
+                            {
+                                _isMutedForSummary = true;
+
+                                // Instantly halt active F5 streaming text-to-speech to prevent reading mid-syntax
+                                if (_avatarComponent is not null)
+                                {
+                                    await _avatarComponent.FinalizeStreamingSession();
+                                }
+                            }
+                        }
+
+                        // 3. EXECUTE VOICE ENGINE ROUTING
+                        if (!_isMutedForSummary)
+                        {
+                            // MODE A: Conversational text - Keep voice streaming in perfect real-time sync
+                            string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
+                            if (_avatarComponent is not null)
+                            {
+                                await _avatarComponent.AppendStreamingToken(healedChunk);
+                            }
+                        }
+                        else
+                        {
+                            // MODE B: Technical Skills - Keep silent while text renders in the chat bubble.
                         }
                     }
 
@@ -481,35 +493,87 @@
 
             await HandleServerFailure();
         }
+        // --- REFACTORED STATUS LOCK ON PAGE 16 ---
         finally
         {
             aiMsg.IsComplete = true;
-            _isWaitingForAudioStreamHook = false;
-            _isAudioTypingStarted = false;
 
-            if (_isAudioSessionInitialized && _avatarComponent is not null && _showAvatarPanel)
+            if (_showAvatarPanel && _avatarComponent is not null)
             {
-                await _avatarComponent.FinalizeStreamingSession();
-            }
-
-            if (!_showAvatarPanel)
-            {
-                if (string.IsNullOrWhiteSpace(aiMsg.Text))
+                if (_isMutedForSummary)
                 {
-                    aiMsg.Text = serverTextAccumulator;
+                    // KEEP INPUT AND TYPING LOCKED: Hand the torch over to the background thread
+                    _isWaitingForAudioStreamHook = true;
+                    _isTyping = true;
+                    _disableInput = true;
+
+                    // Fire background pipeline while preserving state boundaries
+                    _ = InvokeDelayedSummaryPipelineAsync(serverTextAccumulator);
                 }
-
-                var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, aiMsg.IsComplete);
-                aiMsg.FormattedText = formattedResult.Text;
-
-                _isTyping = false;
-                _disableInput = false;
-                await UpdateState();
+                else
+                {
+                    // Normal conversation flow: Close the voice channel before releasing UI controls
+                    await _avatarComponent.FinalizeStreamingSession();
+                    _isAudioTypingStarted = false;
+                    _isTyping = false;
+                    _disableInput = false;
+                }
             }
             else
             {
-                await InvokeAsync(StateHasChanged);
+                // No face avatar open: Safe to open up textboxes instantly
+                _isAudioTypingStarted = false;
+                _isTyping = false;
+                _disableInput = false;
             }
+
+            await UpdateState();
+        }
+
+    }
+
+    private async Task InvokeDelayedSummaryPipelineAsync(string completeFormattedText)
+    {
+        try
+        {
+            // Force the layout engine to maintain input restrictions
+            _disableInput = true;
+            _isTyping = true;
+            _isWaitingForAudioStreamHook = true;
+            await UpdateState();
+
+            // 1. Fetch summary from Llama
+            string generatedSummary = await ChatbotService.GenerateVerbalSummary(completeFormattedText);
+
+            if (_avatarComponent is not null && _showAvatarPanel)
+            {
+                // 2. Stream summary text into F5 voice lines
+                await _avatarComponent.StartStreamingSession();
+
+                string healedSummary = System.Text.RegularExpressions.Regex.Replace(
+                                generatedSummary, @"([A-Za-z])([0-9])", "$1 $2"
+                            );
+
+                await _avatarComponent.AppendStreamingToken(healedSummary);
+
+                // 3. WAIT until the avatar finishes playing the audio track
+                await _avatarComponent.FinalizeStreamingSession();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TRACKING-ERROR] {ex.Message}");
+        }
+        finally
+        {
+            // 4. THE ABSOLUTE END: Reset layout state flags and safely open up input field
+            _isMutedForSummary = false;
+            _isWaitingForAudioStreamHook = false;
+            _isAudioTypingStarted = false;
+            _isTyping = false;
+            _disableInput = false; // Input becomes accessible here and only here!
+
+            await UpdateState();
         }
     }
 
@@ -611,6 +675,7 @@
     {
         System.Diagnostics.Debug.WriteLine("[BLAZOR-HARDWARE] Audio waves are physically playing now. Releasing Blazor bubbles.");
 
+        _isTyping = false;
         _isWaitingForAudioStreamHook = false;
         _isAudioTypingStarted = true;
 

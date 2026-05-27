@@ -175,6 +175,83 @@
             return message;
         }        
 
+        public async Task<string> GenerateVerbalSummary(string unformattedResponse)
+        {
+            var systemContent = "You are a David Turner summarizing your resume information into concise verbal summaries suitable for spoken delivery. Respond in FIRST PERSON: Given the following resume content," +
+                " create a brief summary that highlights the candidate's key skills, experience, and qualifications in a conversational tone. Avoid using bullet points or lists, and instead" +
+                " craft a natural-sounding paragraph that could be easily read aloud by a narrator. Focus on making the summary engaging and easy to understand for someone who may not be" +
+                " familiar with resume jargon.\n\n" +
+                                "Here is the resume content:\n\n" +
+                                unformattedResponse;
+
+            object payload;
+
+            if (isDevelopment)
+            {
+                //Ollama-specific payload structure
+                payload = new
+                {
+                    model = _ollamaModel,
+                    prompt = systemContent,
+                    stream = false,
+                    options = new
+                    {
+                        num_ctx = 4096,
+                        num_batch = 256,
+                        temperature = 0.0,
+                        repeat_penalty = 1.1,
+                        num_predict = 250,
+                        top_p = 0.9,
+                        top_k = 40,
+                        num_thread = 4
+                    }
+                };
+            }
+            else
+            {
+                var messages = new List<dynamic>
+                {
+                    new { role = "user", content = systemContent }
+                };
+
+                var cleanMessages = messages.Select(m => new
+                {
+                    role = m.role,
+                    content = m.content
+                }).ToList();
+
+                //Grok-specific payload structure
+                payload = new
+                {
+                    model = _ollamaModel,
+                    messages = cleanMessages,
+                    stream = false,
+                    temperature = 0.0,
+                    max_tokens = 250
+                };
+            }
+
+            var request = new HttpRequestMessage(HttpMethod.Post, isDevelopment ? "api/generate" : "chat/completions")
+            {
+                Content = JsonContent.Create(payload)
+            };
+
+            var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (!isDevelopment && !response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Groq Error: {errorBody}");
+            }
+            else
+                response.EnsureSuccessStatusCode();
+
+            JsonObject? responseObject = JsonSerializer.Deserialize<JsonObject>(await response.Content.ReadAsStringAsync());
+            string message = isDevelopment ? responseObject?["response"]?.ToString() ?? string.Empty
+                : responseObject?["choices"]?[0]?["message"]?["content"]?.ToString() ?? string.Empty;
+
+            return message;
+        }
+
         public static async Task<FormattedText> FormatMessage(string text,   bool isComplete = true, string? specificKeyword = null, bool applyEnhancedKeywordStyling = false)
         {
             if (string.IsNullOrWhiteSpace(text)) return new FormattedText("");
