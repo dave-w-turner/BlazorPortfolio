@@ -232,6 +232,7 @@
     private bool _isWaitingForAudioStreamHook = false;
     private bool _isAudioTypingStarted = false;
     private bool _isAudioSessionInitialized = false;
+    private bool _summaryPipelineActive = false;
     private PeriodicTimer? _healthCheckTimer;
     private readonly CancellationTokenSource _healthCheckCts = new();
     private bool _isF5ServerConnected = false;
@@ -361,7 +362,7 @@
         _disableInput = true;
         await UpdateState();
 
-        var aiMsg = new ChatMessage { Text = " ", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };        
+        var aiMsg = new ChatMessage { Text = " ", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };
         _messages.Add(aiMsg);
         await UpdateState();
 
@@ -421,7 +422,7 @@
 
                     serverTextAccumulator += sanitizedChunk;
 
-                    // --- MARKDOWN TARGETED TOKEN INTERCEPTOR ON PAGE 14 ---
+                    // --- MARKDOWN TARGETED TOKEN INTERCEPTOR ---
                     if (_showAvatarPanel && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
                         // 1. Initialize audio stream layout structures safely
@@ -436,7 +437,6 @@
                         }
 
                         // 2. SCAN FOR MARKDOWN LAYOUT SIGNATURES
-                        // We catch the markdown headers (#) or list items ( -) immediately
                         if (sanitizedChunk.Contains("#") ||
                             sanitizedChunk.Contains(" -") ||
                             serverTextAccumulator.Contains("# Core Tech") ||
@@ -446,7 +446,12 @@
                             {
                                 _isMutedForSummary = true;
 
-                                // Instantly halt active F5 streaming text-to-speech to prevent reading mid-syntax
+                                // --- CRITICAL TIMER FIX ---
+                                // Set the shield right here inside the live loop token check!
+                                // This ensures that when FinalizeStreamingSession yields,
+                                // OnSpeechFinished sees the true state and blocks the unlock!
+                                _summaryPipelineActive = true;
+
                                 if (_avatarComponent is not null)
                                 {
                                     await _avatarComponent.FinalizeStreamingSession();
@@ -457,16 +462,11 @@
                         // 3. EXECUTE VOICE ENGINE ROUTING
                         if (!_isMutedForSummary)
                         {
-                            // MODE A: Conversational text - Keep voice streaming in perfect real-time sync
                             string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
                             if (_avatarComponent is not null)
                             {
                                 await _avatarComponent.AppendStreamingToken(healedChunk);
                             }
-                        }
-                        else
-                        {
-                            // MODE B: Technical Skills - Keep silent while text renders in the chat bubble.
                         }
                     }
 
@@ -493,7 +493,6 @@
 
             await HandleServerFailure();
         }
-        // --- REFACTORED SEPARATION ON PAGE 16 ---
         finally
         {
             aiMsg.IsComplete = true;
@@ -502,19 +501,18 @@
             {
                 if (_isMutedForSummary)
                 {
-                    // MODE A: Summary Path
-                    // Do NOT call FinalizeStreamingSession() here!
-                    // That avoids triggering the browser's empty buffer event prematurely.
+                    // Re-affirm parameters before kicking off background thread processing
+                    _summaryPipelineActive = true;
+
                     _isWaitingForAudioStreamHook = true;
                     _isTyping = true;
                     _disableInput = true;
 
-                    // Fire your summary task directly while keeping the session active
                     _ = InvokeDelayedSummaryPipelineAsync(serverTextAccumulator);
                 }
                 else
                 {
-                    // MODE B: Normal Conversation Path
+                    _summaryPipelineActive = false;
                     _isWaitingForAudioStreamHook = true;
                     _isTyping = true;
                     _disableInput = true;
@@ -524,7 +522,7 @@
             }
             else
             {
-                // MODE C: Standard Chat Box (No Avatar Window Open)
+                _summaryPipelineActive = false;
                 _isAudioTypingStarted = false;
                 _isTyping = false;
                 _disableInput = false;
@@ -539,6 +537,7 @@
         try
         {
             // 1. Maintain rigid UI input restrictions
+            _summaryPipelineActive = true;
             _disableInput = true;
             _isTyping = true;
             _isWaitingForAudioStreamHook = true;
@@ -550,7 +549,7 @@
             if (_avatarComponent is not null && _showAvatarPanel)
             {
                 // 3. Start the F5 streaming audio session for the summary text
-                await _avatarComponent.StartStreamingSession();
+                await _avatarComponent.StartStreamingSession(muteWordTracking: true);
 
                 // 4. Split the verbal summary into sentences to stream to F5 immediately
                 string[] summarySentences = System.Text.RegularExpressions.Regex.Split(generatedSummary, @"(?<=[.!?])\s+");
@@ -564,6 +563,8 @@
 
                     await _avatarComponent.AppendStreamingToken(healedSentence + " ");
                 }
+
+                _summaryPipelineActive = false;
 
                 // 5. Finalize the audio stream session so it knows no more sentences are coming
                 await _avatarComponent.FinalizeStreamingSession();
@@ -618,7 +619,6 @@
             await UpdateState();
         }
     }
-
 
     private async Task HandleStreamingWordReceived(string nextWord)
     {
@@ -688,6 +688,12 @@
     public async Task OnSpeechFinished()
     {
         System.Diagnostics.Debug.WriteLine("[BLAZOR-DIALOG] Audio track has completed physical playback. Safely unlocking textbox input.");
+
+        if (_summaryPipelineActive)
+        {
+            System.Diagnostics.Debug.WriteLine("[AVATAR-GUARD] Intercepted premature release. Maintaining input lock.");
+            return;
+        }
 
         // 1. Release all UI restrictions here and only here
         _isTyping = false;

@@ -178,14 +178,16 @@
         public async Task<string> GenerateVerbalSummary(string unformattedResponse)
         {
             var systemContent = "You are David Turner, summarizing your resume information into a concise verbal overview suitable for spoken delivery. Respond in FIRST PERSON.\n\n" +
-                                "CRITICAL INSTRUCTIONS:\n" +
-                                "1. Start your response IMMEDIATELY with the summary content. \n" +
-                                "2. DO NOT include any introductory phrases, greetings, or conversational pre-ambles (e.g., Do NOT say 'Here is a summary...', 'Sure, let me clean this up...', or 'Here's a concise verbal summary...').\n" +
-                                "3. Output ONLY the raw spoken paragraph itself.\n\n" +
-                                "TASK DESCRIPTION:\n" +
-                                "Given the following resume content, create a brief summary that highlights your key skills, experience, and qualifications in a conversational tone. Avoid using bullet points, lists, asterisks, or markdown. Instead, craft a natural-sounding paragraph that can be easily read aloud by an avatar narrator. Focus on making the summary engaging and easy to understand.\n\n" +
-                                "Resume Content:\n" +
-                                unformattedResponse;
+                    "CRITICAL INSTRUCTIONS:\n" +
+                    "1. STRICT LENGTH LIMIT: Your response must be an absolute maximum of 2 short sentences. Keep it under 40 words total.\n" +
+                    "2. MANDATORY PHRASE: You MUST explicitly state that your full skills and experience have been output to the chat window.\n" +
+                    "3. Start your response IMMEDIATELY with the summary content.\n" +
+                    "4. DO NOT include any introductory phrases, greetings, or conversational pre-ambles (e.g., Do NOT say 'Here is a summary...', 'Sure, let me clean this up...', or 'Here's a concise verbal summary...').\n" +
+                    "5. Output ONLY the raw spoken paragraph itself.\n\n" +
+                    "TASK DESCRIPTION:\n" +
+                    "Given the following resume content, create an ultra-brief, high-level overview that highlights your primary engineering expertise in a conversational tone. You must explicitly direct the user to look at the screen for the complete details. Avoid using bullet points, lists, asterisks, or markdown. Craft a single, punchy, natural-sounding paragraph that can be easily read aloud by an avatar narrator in a few seconds.\n\n" +
+                    "Resume Content:\n" +
+                    unformattedResponse;
 
             object payload;
 
