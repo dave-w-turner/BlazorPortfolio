@@ -28,11 +28,13 @@ namespace CorporatePortfolio.Services
                 // Group experiences by Company Name to avoid duplicates
                 var experienceGroups = new Dictionary<string, List<string>>();
                 var projects = false;
+                var expCounter = 0;
+                var expDetailsCounter = 0;
 
                 foreach (var bm in _document.Bookmarks)
                 {
-                    var isExperience = bm.Name.StartsWith("Experience_") && !bm.Name.EndsWith("_Details");
-                    var isExperienceDetails = bm.Name.StartsWith("Experience_") && bm.Name.EndsWith("_Details");
+                    var isExperience = bm.Name.StartsWith("Experience_", StringComparison.OrdinalIgnoreCase) && !bm.Name.EndsWith("_Details", StringComparison.OrdinalIgnoreCase);
+                    var isExperienceDetails = bm.Name.StartsWith("Experience_", StringComparison.OrdinalIgnoreCase) && bm.Name.EndsWith("_Details", StringComparison.OrdinalIgnoreCase);
                     var isContactInfo = bm.Name.Equals("Contact_Info", StringComparison.OrdinalIgnoreCase);
                     var isCompetencies = bm.Name.Equals("Competencies", StringComparison.OrdinalIgnoreCase);
                     var isProject = bm.Name.StartsWith("Project_", StringComparison.OrdinalIgnoreCase);
@@ -54,27 +56,23 @@ namespace CorporatePortfolio.Services
                     var roleDetails = string.Empty;
                     var projectDetailsSb = new StringBuilder();
 
-                    if (!isExperience && !isExperienceDetails && !isContactInfo && !isCompetencies && !isProject)
-                        currentBmSb.Append($"## {bm.Name.ToUpper()}\r\n");
-
                     if (isContactInfo)
                         currentBmSb.AppendLine("<contact_data>");
-
-                    if (isCompetencies)
-                    {
-                        currentBmSb.AppendLine("## TECHNICAL SKILLS");
+                    else if (isCompetencies)
                         currentBmSb.AppendLine("<competencies_data>");
-                    }
-
-                    if (isProject && !projects)
+                    else if (isProject && !projects)
                     {
-                        currentBmSb.AppendLine("##PROJECTS");
+                        currentBmSb.AppendLine("<projects_data>");
                         projects = true;
                     }
-
-                    if (isExperienceDetails)
+                    else if (isExperienceDetails)
                     {
-                        currentBmSb.AppendLine($"## {bm.Name.Replace("Experience_", "Duties_").Replace("_Details", "").ToUpper()}\r\n");
+                        expDetailsCounter++;
+                        currentBmSb.AppendLine($"<experience_{expDetailsCounter}_details>");
+                    }
+                    else if (!isExperience)
+                    {
+                        currentBmSb.AppendLine($"<{bm.Name.ToLower().Replace(" ", "_")}_data>");
                     }
 
                     while (currentParagraph != null)
@@ -85,12 +83,12 @@ namespace CorporatePortfolio.Services
                         {
                             if (isCompetencies)
                             {
-                                currentBmSb.AppendLine($"# {text.ToString().Split(":").First().Trim()}");
+                                currentBmSb.AppendLine($"* {text.ToString().Split(":").First().Trim()}");
                                 currentBmSb.AppendLine($" - {text.ToString().Split(":").Last().Trim()}");
                             }
-                            else if (bm.Name.Equals("Education") || isExperienceDetails)
+                            else if (bm.Name.Equals("Education"))
                             {
-                                currentBmSb.Append($"- {text}\r\n");
+                                currentBmSb.Append($"* {text}\r\n");
                             }
                             else if (isContactInfo)
                             {
@@ -124,9 +122,14 @@ namespace CorporatePortfolio.Services
                                 }
                                 expParagraphCounter++;
                             }
+                            else if (isExperienceDetails)
+                            {
+                                if (!string.IsNullOrWhiteSpace(text))
+                                    currentBmSb.AppendLine($"- {text}");
+                            }
                             else if (isProject)
                             {
-                                currentBmSb.AppendLine($"{(projParagraphCounter == 0 ? "- " : "  * ")}{text}");
+                                currentBmSb.AppendLine($"{(projParagraphCounter == 0 ? "* " : "  - ")}{text}");
 
                                 if (projParagraphCounter == 0)
                                     projParagraphCounter++;
@@ -154,6 +157,8 @@ namespace CorporatePortfolio.Services
                             experienceGroups[cleanCompanyKey] = [];
                         }
                         experienceGroups[cleanCompanyKey].Add($"  - {roleDetails.Trim()}");
+
+                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
                     }
                     else if (isContactInfo)
                     {
@@ -165,10 +170,25 @@ namespace CorporatePortfolio.Services
                         currentBmSb.AppendLine("</competencies_data>");
                         documentTextSb.Append(currentBmSb.ToString() + "\r\n");
                     }
-                    else if (currentBmSb.Length > 0)
+                    else if (isProject)
                     {
+                        currentBmSb.AppendLine("</projects_data>");
                         documentTextSb.Append(currentBmSb.ToString() + "\r\n");
                     }
+                    else if (isExperienceDetails)
+                    {
+                        currentBmSb.AppendLine($"</experience_{expDetailsCounter}_details>");
+                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                    }
+                    //else
+                    //{
+                    //    currentBmSb.AppendLine($"</{bm.Name.ToLower().Replace(" ", "_")}_data>");
+                    //    documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                    //}
+                    //else if (currentBmSb.Length > 0)
+                    //{
+                    //    documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                    //}
 
                     if (!isProject)
                         projects = false;
@@ -177,15 +197,19 @@ namespace CorporatePortfolio.Services
                 // Append the consolidated EXPERIENCE section exactly how the AI needs it
                 if (experienceGroups.Count > 0)
                 {
-                    documentTextSb.AppendLine("## EXPERIENCE");
+                    documentTextSb.AppendLine("<experience_data>");
+
                     foreach (var company in experienceGroups)
                     {
-                        documentTextSb.AppendLine($"# {company.Key}");
+                        documentTextSb.AppendLine($"* {company.Key}");
                         foreach (var role in company.Value)
                         {
-                            documentTextSb.AppendLine(role);
+                            expCounter++;
+                            documentTextSb.AppendLine($"{role} [See: experience_{expCounter}_details]");
                         }
                     }
+
+                    documentTextSb.AppendLine("</experience_data>");
                 }
 
                 return documentTextSb.ToString().Trim();
@@ -249,10 +273,10 @@ namespace CorporatePortfolio.Services
                 {
                     skill.Summary = await _chatbotService.Generate(
                         $@"Please summarize this skill: '{skill.Name}'. DO NOT MENTION SUMMARY IN YOUR ANSWER. DO NOT MENTION THE EMPLOYERS. 
-                            JUST SUMMARIZE THE SKILL AND INCLUDE THE SKILL NAME ONLY ONCE WITHIN THE SUMMARY ITSELF.
-                            Provide a concise summary of 2 sentences that highlights the key aspects and importance of this skill in the context of
-                            the resume data provided. Avoid generic descriptions and focus on what makes this skill valuable to potential employers.
-                            Only 1 paragraph MAX! Instead of mentioning developers, speak in the first person context.",
+                JUST SUMMARIZE THE SKILL AND INCLUDE THE SKILL NAME ONLY ONCE WITHIN THE SUMMARY ITSELF.
+                Provide a concise summary of 2 sentences that highlights the key aspects and importance of this skill in the context of
+                the resume data provided. Avoid generic descriptions and focus on what makes this skill valuable to potential employers.
+                Only 1 paragraph MAX! Instead of mentioning developers, speak in the first person context.",
                         resumeText);
                 }
 
