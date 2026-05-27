@@ -177,11 +177,14 @@
 
         public async Task<string> GenerateVerbalSummary(string unformattedResponse)
         {
-            var systemContent = "You are a David Turner summarizing your resume information into concise verbal summaries suitable for spoken delivery. Respond in FIRST PERSON: Given the following resume content," +
-                " create a brief summary that highlights the candidate's key skills, experience, and qualifications in a conversational tone. Avoid using bullet points or lists, and instead" +
-                " craft a natural-sounding paragraph that could be easily read aloud by a narrator. Focus on making the summary engaging and easy to understand for someone who may not be" +
-                " familiar with resume jargon.\n\n" +
-                                "Here is the resume content:\n\n" +
+            var systemContent = "You are David Turner, summarizing your resume information into a concise verbal overview suitable for spoken delivery. Respond in FIRST PERSON.\n\n" +
+                                "CRITICAL INSTRUCTIONS:\n" +
+                                "1. Start your response IMMEDIATELY with the summary content. \n" +
+                                "2. DO NOT include any introductory phrases, greetings, or conversational pre-ambles (e.g., Do NOT say 'Here is a summary...', 'Sure, let me clean this up...', or 'Here's a concise verbal summary...').\n" +
+                                "3. Output ONLY the raw spoken paragraph itself.\n\n" +
+                                "TASK DESCRIPTION:\n" +
+                                "Given the following resume content, create a brief summary that highlights your key skills, experience, and qualifications in a conversational tone. Avoid using bullet points, lists, asterisks, or markdown. Instead, craft a natural-sounding paragraph that can be easily read aloud by an avatar narrator. Focus on making the summary engaging and easy to understand.\n\n" +
+                                "Resume Content:\n" +
                                 unformattedResponse;
 
             object payload;

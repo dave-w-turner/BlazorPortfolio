@@ -493,7 +493,7 @@
 
             await HandleServerFailure();
         }
-        // --- REFACTORED STATUS LOCK ON PAGE 16 ---
+        // --- REFACTORED SEPARATION ON PAGE 16 ---
         finally
         {
             aiMsg.IsComplete = true;
@@ -502,26 +502,29 @@
             {
                 if (_isMutedForSummary)
                 {
-                    // KEEP INPUT AND TYPING LOCKED: Hand the torch over to the background thread
+                    // MODE A: Summary Path
+                    // Do NOT call FinalizeStreamingSession() here!
+                    // That avoids triggering the browser's empty buffer event prematurely.
                     _isWaitingForAudioStreamHook = true;
                     _isTyping = true;
                     _disableInput = true;
 
-                    // Fire background pipeline while preserving state boundaries
+                    // Fire your summary task directly while keeping the session active
                     _ = InvokeDelayedSummaryPipelineAsync(serverTextAccumulator);
                 }
                 else
                 {
-                    // Normal conversation flow: Close the voice channel before releasing UI controls
+                    // MODE B: Normal Conversation Path
+                    _isWaitingForAudioStreamHook = true;
+                    _isTyping = true;
+                    _disableInput = true;
+
                     await _avatarComponent.FinalizeStreamingSession();
-                    _isAudioTypingStarted = false;
-                    _isTyping = false;
-                    _disableInput = false;
                 }
             }
             else
             {
-                // No face avatar open: Safe to open up textboxes instantly
+                // MODE C: Standard Chat Box (No Avatar Window Open)
                 _isAudioTypingStarted = false;
                 _isTyping = false;
                 _disableInput = false;
@@ -529,53 +532,93 @@
 
             await UpdateState();
         }
-
     }
 
     private async Task InvokeDelayedSummaryPipelineAsync(string completeFormattedText)
     {
         try
         {
-            // Force the layout engine to maintain input restrictions
+            // 1. Maintain rigid UI input restrictions
             _disableInput = true;
             _isTyping = true;
             _isWaitingForAudioStreamHook = true;
             await UpdateState();
 
-            // 1. Fetch summary from Llama
+            // 2. Fetch the clean verbal brief from Llama
             string generatedSummary = await ChatbotService.GenerateVerbalSummary(completeFormattedText);
 
             if (_avatarComponent is not null && _showAvatarPanel)
             {
-                // 2. Stream summary text into F5 voice lines
+                // 3. Start the F5 streaming audio session for the summary text
                 await _avatarComponent.StartStreamingSession();
 
-                string healedSummary = System.Text.RegularExpressions.Regex.Replace(
-                                generatedSummary, @"([A-Za-z])([0-9])", "$1 $2"
-                            );
+                // 4. Split the verbal summary into sentences to stream to F5 immediately
+                string[] summarySentences = System.Text.RegularExpressions.Regex.Split(generatedSummary, @"(?<=[.!?])\s+");
+                foreach (var sentence in summarySentences)
+                {
+                    if (string.IsNullOrWhiteSpace(sentence)) continue;
 
-                await _avatarComponent.AppendStreamingToken(healedSummary);
+                    string healedSentence = System.Text.RegularExpressions.Regex.Replace(
+                        sentence, @"([A-Za-z])([0-9])", "$1 $2"
+                    );
 
-                // 3. WAIT until the avatar finishes playing the audio track
+                    await _avatarComponent.AppendStreamingToken(healedSentence + " ");
+                }
+
+                // 5. Finalize the audio stream session so it knows no more sentences are coming
                 await _avatarComponent.FinalizeStreamingSession();
+
+                // 6. ASYNC TYPEWRITER EFFECT FOR THE ORIGINAL SKILLS TEXT
+                // Find the current assistant message object in your UI list
+                var currentActiveAiMsg = _messages.LastOrDefault(m => !m.IsUser);
+                if (currentActiveAiMsg is not null)
+                {
+                    // Clear the thinking indicators right as text starts typing out
+                    _isTyping = false;
+                    await UpdateState();
+
+                    // Split the original complete markdown skills text by space boundaries
+                    string[] textWords = completeFormattedText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    string textAccumulator = "";
+
+                    foreach (var word in textWords)
+                    {
+                        textAccumulator += word + " ";
+
+                        // Assign text to raw buffer to satisfy your row layout guard condition
+                        currentActiveAiMsg.Text = textAccumulator;
+
+                        // Pass to your formatting service to maintain all your custom style templates
+                        var formattedResult = await ChatbotService.FormatMessage(
+                            textAccumulator,
+                            isComplete: false,
+                            specificKeyword: null,
+                            applyEnhancedKeywordStyling: false
+                        );
+                        currentActiveAiMsg.FormattedText = formattedResult.Text;
+
+                        await UpdateState();
+
+                        // Adjust this delay (in milliseconds) to speed up or slow down the typewriter speed
+                        await Task.Delay(40);
+                    }
+                }
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[TRACKING-ERROR] {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[TYPEWRITER-SUMMARY-ERROR] Pipeline failed: {ex.Message}");
         }
         finally
         {
-            // 4. THE ABSOLUTE END: Reset layout state flags and safely open up input field
+            // --- ONLY RESET STATE PARSING VARIABLES ---
+            // Do NOT unlock inputs here. The physical hardware event OnSpeechFinished()
+            // will safely re-enable the textbox once David finishes speaking!
             _isMutedForSummary = false;
-            _isWaitingForAudioStreamHook = false;
-            _isAudioTypingStarted = false;
-            _isTyping = false;
-            _disableInput = false; // Input becomes accessible here and only here!
-
             await UpdateState();
         }
     }
+
 
     private async Task HandleStreamingWordReceived(string nextWord)
     {
@@ -644,16 +687,19 @@
     [JSInvokable]
     public async Task OnSpeechFinished()
     {
-        System.Diagnostics.Debug.WriteLine("[BLAZOR-DIALOG] Audio pipelines empty. Unlocking inputs.");
+        System.Diagnostics.Debug.WriteLine("[BLAZOR-DIALOG] Audio track has completed physical playback. Safely unlocking textbox input.");
+
+        // 1. Release all UI restrictions here and only here
         _isTyping = false;
         _isAudioTypingStarted = false;
+        _isWaitingForAudioStreamHook = false;
         _disableInput = false;
 
+        // 2. Execute your standard message completion layout updates
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
         if (activeAiMessage is not null)
         {
             activeAiMessage.IsComplete = true;
-
             var finalFormatResult = await ChatbotService.FormatMessage(
                 activeAiMessage.Text,
                 activeAiMessage.IsComplete,
@@ -664,6 +710,7 @@
         }
 
         await UpdateState();
+
         if (_textField is not null)
         {
             await _textField.FocusAsync();
