@@ -113,7 +113,7 @@ async def generate_voice_clone(request: TTSRequest, token: str = Depends(verify_
             "adult": "addult",
             "tomorrow": "toomorerow",
             "borrow": "borerow",
-            "sql": "Sequool",
+            "sql": "seqwul",
             "saas": "Sass",
             "iaas": "Infrastructure as a service",
             "paas": "Pass",
