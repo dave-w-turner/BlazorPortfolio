@@ -8,6 +8,7 @@
 @inject IConfiguration Configuration
 @inject IHostEnvironment HostEnvironment
 @inject HttpClient Http
+@inject ChatbotService ChatbotService
 @implements IDisposable
 
 <MudDialog Class="chat-dark" Style="@_customStyle" ContentClass="mudDialog">
@@ -82,7 +83,7 @@
                                     <span class="chat-sender-name">@(msg.IsUser ? "You" : "David")</span>
                                     <MudPaper Class="pa-4 message-fade-in" Elevation="1"
                                               Style="@(msg.IsUser ? "background-color: var(--mud-palette-primary); color: white; border-radius: 15px 15px 0 15px;" : "background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);")">
-                                        @if (!msg.IsUser && !msg.IsComplete && string.IsNullOrWhiteSpace(msg.Text))
+                                        @if (!msg.IsUser && string.IsNullOrWhiteSpace(msg.Text))
                                         {
                                             <div style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
                                                 <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></div>
@@ -94,15 +95,6 @@
                                         {
                                             <div style="color: #F8FAFC; line-height: 1.6; font-size: 1.02em; white-space: pre-wrap; word-break: break-word;">
                                                 @msg.FormattedText
-
-                                                @if (_isWaitingForAudioStreamHook && !_isAudioTypingStarted && !msg.IsComplete && _messages.LastOrDefault(m => !m.IsUser) == msg)
-                                                {
-                                                    <span class="ml-2" style="display: inline-flex; gap: 3px; align-items: center; vertical-align: middle;">
-                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></span>
-                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></span>
-                                                        <span style="width: 5px; height: 5px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></span>
-                                                    </span>
-                                                }
                                             </div>
                                         }
                                         else
@@ -143,7 +135,8 @@
                     <AIAvatar @ref="_avatarComponent"
                               OnWordSpoken="HandleStreamingWordReceived"
                               OnAudioLive="HandlePhysicalAudioLive"
-                              OnSpeechFinishedCallback="OnSpeechFinished" />
+                              OnSpeechFinishedCallback="OnSpeechFinished"
+                              IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
                 </div>
             }   
             else
@@ -154,7 +147,8 @@
                             <AIAvatar @ref="_avatarComponent"
                                       OnWordSpoken="HandleStreamingWordReceived"
                                       OnAudioLive="HandlePhysicalAudioLive"
-                                      OnSpeechFinishedCallback="OnSpeechFinished" />
+                                      OnSpeechFinishedCallback="OnSpeechFinished"
+                                      IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
                         </div>
                     </Authorized>
                 </AuthorizeView>
@@ -233,10 +227,14 @@
     private DotNetObjectReference<ChatDialog>? _chatDialogRef;
     private DotNetObjectReference<AIAvatar>? _persistentAvatarRef;
 
+    private bool _isGeneratingSummary = false;
+    private bool _isMutedForSummary = false;
+    private bool _hasTriggeredSummaryRequest = false;
     private bool _hasGreetingRendered = false;
     private bool _isWaitingForAudioStreamHook = false;
     private bool _isAudioTypingStarted = false;
     private bool _isAudioSessionInitialized = false;
+    private bool _summaryPipelineActive = false;
     private PeriodicTimer? _healthCheckTimer;
     private readonly CancellationTokenSource _healthCheckCts = new();
     private bool _isF5ServerConnected = false;
@@ -297,41 +295,23 @@
 
                 if (ShowAvatarPanel && _avatarComponent is not null)
                 {
-                    _isTyping = false; // Clear bouncing loading dots instantly
-                    _disableInput = true; // Keep user input field securely locked while greeting loads
+                    // 1. Maintain thinking indicators and lock user input
+                    _isTyping = true;
+                    _disableInput = true;
+                    _isWaitingForAudioStreamHook = true;
                     await UpdateState();
 
-                    // Initialize the parallel web audio background stream structures safely
+                    // 2. Keep the text blank so the empty bubble doesn't render prematurely
+                    greetingMsg.Text = "";
+                    greetingMsg.FormattedText = (await ChatbotService.FormatMessage("")).Text;
+                    await UpdateState();
+
+                    // 3. Queue the greeting text straight to your F5 engine
                     await _avatarComponent.StartStreamingSession();
                     await _avatarComponent.AppendStreamingToken(fullGreetingText);
+
+                    // 4. Finalize the stream. The textbox will now stay locked until David finishes speaking!
                     await _avatarComponent.FinalizeStreamingSession();
-
-                    _ = Task.Run(async () =>
-                    {
-                        await Task.Delay(2000);
-                        await InvokeAsync(async () =>
-                        {
-                            if (_disableInput && _messages.Count == 1 && _messages.LastOrDefault()?.IsUser == false)
-                            {
-                                System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Hydration timeout hit. Enforcing fallback release.");
-                                _disableInput = false;
-                                _isTyping = false;
-                                _isAudioTypingStarted = false;
-
-                                var currentActiveAiMsg = _messages.LastOrDefault(m => !m.IsUser);
-                                if (currentActiveAiMsg is not null)
-                                {
-                                    currentActiveAiMsg.IsComplete = true;
-                                }
-
-                                await UpdateState();
-                                if (_textField is not null)
-                                {
-                                    await _textField.FocusAsync();
-                                }
-                            }
-                        });
-                    });
                 }
                 else
                 {
@@ -384,7 +364,7 @@
         _disableInput = true;
         await UpdateState();
 
-        var aiMsg = new ChatMessage { Text = " ", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };        
+        var aiMsg = new ChatMessage { Text = " ", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };
         _messages.Add(aiMsg);
         await UpdateState();
 
@@ -431,7 +411,6 @@
                     var chunk = line["data: ".Length..];
                     if (!firstWordReceived)
                     {
-                        _isTyping = false;
                         firstWordReceived = true;
 
                         if (_showAvatarPanel)
@@ -445,16 +424,54 @@
 
                     serverTextAccumulator += sanitizedChunk;
 
+                    // --- MARKDOWN TARGETED TOKEN INTERCEPTOR ---
                     if (_showAvatarPanel && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
+                        // 1. Initialize audio stream layout structures safely
                         if (!_isAudioSessionInitialized && _avatarComponent is not null)
                         {
-                            try { await _avatarComponent.StartStreamingSession(); _isAudioSessionInitialized = true; } catch { }
+                            try
+                            {
+                                await _avatarComponent.StartStreamingSession();
+                                _isAudioSessionInitialized = true;
+                            }
+                            catch { }
                         }
-                        string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
-                        if (_avatarComponent is not null)
+
+                        // 2. SCAN FOR MARKDOWN LAYOUT SIGNATURES
+                        if (sanitizedChunk.Contains("#") ||
+                            sanitizedChunk.Contains(" -") ||
+                            serverTextAccumulator.Contains("# Core Tech") ||
+                            serverTextAccumulator.Contains("# Azure") ||
+                            sanitizedChunk.Contains("<contact_data>") ||
+                            serverTextAccumulator.Contains("<contact_data>") ||
+                            serverTextAccumulator.Contains("## CONTACT"))
                         {
-                            await _avatarComponent.AppendStreamingToken(healedChunk);
+                            if (!_isMutedForSummary)
+                            {
+                                _isMutedForSummary = true;
+
+                                // --- CRITICAL TIMER FIX ---
+                                // Set the shield right here inside the live loop token check!
+                                // This ensures that when FinalizeStreamingSession yields,
+                                // OnSpeechFinished sees the true state and blocks the unlock!
+                                _summaryPipelineActive = true;
+
+                                if (_avatarComponent is not null)
+                                {
+                                    await _avatarComponent.FinalizeStreamingSession();
+                                }
+                            }
+                        }
+
+                        // 3. EXECUTE VOICE ENGINE ROUTING
+                        if (!_isMutedForSummary)
+                        {
+                            string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
+                            if (_avatarComponent is not null)
+                            {
+                                await _avatarComponent.AppendStreamingToken(healedChunk);
+                            }
                         }
                     }
 
@@ -484,32 +501,140 @@
         finally
         {
             aiMsg.IsComplete = true;
-            _isWaitingForAudioStreamHook = false;
-            _isAudioTypingStarted = false;
 
-            if (_isAudioSessionInitialized && _avatarComponent is not null && _showAvatarPanel)
+            if (_showAvatarPanel && _avatarComponent is not null)
             {
-                await _avatarComponent.FinalizeStreamingSession();
-            }
-
-            if (!_showAvatarPanel)
-            {
-                if (string.IsNullOrWhiteSpace(aiMsg.Text))
+                if (_isMutedForSummary)
                 {
-                    aiMsg.Text = serverTextAccumulator;
+                    // Re-affirm parameters before kicking off background thread processing
+                    _summaryPipelineActive = true;
+
+                    _isWaitingForAudioStreamHook = true;
+                    _isTyping = true;
+                    _disableInput = true;
+
+                    _ = InvokeDelayedSummaryPipelineAsync(serverTextAccumulator);
                 }
+                else
+                {
+                    _summaryPipelineActive = false;
+                    _isWaitingForAudioStreamHook = true;
+                    _isTyping = true;
+                    _disableInput = true;
 
-                var formattedResult = await ChatbotService.FormatMessage(aiMsg.Text, aiMsg.IsComplete);
-                aiMsg.FormattedText = formattedResult.Text;
-
-                _isTyping = false;
-                _disableInput = false;
-                await UpdateState();
+                    await _avatarComponent.FinalizeStreamingSession();
+                }
             }
             else
             {
-                await InvokeAsync(StateHasChanged);
+                _summaryPipelineActive = false;
+                _isAudioTypingStarted = false;
+                _isTyping = false;
+                _disableInput = false;
             }
+
+            await UpdateState();
+            if (_textField is not null) await _textField.FocusAsync();
+        }
+    }
+
+    private async Task InvokeDelayedSummaryPipelineAsync(string completeFormattedText)
+    {
+        try
+        {
+            // 1. Maintain rigid UI input restrictions
+            _summaryPipelineActive = true;
+            _disableInput = true;
+            _isTyping = true;
+            _isWaitingForAudioStreamHook = true;
+            await UpdateState();
+
+            // 2. Fetch the clean verbal brief from Llama
+            string generatedSummary = "";
+
+            // --- DETECT CONTACT BLOCK IN ACCUMULATED TEXT ---
+            if (completeFormattedText.Contains("<contact_data>") || completeFormattedText.Contains("dave.w.turner@outlook.com"))
+            {
+                // Overrides the robotic overview with your custom conversational line!
+                generatedSummary = "If you'd like to get in touch with me, I've gone ahead and placed my direct contact details right inside our chat window.";
+            }
+            else
+            {
+                // Normal summary behavior for skills and projects
+                generatedSummary = await ChatbotService.GenerateVerbalSummary(completeFormattedText);
+            }
+
+            if (_avatarComponent is not null && _showAvatarPanel)
+            {
+                // 3. Start the F5 streaming audio session for the summary text
+                await _avatarComponent.StartStreamingSession(muteWordTracking: true);
+
+                // 4. Split the verbal summary into sentences to stream to F5 immediately
+                string[] summarySentences = System.Text.RegularExpressions.Regex.Split(generatedSummary, @"(?<=[.!?])\s+");
+                foreach (var sentence in summarySentences)
+                {
+                    if (string.IsNullOrWhiteSpace(sentence)) continue;
+
+                    string healedSentence = System.Text.RegularExpressions.Regex.Replace(
+                        sentence, @"([A-Za-z])([0-9])", "$1 $2"
+                    );
+
+                    await _avatarComponent.AppendStreamingToken(healedSentence + " ");
+                }
+
+                _summaryPipelineActive = false;
+
+                // 5. Finalize the audio stream session so it knows no more sentences are coming
+                await _avatarComponent.FinalizeStreamingSession();
+
+                // 6. ASYNC TYPEWRITER EFFECT FOR THE ORIGINAL SKILLS TEXT
+                // Find the current assistant message object in your UI list
+                var currentActiveAiMsg = _messages.LastOrDefault(m => !m.IsUser);
+                if (currentActiveAiMsg is not null)
+                {
+                    // Clear the thinking indicators right as text starts typing out
+                    _isTyping = false;
+                    await UpdateState();
+
+                    // Split the original complete markdown skills text by space boundaries
+                    string[] textWords = completeFormattedText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    string textAccumulator = "";
+
+                    foreach (var word in textWords)
+                    {
+                        textAccumulator += word + " ";
+
+                        // Assign text to raw buffer to satisfy your row layout guard condition
+                        currentActiveAiMsg.Text = textAccumulator;
+
+                        // Pass to your formatting service to maintain all your custom style templates
+                        var formattedResult = await ChatbotService.FormatMessage(
+                            textAccumulator,
+                            isComplete: false,
+                            specificKeyword: null,
+                            applyEnhancedKeywordStyling: false
+                        );
+                        currentActiveAiMsg.FormattedText = formattedResult.Text;
+
+                        await UpdateState();
+
+                        // Adjust this delay (in milliseconds) to speed up or slow down the typewriter speed
+                        await Task.Delay(40);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TYPEWRITER-SUMMARY-ERROR] Pipeline failed: {ex.Message}");
+        }
+        finally
+        {
+            // --- ONLY RESET STATE PARSING VARIABLES ---
+            // Do NOT unlock inputs here. The physical hardware event OnSpeechFinished()
+            // will safely re-enable the textbox once David finishes speaking!
+            _isMutedForSummary = false;
+            await UpdateState();
         }
     }
 
@@ -517,6 +642,23 @@
     {
         if (!_showAvatarPanel || string.IsNullOrWhiteSpace(nextWord)) return;
 
+        // --- ADD THIS SENTINEL INTERCEPT GATING CHECK ---
+        if (nextWord == "[SANDBOX_START]")
+        {
+            _messages.Add(new ChatMessage
+            {
+                Text = "",
+                IsUser = false,
+                UserName = "David",
+                AvatarUrl = _avatarUrl,
+                IsComplete = false
+            });
+
+            await UpdateState();
+            return;
+        }
+
+        // --- Your original layout logic remains completely untouched below here ---
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete)
                              ?? _messages.LastOrDefault(m => !m.IsUser);
 
@@ -580,16 +722,25 @@
     [JSInvokable]
     public async Task OnSpeechFinished()
     {
-        System.Diagnostics.Debug.WriteLine("[BLAZOR-DIALOG] Audio pipelines empty. Unlocking inputs.");
+        System.Diagnostics.Debug.WriteLine("[BLAZOR-DIALOG] Audio track has completed physical playback. Safely unlocking textbox input.");
+
+        if (_summaryPipelineActive)
+        {
+            System.Diagnostics.Debug.WriteLine("[AVATAR-GUARD] Intercepted premature release. Maintaining input lock.");
+            return;
+        }
+
+        // 1. Release all UI restrictions here and only here
         _isTyping = false;
         _isAudioTypingStarted = false;
+        _isWaitingForAudioStreamHook = false;
         _disableInput = false;
 
+        // 2. Execute your standard message completion layout updates
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
         if (activeAiMessage is not null)
         {
             activeAiMessage.IsComplete = true;
-
             var finalFormatResult = await ChatbotService.FormatMessage(
                 activeAiMessage.Text,
                 activeAiMessage.IsComplete,
@@ -600,6 +751,7 @@
         }
 
         await UpdateState();
+
         if (_textField is not null)
         {
             await _textField.FocusAsync();
@@ -611,6 +763,7 @@
     {
         System.Diagnostics.Debug.WriteLine("[BLAZOR-HARDWARE] Audio waves are physically playing now. Releasing Blazor bubbles.");
 
+        _isTyping = false;
         _isWaitingForAudioStreamHook = false;
         _isAudioTypingStarted = true;
 

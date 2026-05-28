@@ -257,6 +257,36 @@ export function forceStopAndResetAudioContext() {
     }
 }
 
+export async function synthesizeClonedVoiceStream(serverUrl, speechText, authToken) {
+    console.log("[AVATAR-JS] Dispatching sandbox local speech synthesis request...");
+
+    try {
+        // 1. Establish structural layouts and fire off the initial audio startup hook
+        if (window.dotNetReference) {
+            await window.dotNetReference.invokeMethodAsync('OnAudioStarted');
+        }
+
+        // 2. Open up a fresh streaming session connection lane automatically
+        await initializeVoiceStreamSession(serverUrl, window.dotNetReference, authToken);
+
+        // 3. Pipe the prompt text directly into your token stream queue
+        if (speechText) {
+            await accumulateAndStreamVoiceTokens(speechText);
+        }
+
+        // 4. Close out the buffer array session to safely play back the cloned waves
+        await finalizeVoiceStreamSession();
+
+    } catch (error) {
+        console.error("[AVATAR-JS] Sandbox speech asset synthesis failed:", error);
+
+        // Emergency cleanup hook to unlock C# flags if the hardware throws an exception
+        if (window.dotNetReference) {
+            await window.dotNetReference.invokeMethodAsync('OnSpeechFinished');
+        }
+    }
+}
+
 window.forceStopAndResetAudioContext = forceStopAndResetAudioContext;
 window.resetAudioEngineState = resetAudioEngineState;
 window.Blazor = window.Blazor || {};

@@ -56,7 +56,15 @@
         if (firstRender)
         {
             await Task.Delay(300); // 300ms delay
-            await JS.InvokeVoidAsync("initScrollAnimations");
+
+            try
+            {
+
+            }
+            catch (Exception)
+            {
+                await JS.InvokeVoidAsync("initScrollAnimations");
+            }
         }
     }
 }

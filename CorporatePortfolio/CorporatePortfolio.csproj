@@ -10,11 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="AIInstructions.txt" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="AIInstructions.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AIInstructions.txt.old">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
