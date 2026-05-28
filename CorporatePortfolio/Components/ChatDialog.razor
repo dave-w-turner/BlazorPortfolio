@@ -53,7 +53,7 @@
     </TitleContent>
 
     <DialogContent>
-        <div style="display: flex; width: 100%; height: 100%; min-height: 450px;">
+        <div style="display: flex; width: 100%; height: 100%; max-height: calc(100vh - 120px); overflow: hidden;">
             <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid rgba(255,255,255,0.05);">
                 <div id="chat-container" style="flex-grow: 1; overflow-y: auto;" class="pa-4">
                     @foreach (var msg in _messages)

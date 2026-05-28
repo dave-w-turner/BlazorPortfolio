@@ -2005,6 +2005,29 @@ FLOATING MICRO-SCREEN VIEW OVERRIDE (Screens under 601px wide)
     }
 }
 
+@media (max-width: 450px), (max-height: 740px) {
+    /* Permit parent structures to scale naturally without hard limits */
+    .mud-dialog,
+    .chat-popup {
+        height: 85vh !important;
+        max-height: 85vh !important;
+    }
+
+    /* Free up the container viewport restrictions so scrollbars can calculate bounds */
+    .mud-dialog-content {
+        overflow-y: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Ensure your inner text view takes up the remainder of the view space */
+    #chat-container {
+        flex-grow: 1 !important;
+        overflow-y: auto !important;
+        height: 100% !important;
+    }
+}
+
 /* ===================================================
 CHAT DIALOG SENDER NAME TEXT LABELS
 =================================================== */
