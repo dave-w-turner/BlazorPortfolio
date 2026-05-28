@@ -15,17 +15,16 @@ namespace CorporatePortfolio.Services
         public async Task<string> GetResumeText()
         {
             var fileInfo = new FileInfo("DavidTurner_Resume.docx");
-
             return await _memoryCache.GetOrCreateAsync("#resumeText", async entry =>
             {
                 var fileProvider = new PhysicalFileProvider(Path.GetDirectoryName(fileInfo.FullName)!);
                 var changeToken = fileProvider.Watch(Path.GetFileName(fileInfo.Name));
-
                 entry.ExpirationTokens.Add(changeToken);
 
-                var documentTextSb = new StringBuilder();
+                // Fix 1: Use isolated builders to keep summary blocks and detail blocks separated
+                var summarySectionSb = new StringBuilder();
+                var dataBlocksSb = new StringBuilder();
 
-                // Group experiences by Company Name to avoid duplicates
                 var experienceGroups = new Dictionary<string, List<string>>();
                 var projects = false;
                 var expCounter = 0;
@@ -33,28 +32,28 @@ namespace CorporatePortfolio.Services
 
                 foreach (var bm in _document.Bookmarks)
                 {
-                    var isExperience = bm.Name.StartsWith("Experience_", StringComparison.OrdinalIgnoreCase) && !bm.Name.EndsWith("_Details", StringComparison.OrdinalIgnoreCase);
-                    var isExperienceDetails = bm.Name.StartsWith("Experience_", StringComparison.OrdinalIgnoreCase) && bm.Name.EndsWith("_Details", StringComparison.OrdinalIgnoreCase);
+                    var isExperience = bm.Name.StartsWith("Experience_", StringComparison.OrdinalIgnoreCase) &&
+                                       !bm.Name.EndsWith("_Details", StringComparison.OrdinalIgnoreCase);
+                    var isExperienceDetails = bm.Name.StartsWith("Experience_", StringComparison.OrdinalIgnoreCase) &&
+                                              bm.Name.EndsWith("_Details", StringComparison.OrdinalIgnoreCase);
                     var isContactInfo = bm.Name.Equals("Contact_Info", StringComparison.OrdinalIgnoreCase);
                     var isCompetencies = bm.Name.Equals("Competencies", StringComparison.OrdinalIgnoreCase);
                     var isProject = bm.Name.StartsWith("Project_", StringComparison.OrdinalIgnoreCase);
-                    var currentBmSb = new StringBuilder();
 
+                    var currentBmSb = new StringBuilder();
                     var startTag = _document.Xml.Descendants()
                         .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
-                                             (x.Attribute("name")?.Value == bm.Name ||
-                                              x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == bm.Name)));
+                            (x.Attribute("name")?.Value == bm.Name ||
+                             x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == bm.Name)));
 
                     if (startTag == null) continue;
-
                     string bookmarkId = startTag.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value ?? string.Empty;
-                    var currentParagraph = bm.Paragraph;
 
+                    var currentParagraph = bm.Paragraph;
                     var expParagraphCounter = 0;
                     var projParagraphCounter = 0;
                     var companyName = string.Empty;
                     var roleDetails = string.Empty;
-                    var projectDetailsSb = new StringBuilder();
 
                     if (isContactInfo)
                         currentBmSb.AppendLine("<contact_data>");
@@ -62,6 +61,7 @@ namespace CorporatePortfolio.Services
                         currentBmSb.AppendLine("<competencies_data>");
                     else if (isProject && !projects)
                     {
+                        currentBmSb.AppendLine();
                         currentBmSb.AppendLine("<projects_data>");
                         projects = true;
                     }
@@ -78,13 +78,12 @@ namespace CorporatePortfolio.Services
                     while (currentParagraph != null)
                     {
                         var text = currentParagraph.Text.Trim();
-
                         if (!string.IsNullOrWhiteSpace(text))
                         {
                             if (isCompetencies)
                             {
-                                currentBmSb.AppendLine($"* {text.ToString().Split(":").First().Trim()}");
-                                currentBmSb.AppendLine($" - {text.ToString().Split(":").Last().Trim()}");
+                                currentBmSb.AppendLine($"# {text.ToString().Split(':').First().Trim()}");
+                                currentBmSb.AppendLine($"- {text.ToString().Split(':').Last().Trim()}");
                             }
                             else if (bm.Name.Equals("Education"))
                             {
@@ -94,45 +93,27 @@ namespace CorporatePortfolio.Services
                             {
                                 string cleanLine = text;
                                 int portfolioIdx = text.IndexOf("| Portfolio:", StringComparison.OrdinalIgnoreCase);
-
                                 if (portfolioIdx >= 0)
                                 {
-                                    // Slice the string from index 0 up to where the pipe marker starts, then clean up trailing spaces
                                     cleanLine = text[..portfolioIdx].TrimEnd();
                                 }
-
                                 currentBmSb.AppendLine($"{cleanLine}");
                             }
                             else if (isExperience)
                             {
-                                // Paragraph 1 in your bookmark: The Company and Location
-                                if (expParagraphCounter == 0)
-                                {
-                                    companyName = text;
-                                }
-                                // Paragraph 2 in your bookmark: The Job Title
-                                else if (expParagraphCounter == 1)
-                                {
-                                    roleDetails = text;
-                                }
-                                // Paragraph 3 in your bookmark: The Dates
-                                else if (expParagraphCounter == 2)
-                                {
-                                    roleDetails += $" ({text})";
-                                }
+                                if (expParagraphCounter == 0) companyName = text;
+                                else if (expParagraphCounter == 1) roleDetails = text;
+                                else if (expParagraphCounter == 2) roleDetails += $" ({text})";
                                 expParagraphCounter++;
                             }
                             else if (isExperienceDetails)
                             {
-                                if (!string.IsNullOrWhiteSpace(text))
-                                    currentBmSb.AppendLine($"- {text}");
+                                currentBmSb.AppendLine($"- {text}");
                             }
                             else if (isProject)
                             {
                                 currentBmSb.AppendLine($"{(projParagraphCounter == 0 ? "* " : "  - ")}{text}");
-
-                                if (projParagraphCounter == 0)
-                                    projParagraphCounter++;
+                                if (projParagraphCounter == 0) projParagraphCounter++;
                             }
                             else
                             {
@@ -149,71 +130,95 @@ namespace CorporatePortfolio.Services
 
                     if (isExperience && !string.IsNullOrWhiteSpace(companyName) && !string.IsNullOrWhiteSpace(roleDetails))
                     {
-                        // Normalize company name (strip out any trailing " - Toronto, ON" if needed, or leave exact)
                         var cleanCompanyKey = companyName.Trim();
-
                         if (!experienceGroups.ContainsKey(cleanCompanyKey))
                         {
                             experienceGroups[cleanCompanyKey] = [];
                         }
-                        experienceGroups[cleanCompanyKey].Add($"  - {roleDetails.Trim()}");
-
-                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                        // Fix 2: Pre-render structural indentation spacing natively right inside our data block collection
+                        experienceGroups[cleanCompanyKey].Add($"    - {roleDetails.Trim()}");
                     }
                     else if (isContactInfo)
                     {
                         currentBmSb.AppendLine("</contact_data>");
-                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                        dataBlocksSb.Append(currentBmSb.ToString() + "\r\n");
                     }
                     else if (isCompetencies)
                     {
                         currentBmSb.AppendLine("</competencies_data>");
-                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                        dataBlocksSb.Append(currentBmSb.ToString() + "\r\n");
                     }
                     else if (isProject)
                     {
                         currentBmSb.AppendLine("</projects_data>");
-                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                        dataBlocksSb.Append(currentBmSb.ToString() + "\r\n");
                     }
                     else if (isExperienceDetails)
                     {
                         currentBmSb.AppendLine($"</experience_{expDetailsCounter}_details>");
-                        documentTextSb.Append(currentBmSb.ToString() + "\r\n");
+                        dataBlocksSb.Append(currentBmSb.ToString() + "\r\n");
                     }
-                    //else
-                    //{
-                    //    currentBmSb.AppendLine($"</{bm.Name.ToLower().Replace(" ", "_")}_data>");
-                    //    documentTextSb.Append(currentBmSb.ToString() + "\r\n");
-                    //}
-                    //else if (currentBmSb.Length > 0)
-                    //{
-                    //    documentTextSb.Append(currentBmSb.ToString() + "\r\n");
-                    //}
+                    else
+                    {
+                        currentBmSb.AppendLine($"</{bm.Name.ToLower().Replace(" ", "_")}_data>");
+                        dataBlocksSb.Append(currentBmSb.ToString() + "\r\n");
+                    }
 
-                    if (!isProject)
-                        projects = false;
+                    if (!isProject) projects = false;
                 }
 
-                // Append the consolidated EXPERIENCE section exactly how the AI needs it
+                // 1. Initialize the final output payload container
+                var finalPayloadAssembly = new StringBuilder();
+
+                // 2. FORCE the clean experience list block straight to the top of the data stream
                 if (experienceGroups.Count > 0)
                 {
-                    documentTextSb.AppendLine("<experience_data>");
-
+                    finalPayloadAssembly.AppendLine("<experience_summary>");
                     foreach (var company in experienceGroups)
                     {
-                        documentTextSb.AppendLine($"* {company.Key}");
+                        finalPayloadAssembly.AppendLine($"# {company.Key}");
                         foreach (var role in company.Value)
                         {
                             expCounter++;
-                            documentTextSb.AppendLine($"{role} [See: experience_{expCounter}_details]");
+                            // Adding 2 spaces at the end forces Markdown components to break lines
+                            finalPayloadAssembly.AppendLine(role + "  ");
+                        }
+                        if (experienceGroups.Last().Key != company.Key)
+                        {
+                            finalPayloadAssembly.AppendLine();
+                            finalPayloadAssembly.AppendLine();
                         }
                     }
+                    finalPayloadAssembly.AppendLine("</experience_summary>");
+                    finalPayloadAssembly.AppendLine();
 
-                    documentTextSb.AppendLine("</experience_data>");
+                    // Append the structural mapping keys right below it
+                    finalPayloadAssembly.AppendLine("<experience_mappings>");
+                    expCounter = 0;
+                    foreach (var company in experienceGroups)
+                    {
+                        var appendCounter = 0;
+                        // Safely split the company name to remove trailing locations for the query matching text
+                        string companySearchName = company.Key.Split('–')[0].Trim();
+                        finalPayloadAssembly.Append($"- If user asks about {companySearchName} accomplishments, read ");
+                        foreach (var role in company.Value)
+                        {
+                            finalPayloadAssembly.Append($"<experience_{++expCounter}_details>");
+                            if (++appendCounter < company.Value.Count)
+                                finalPayloadAssembly.Append(" and ");
+                            else
+                                finalPayloadAssembly.AppendLine();
+                        }
+                    }
+                    finalPayloadAssembly.AppendLine("</experience_mappings>");
+                    finalPayloadAssembly.AppendLine();
                 }
 
-                return documentTextSb.ToString().Trim();
+                // 3. Append the heavy technical details and projects below the summary line
+                finalPayloadAssembly.Append(dataBlocksSb.ToString());
 
+                // 4. Return the complete, compiled, error-free text payload
+                return finalPayloadAssembly.ToString().Trim();
             }) ?? string.Empty;
         }
 

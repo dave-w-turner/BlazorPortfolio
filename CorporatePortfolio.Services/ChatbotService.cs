@@ -2,17 +2,46 @@
 {
     using CorporatePortfolio.Services.DTO;
     using Microsoft.Extensions.Caching.Memory;
-    using Microsoft.Extensions.FileProviders;
     using System.Net.Http.Json;
     using System.Text.Json;
     using System.Text.Json.Nodes;
     using System.Text.RegularExpressions;
 
-    public class ChatbotService(HttpClient http, bool isDevelopment, string ollamaModel, IMemoryCache memoryCache)
+    public class ChatbotService
     {
-        private readonly string _ollamaModel = ollamaModel;
-        private readonly IMemoryCache _memoryCache = memoryCache;
-        private readonly string _filePath = "AIInstructions.txt";
+        private readonly HttpClient _http;
+        private readonly bool _isDevelopment;
+        private readonly string _ollamaModel;
+        private readonly IMemoryCache _memoryCache;
+        private readonly string _filePath;
+        private readonly FileSystemWatcher? _fileWatcher;
+
+        public ChatbotService(HttpClient http, bool isDevelopment, string ollamaModel, IMemoryCache memoryCache, string rulesPath)
+        {
+            _http = http ?? throw new ArgumentNullException(nameof(http));
+            _isDevelopment = isDevelopment;
+            _ollamaModel = ollamaModel;
+            _memoryCache = memoryCache ?? throw new ArgumentNullException(nameof(memoryCache));
+            _filePath = Path.GetFullPath(rulesPath ?? throw new ArgumentNullException(nameof(rulesPath)));
+
+            if (_isDevelopment)
+            {
+                string? directory = Path.GetDirectoryName(_filePath);
+                string fileName = Path.GetFileName(_filePath);
+
+                if (!string.IsNullOrEmpty(directory) && File.Exists(_filePath))
+                {
+                    _fileWatcher = new FileSystemWatcher(directory, fileName)
+                    {
+                        NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
+                        EnableRaisingEvents = true
+                    };
+
+                    _fileWatcher.Changed += (s, e) => _memoryCache.Remove("#aiInstructions");
+                    _fileWatcher.Renamed += (s, e) => _memoryCache.Remove("#aiInstructions");
+                }
+            }
+        }
 
         public async Task<IAsyncEnumerable<string?>> Ask(string question, List<ChatMessageRequest> history, string resumeText)
         {
@@ -20,42 +49,41 @@
 
             var systemContent = await FormatResumeText(resumeText);
 
-            // 3. Build the Message Collection (Single system message used here)
             var messages = new List<dynamic>
             {
                 new { role = "system", content = systemContent }
             };
 
-            // FIX 1: Reduce sliding history window window to prevent attention decay on small models.
-            // Llama 3.2 1B/3B maintains its persona best with a max history of 4 messages (2 full turns).
-            int historyCountToTake = isDevelopment ? 4 : 4;
+            // Keep history processing tight to prevent attention decay on small models
+            int historyCountToTake = 4;
             var historyToProcess = history.TakeLast(historyCountToTake);
             var historyList = historyToProcess.Where(m => !string.IsNullOrWhiteSpace(m.Text)).ToList();
+
+            // Track the last appended role type to ensure the array strictly alternates: user -> assistant -> user
+            string lastAppendedRole = "system";
 
             for (int i = 0; i < historyList.Count; i++)
             {
                 var msg = historyList[i];
+                string currentRole = msg.IsUser ? "user" : "assistant";
 
-                if (i == historyList.Count - 1 && msg.IsUser && msg.Text.Trim().Equals(question.Trim(), StringComparison.OrdinalIgnoreCase))
+                if (msg.Text.Trim().Contains(question.Trim(), StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                messages.Add(new { role = msg.IsUser ? "user" : "assistant", content = msg.Text });
+                if (currentRole == "user" && lastAppendedRole == "user")
+                    continue;
+
+                messages.Add(new { role = currentRole, content = msg.Text.Trim() });
+                lastAppendedRole = currentRole;
             }
 
-            //string secureQuestion = question;
-            //if (historyList.Count >= 2)
-            //{
-            //    secureQuestion += " (Context: I am speaking directly to David Turner, a real human full-stack engineer on his job hunt.)";
-            //}
-
-            //// 5. Add the Current Question
-            //messages.Add(new { role = "user", content = secureQuestion });
+            string cleanCurrentQuestion = question.Trim();
+            messages.Add(new { role = "user", content = cleanCurrentQuestion });
 
             object payload;
 
-            if (isDevelopment)
+            if (_isDevelopment)
             {
-                //Ollama-specific payload structure
                 payload = new
                 {
                     model = _ollamaModel,
@@ -66,7 +94,7 @@
                         num_ctx = 8192,
                         num_batch = 512,
                         presence_penalty = 0.0,
-                        temperature = 0.0,
+                        temperature = 0.0, // Strict deterministic outputs
                         repeat_penalty = 1.2,
                         repeat_last_n = 128,
                         num_predict = 1500,
@@ -79,29 +107,28 @@
             else
             {
                 var cleanMessages = messages.Select(m => new {
-                    role = m.role,
-                    content = m.content
+                    role = (string)m.role,
+                    content = (string)m.content
                 }).ToList();
 
-                //Grok-specific payload structure
                 payload = new
                 {
                     model = _ollamaModel,
                     messages = cleanMessages,
                     stream = true,
-                    temperature = 0.65, // Lowered from 0.7 to enforce strict persona alignment in production
+                    temperature = 0.0, // Changed to 0.0 to guarantee production matches development switch-case rules
                     max_tokens = 1500
                 };
             }
 
-            var request = new HttpRequestMessage(HttpMethod.Post, isDevelopment ? "api/chat" : "chat/completions")
+            var request = new HttpRequestMessage(HttpMethod.Post, _isDevelopment ? "api/chat" : "chat/completions")
             {
                 Content = JsonContent.Create(payload)
             };
 
-            var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
-            if (!isDevelopment && !response.IsSuccessStatusCode)
+            if (!_isDevelopment && !response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync();
                 throw new Exception($"Groq Error: {errorBody}");
@@ -109,17 +136,18 @@
             else
                 response.EnsureSuccessStatusCode();
 
-            if (isDevelopment)
+            if (_isDevelopment)
                 return StreamResponseOllama(response);
             else
                 return StreamResponseGrok(response);
         }
 
+
         public async Task<string> Generate(string question, string resumeText)
         {
             object payload;
 
-            if (isDevelopment)
+            if (_isDevelopment)
             {
                 //Ollama-specific payload structure
                 payload = new
@@ -165,13 +193,13 @@
                 };
             }
 
-            var request = new HttpRequestMessage(HttpMethod.Post, isDevelopment ? "api/generate" : "chat/completions")
+            var request = new HttpRequestMessage(HttpMethod.Post, _isDevelopment ? "api/generate" : "chat/completions")
             {
                 Content = JsonContent.Create(payload)
             };
 
-            var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            if (!isDevelopment && !response.IsSuccessStatusCode)
+            var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (!_isDevelopment && !response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync();
                 throw new Exception($"Groq Error: {errorBody}");
@@ -180,7 +208,7 @@
                 response.EnsureSuccessStatusCode();
 
             JsonObject? responseObject = JsonSerializer.Deserialize<JsonObject>(await response.Content.ReadAsStringAsync());
-            string message = isDevelopment ? responseObject?["response"]?.ToString() ?? string.Empty 
+            string message = _isDevelopment ? responseObject?["response"]?.ToString() ?? string.Empty 
                 : responseObject?["choices"]?[0]?["message"]?["content"]?.ToString() ?? string.Empty;
 
             return message;
@@ -201,7 +229,7 @@
 
             object payload;
 
-            if (isDevelopment)
+            if (_isDevelopment)
             {
                 //Ollama-specific payload structure
                 payload = new
@@ -246,13 +274,13 @@
                 };
             }
 
-            var request = new HttpRequestMessage(HttpMethod.Post, isDevelopment ? "api/generate" : "chat/completions")
+            var request = new HttpRequestMessage(HttpMethod.Post, _isDevelopment ? "api/generate" : "chat/completions")
             {
                 Content = JsonContent.Create(payload)
             };
 
-            var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            if (!isDevelopment && !response.IsSuccessStatusCode)
+            var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (!_isDevelopment && !response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync();
                 throw new Exception($"Groq Error: {errorBody}");
@@ -261,7 +289,7 @@
                 response.EnsureSuccessStatusCode();
 
             JsonObject? responseObject = JsonSerializer.Deserialize<JsonObject>(await response.Content.ReadAsStringAsync());
-            string message = isDevelopment ? responseObject?["response"]?.ToString() ?? string.Empty
+            string message = _isDevelopment ? responseObject?["response"]?.ToString() ?? string.Empty
                 : responseObject?["choices"]?[0]?["message"]?["content"]?.ToString() ?? string.Empty;
 
             return message;
@@ -286,9 +314,6 @@
             }
 
             var formatted = System.Net.WebUtility.HtmlEncode(text);
-
-            // Strip out any leaked XML tags
-            formatted = formatted.Replace("&lt;contact_data&gt;", "").Replace("&lt;/contact_data&gt;", "");
 
             // Repair smashed text formatting
             // Directly fix escaped C# characters generated by the LLM
@@ -330,10 +355,9 @@
                 RegexOptions.Multiline
             );
 
-            // Markdown Links [Text](URL)
             formatted = Regex.Replace(
                 formatted,
-                @"\[([^\]]+)\]\s*\(((?:https?://|/)[^)]*)\)", // Changed + to * to allow empty/single slash
+                @"(?:\[|&#91;|&amp;#91;)([^\]&]+)(?:\]|&#93;|&amp;#93;)\s*(?:\(|&#40;|&amp;#40;)((?:https?://|/)[^)&]*)(?:\)|&#41;|&amp;#41;)",
                 "<a href=\"$2\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$1</a>",
                 RegexOptions.IgnoreCase
             );
@@ -341,7 +365,7 @@
             // Raw URLs 
             formatted = Regex.Replace(
                 formatted,
-                @"(?<!href=\x22|href=\x27|\[|<|>\s*)https?://[^\s<\x22\x27)]+",
+                @"(?<!href=\x22|href=\x27|\[|<|>\s*)_https?://[^\s<\x22\x27)]+",
                 "<a href=\"$0\" target=\"_blank\" style=\"color: #64B5F6; text-decoration: underline; font-weight: 600;\">$0</a>",
                 RegexOptions.IgnoreCase
             );
@@ -352,8 +376,81 @@
                 "<span style=\"color: #94A3B8; font-size: 0.9em; font-weight: normal;\">$0</span>"
             );
 
-            // Skip highlights if this text is the skills list
-            var sortedKeywords = (await ResumeService.GetTagList()).OrderByDescending(k => k.Length).ToList();
+            // Highlight bold Markdown items in Ice Blue (#E0F2FE)
+            formatted = Regex.Replace(
+                formatted,
+                @"\*\*(.*?)\*\*",
+                "<span style=\"color: #E0F2FE; font-weight: bold;\">$1</span>"
+            );
+
+            // Explicitly force summary text following colons to move to a new line
+            formatted = Regex.Replace(
+                formatted,
+                @"(?<=\w):(?=[A-Z])",
+                ":\n"
+            );
+
+            // Handle the Heading Row -> White
+            formatted = Regex.Replace(
+                formatted,
+                @"^#\s+(.+)$",
+                "<div style=\"color: #FFFFFF; font-size: 1.05em; font-weight: bold; margin-top: 8px; margin-bottom: 4px;\">$1</div>",
+                RegexOptions.Multiline
+            );
+
+            // ✅ FIX 1: CALENDAR DATE MONTH/YEAR HEALER
+            // Instantly merges month names and years separated by breaks before <br /> conversions run!
+            formatted = Regex.Replace(
+                formatted,
+                @"(?<=\b(?:January|February|March|April|May|June|July|August|September|October|November|December))\s*[\r\n\t]+\s*(?=\b\d{4}\b)",
+                " ",
+                RegexOptions.IgnoreCase
+            );
+
+            // Repair consecutive line entries and normalize whitespace trees
+            formatted = Regex.Replace(formatted, @"\s{2,}(?=-\s+[A-Za-z])", "\n");
+            formatted = Regex.Replace(formatted, @"\s{2,}(?=#\s+[A-Za-z])", "\n\n");
+
+            // ✅ FIX 2: UNIVERSAL CONVERSATIONAL TEXT DOWN-SHIFT (FOR BULLETS & SUMMARIES)
+            // Pattern A: Look behind for a closing </span> tag (Handles high-level overview lists)
+            // Pattern B: Look behind for a standard sentence completion period followed by spaces and a known chat phrase
+            // This cleanly isolates ANY dynamic phrase the LLM creates during deep-dive lookups!
+            formatted = Regex.Replace(
+                formatted,
+                @"(?<=<\/span>)\s{2,}(?=[A-Z][a-z])|(?<=\.)\s{2,}(?=(?:If you'd like|If you would like|Feel free to ask|Would you like|I'm happy to provide))",
+                "\n\n\n",
+                RegexOptions.IgnoreCase
+            );
+
+            // ✅ FIX 3: BULLET CONVERSION MATRIX (SUPPORTS BOTH HYPHENS AND ASTERISKS)
+            // Updated pattern range to explicitly match '-', '*', and '▪' character marks uniformly
+            formatted = Regex.Replace(
+                formatted,
+                @"^[ \t]*[\-\*▪]\s*(.+?)(?=\s{2,}|$)",
+                "<div style=\"color: #E0F2FE; margin-left: 26px; margin-bottom: 6px; font-size: 0.95em; line-height: 1.4;\">▪ $1</div>",
+                RegexOptions.Multiline
+            );
+
+            // --- Your line ending conversions safely execute below ---
+            formatted = formatted.Replace("\r\n", "\n").Replace("\r", "\n");
+            formatted = formatted.Replace("\n\n", "<div style=\"height: 18px;\"></div>");
+            formatted = formatted.Replace("\n", "<br />");
+
+            // Clean up overlapping line elements around custom div structures
+            formatted = Regex.Replace(formatted, @"(</div>)<br\s*/?>", "$1");
+            formatted = Regex.Replace(formatted, @"<br\s*/?>(<div)", "$1");
+
+            // Handle standard list dash layouts if any remain untouched
+            formatted = Regex.Replace(
+                formatted,
+                @"^[ \t]*[\-\*]\s+(.+)$",
+                @"<div style=""display: flex; gap: 8px; margin-left: 15px; margin-bottom: 6px; line-height: 1.4; color: #CBD5E1;""><span style=""color: #7DD3FC;"">•</span><span>$1</span></div>",
+                RegexOptions.Multiline
+            );
+            
+            var sortedKeywords = (await ResumeService.GetTagList())
+                .OrderByDescending(k => k.Length)
+                .ToList();
 
             if (specificKeyword != null)
             {
@@ -367,94 +464,19 @@
 
                 string escapedKw = Regex.Escape(kw);
 
-                string pattern = @"(?<!^#\s.*)(?<![a-zA-Z0-9])" + escapedKw + @"(?![a-zA-Z0-9])(?![^<]*>)";
+                // ✅ FIX: Added a negative lookbehind to ignore any keyword found inside a bold title div container
+                string pattern = @"(?<!<div style=[^>]*font-weight:\s*bold[^>]*>[^<]*)" +
+                                 @"(?<![Cc]\s*)(?<!^#\s.*)(?<!https?:\/\/\S*)(?<!www\.\S*)(?<![a-zA-Z0-9])" +
+                                 escapedKw +
+                                 @"(?![a-zA-Z0-9])(?![^<]*>)";
 
                 formatted = Regex.Replace(
                     formatted,
                     pattern,
-                    $"<b {$"{(applyEnhancedKeywordStyling ? "class=\"keyword-highlight\"" : "style=\"color: #7DD3FC; font-weight: bold;\"")}"}>{kw}</b>",
+                    $"<b style=\"color: #7DD3FC; font-weight: bold;\">$0</b>",
                     RegexOptions.IgnoreCase | RegexOptions.Multiline
-                );                
+                );
             }
-
-            // Highlight bold Markdown items in Ice Blue (#E0F2FE)
-            formatted = Regex.Replace(
-                formatted,
-                @"\*\*(.*?)\*\*",
-                "<span style=\"color: #E0F2FE; font-weight: bold;\">$1</span>"
-            );
-
-            // Insert structural breaks for phone-only messages so they format like full contact info
-            if (formatted.Contains("905-926-2398") && !formatted.Contains("David W. Turner"))
-            {
-                formatted = "David W. Turner\nOshawa, Ontario\n" + formatted;
-            }
-
-            // Explicitly force summary text following colons to move to a new line
-            formatted = Regex.Replace(
-                formatted,
-                @"(?<=\w):(?=[A-Z])",
-                ":\n"
-            );
-
-            // Ensure "Some of my key skills include:" sits exactly 2 lines below the preceding paragraph
-            formatted = Regex.Replace(
-                formatted,
-                @"(?<=[a-zA-Z.:)])\s*(Some of my key skills include:)",
-                "\n\n$1",
-                RegexOptions.IgnoreCase
-            );
-
-            // Push closing hooks down if smashed after a parenthesis OR a period
-            formatted = Regex.Replace(
-                formatted,
-                @"(?<=[.)])\s*(Would you prefer to see my skills, experience, or contact info\?)",
-                "\n\n\n$1",
-                RegexOptions.IgnoreCase
-            );
-
-            // Push "Here's a brief overview" onto a new line if smashed against previous paragraph words
-            formatted = Regex.Replace(
-                formatted,
-                @"(?<=[a-zA-Z])\s*\.?\s*(Here's a brief overview of my experience:)",
-                ".\n\n$1",
-                RegexOptions.IgnoreCase
-            );
-
-            // Handle the Heading Row -> White
-            formatted = Regex.Replace(
-                formatted,
-                @"^#\s+(.+)$",
-                "<div style=\"color: #FFFFFF; font-size: 1.05em; font-weight: bold; margin-top: 8px; margin-bottom: 4px;\">$1</div>",
-                RegexOptions.Multiline
-            );
-
-            // Put the dash at the very end of the brackets to make it match exactly instead of forming a range
-            formatted = Regex.Replace(
-                formatted,
-                @"^\s*[\*▪-]\s*(.+)$",
-                "<div style=\"color: #E0F2FE; margin-left: 26px; margin-bottom: 6px; font-size: 0.95em; line-height: 1.4;\">▪ $1</div>",
-                RegexOptions.Multiline
-            );
-
-            // Convert all line endings to <br /> and preserve double spaces
-            formatted = formatted.Replace("\r\n", "\n").Replace("\r", "\n");
-            formatted = formatted.Replace("\n\n", "<div style=\"height: 18px;\"></div>");
-            formatted = formatted.Replace("\n", "<br />");
-
-            formatted = Regex.Replace(
-                formatted,
-                @"^\s*-\s+(.+)$",
-                @"<div style=""display: flex; gap: 8px; margin-left: 15px; margin-bottom: 6px; line-height: 1.4; color: #CBD5E1;"">
-                    <span style=""color: #7DD3FC;"">•</span>
-                    <span>$1</span>
-                </div>",
-                RegexOptions.Multiline
-            );
-
-            // Remove any double breaks introduced around our custom divs
-            formatted = Regex.Replace(formatted, @"(</div>)<br\s*/?>", "$1");
-            formatted = Regex.Replace(formatted, @"<br\s*/?>(<div)", "$1");
 
             // Final Wrapper
             // Ensure the font-size matches the wrapper in the Razor markup above
@@ -476,7 +498,15 @@
                         var chunk = JsonSerializer.Deserialize<OllamaResponse>(line);
                         if (chunk?.message?.content != null)
                         {
-                            yield return chunk.message.content;
+                            string textChunk = chunk.message.content;
+
+                            // Hard check to instantly cut off text generation the millisecond the list completes
+                            if (textChunk.Contains("<!-- STOP -->"))
+                            {
+                                yield break; // Instantly kills the asynchronous iterator stream!
+                            }
+
+                            yield return textChunk;
                         }
                     }
                 }
@@ -509,73 +539,66 @@
 
         private async Task<string?> FormatResumeText(string resumeText, bool includeInstructions = true)
         {
-            if (!_memoryCache.TryGetValue("#aiInstructions", out string? _aiInstructions))
+            // Fix: Pass the factory pattern into GetOrCreateAsync to prevent thread/scope racing
+            if (includeInstructions)
             {
-                _aiInstructions = await File.ReadAllTextAsync(_filePath);
-
-                var fileInfo = new FileInfo("DavidTurner_Resume.docx");
-                var fileProvider = new PhysicalFileProvider(fileInfo.DirectoryName!);
-
-                var cacheEntryOptions = new MemoryCacheEntryOptions()
-                    .AddExpirationToken(fileProvider.Watch(fileInfo.Name)); // Evicts on file save
-
-                _memoryCache.Set("#aiInstructions", _aiInstructions, cacheEntryOptions);
-            }
-
-            if (includeInstructions && !string.IsNullOrEmpty(_aiInstructions))
-            {
-                var systemContent = _aiInstructions.Contains("{resumeContent}")
-                    ? _aiInstructions.Replace("{resumeContent}", resumeText)
-                    : _aiInstructions + "\n" + resumeText;
-
-                systemContent = systemContent.Contains("{todaysDate}")
-                    ? systemContent.Replace("{todaysDate}", DateTime.Now.ToString("MMMM dd, yyyy"))
-                    : systemContent;
-
-                // Inject dynamic date rules
-                var start = new DateTime(2026, 4, 29);
-                var today = DateTime.Now;
-
-                // Calculate years, months, and days exactly
-                int years = today.Year - start.Year;
-                int months = today.Month - start.Month;
-                int days = today.Day - start.Day;
-
-                if (days < 0)
+                if (!_memoryCache.TryGetValue("#aiInstructions", out string? _aiInstructions))
                 {
-                    // Borrow days from the previous month
-                    var previousMonth = today.AddMonths(-1);
-                    days += DateTime.DaysInMonth(previousMonth.Year, previousMonth.Month);
-                    months--;
+                    _aiInstructions = await File.ReadAllTextAsync(_filePath);
+                    _memoryCache.Set("#aiInstructions", _aiInstructions);
                 }
 
-                if (months < 0)
+                if (!string.IsNullOrEmpty(_aiInstructions))
                 {
-                    // Borrow months from the previous year
-                    months += 12;
-                    years--;
+                    var systemContent = _aiInstructions.Contains("{resumeContent}")
+                        ? _aiInstructions.Replace("{resumeContent}", resumeText)
+                        : _aiInstructions + "\n" + resumeText;
+
+                    systemContent = systemContent.Contains("{todaysDate}")
+                        ? systemContent.Replace("{todaysDate}", DateTime.Now.ToString("MMMM dd, yyyy"))
+                        : systemContent;
+
+                    // Inject dynamic date rules
+                    var start = new DateTime(2026, 4, 29);
+                    var today = DateTime.Now;
+
+                    // Calculate years, months, and days exactly
+                    int years = today.Year - start.Year;
+                    int months = today.Month - start.Month;
+                    int days = today.Day - start.Day;
+
+                    if (days < 0)
+                    {
+                        var previousMonth = today.AddMonths(-1);
+                        days += DateTime.DaysInMonth(previousMonth.Year, previousMonth.Month);
+                        months--;
+                    }
+
+                    if (months < 0)
+                    {
+                        months += 12;
+                        years--;
+                    }
+
+                    var parts = new List<string>();
+                    if (years > 0) parts.Add($"{years} {(years == 1 ? "year" : "years")}");
+                    if (months > 0) parts.Add($"{months} {(months == 1 ? "month" : "months")}");
+                    if (days > 0) parts.Add($"{days} {(days == 1 ? "day" : "days")}");
+
+                    string durationText = parts.Count > 0 ? string.Join(", ", parts) : "0 days";
+                    string dynamicRule = $"IF {{todaysDate}} is {today:MMMM dd, yyyy}: Duration is {durationText}";
+
+                    systemContent = systemContent.Contains("{dateLogic}")
+                        ? systemContent.Replace("{dateLogic}", dynamicRule)
+                        : systemContent;
+
+                    return systemContent;
                 }
-
-                // Build the readable string
-                var parts = new List<string>();
-                if (years > 0) parts.Add($"{years} {(years == 1 ? "year" : "years")}");
-                if (months > 0) parts.Add($"{months} {(months == 1 ? "month" : "months")}");
-                if (days > 0) parts.Add($"{days} {(days == 1 ? "day" : "days")}");
-
-                // Fallback if today is exactly the start date
-                string durationText = parts.Count > 0 ? string.Join(", ", parts) : "0 days";
-
-                string dynamicRule = $"IF {{todaysDate}} is {today:MMMM dd, yyyy}: Duration is {durationText}";
-
-                systemContent = systemContent.Contains("{dateLogic}")
-                    ? systemContent.Replace("{dateLogic}", dynamicRule)
-                    : systemContent;
-
-                return systemContent;
             }
 
             return resumeText;
         }
+
 
         public class GroqResponse
         {

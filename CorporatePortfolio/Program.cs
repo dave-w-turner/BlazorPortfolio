@@ -145,13 +145,20 @@ builder.Services.AddSingleton(provider =>
 {
     var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
     var ollamaClient = httpClientFactory.CreateClient("OllamaClient");
+    var hostEnv = provider.GetRequiredService<IHostEnvironment>();
+
+    // Resolve the absolute physical location to your instructions file
+    // Assumes your file lives in the root directory or wwwroot. Adjust folder name if needed!
+    string absoluteRulesPath = Path.Combine(hostEnv.ContentRootPath, "AIInstructions.txt");
 
     return new ChatbotService(
         ollamaClient,
-        provider.GetRequiredService<IHostEnvironment>().IsDevelopment(),
+        hostEnv.IsDevelopment(),
         provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty,
-        provider.GetRequiredService<IMemoryCache>());
+        provider.GetRequiredService<IMemoryCache>(),
+        absoluteRulesPath); // Pass it explicitly here
 });
+
 
 builder.Services.AddScoped<ChatState>();
 builder.Services.AddScoped<AppState>();
