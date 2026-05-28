@@ -402,7 +402,7 @@
                 RegexOptions.Multiline
             );
 
-            // ✅ FIX 1: CALENDAR DATE MONTH/YEAR HEALER
+            // CALENDAR DATE MONTH/YEAR HEALER
             // Instantly merges month names and years separated by breaks before <br /> conversions run!
             formatted = Regex.Replace(
                 formatted,
@@ -415,7 +415,7 @@
             formatted = Regex.Replace(formatted, @"\s{2,}(?=-\s+[A-Za-z])", "\n");
             formatted = Regex.Replace(formatted, @"\s{2,}(?=#\s+[A-Za-z])", "\n\n");
 
-            // ✅ FIX 2: UNIVERSAL CONVERSATIONAL TEXT DOWN-SHIFT (FOR BULLETS & SUMMARIES)
+            // UNIVERSAL CONVERSATIONAL TEXT DOWN-SHIFT (FOR BULLETS & SUMMARIES)
             // Pattern A: Look behind for a closing </span> tag (Handles high-level overview lists)
             // Pattern B: Look behind for a standard sentence completion period followed by spaces and a known chat phrase
             // This cleanly isolates ANY dynamic phrase the LLM creates during deep-dive lookups!
@@ -426,8 +426,7 @@
                 RegexOptions.IgnoreCase
             );
 
-            // ✅ FIX 3: BULLET CONVERSION MATRIX (SUPPORTS BOTH HYPHENS AND ASTERISKS)
-            // Updated pattern range to explicitly match '-', '*', and '▪' character marks uniformly
+            // BULLET CONVERSION MATRIX (SUPPORTS BOTH HYPHENS AND ASTERISKS)
             formatted = Regex.Replace(
                 formatted,
                 @"^[ \t]*[\-\*▪]\s*(.+?)(?=\s{2,}|$)",
@@ -435,16 +434,13 @@
                 RegexOptions.Multiline
             );
 
-            // --- Your line ending conversions safely execute below ---
             formatted = formatted.Replace("\r\n", "\n").Replace("\r", "\n");
             formatted = formatted.Replace("\n\n", "<div style=\"height: 18px;\"></div>");
             formatted = formatted.Replace("\n", "<br />");
 
-            // Clean up overlapping line elements around custom div structures
             formatted = Regex.Replace(formatted, @"(</div>)<br\s*/?>", "$1");
             formatted = Regex.Replace(formatted, @"<br\s*/?>(<div)", "$1");
 
-            // Handle standard list dash layouts if any remain untouched
             formatted = Regex.Replace(
                 formatted,
                 @"^[ \t]*[\-\*]\s+(.+)$",
@@ -468,7 +464,6 @@
 
                 string escapedKw = Regex.Escape(kw);
 
-                // ✅ FIX: Added a negative lookbehind to ignore any keyword found inside a bold title div container
                 string pattern = @"(?<!<div style=[^>]*font-weight:\s*bold[^>]*>[^<]*)" +
                                  @"(?<![Cc]\s*)(?<!^#\s.*)(?<!https?:\/\/\S*)(?<!www\.\S*)(?<![a-zA-Z0-9])" +
                                  escapedKw +
@@ -482,8 +477,6 @@
                 );
             }
 
-            // Final Wrapper
-            // Ensure the font-size matches the wrapper in the Razor markup above
             var finalHtml = $"<div style=\"color: #F8FAFC; line-height: 1.6; font-size: 1.02em;\">{formatted.Trim()}</div>";
 
             return new FormattedText(finalHtml, hasKeyword);
@@ -504,10 +497,9 @@
                         {
                             string textChunk = chunk.message.content;
 
-                            // Hard check to instantly cut off text generation the millisecond the list completes
                             if (textChunk.Contains("<!-- STOP -->"))
                             {
-                                yield break; // Instantly kills the asynchronous iterator stream!
+                                yield break; 
                             }
 
                             yield return textChunk;
@@ -543,7 +535,6 @@
 
         private async Task<string?> FormatResumeText(string resumeText, bool includeInstructions = true)
         {
-            // Fix: Pass the factory pattern into GetOrCreateAsync to prevent thread/scope racing
             if (includeInstructions)
             {
                 if (!_memoryCache.TryGetValue("#aiInstructions", out string? _aiInstructions))
@@ -557,44 +548,6 @@
                     var systemContent = _aiInstructions.Contains("{resumeContent}")
                         ? _aiInstructions.Replace("{resumeContent}", resumeText)
                         : _aiInstructions + "\n" + resumeText;
-
-                    systemContent = systemContent.Contains("{todaysDate}")
-                        ? systemContent.Replace("{todaysDate}", DateTime.Now.ToString("MMMM dd, yyyy"))
-                        : systemContent;
-
-                    // Inject dynamic date rules
-                    var start = new DateTime(2026, 4, 29);
-                    var today = DateTime.Now;
-
-                    // Calculate years, months, and days exactly
-                    int years = today.Year - start.Year;
-                    int months = today.Month - start.Month;
-                    int days = today.Day - start.Day;
-
-                    if (days < 0)
-                    {
-                        var previousMonth = today.AddMonths(-1);
-                        days += DateTime.DaysInMonth(previousMonth.Year, previousMonth.Month);
-                        months--;
-                    }
-
-                    if (months < 0)
-                    {
-                        months += 12;
-                        years--;
-                    }
-
-                    var parts = new List<string>();
-                    if (years > 0) parts.Add($"{years} {(years == 1 ? "year" : "years")}");
-                    if (months > 0) parts.Add($"{months} {(months == 1 ? "month" : "months")}");
-                    if (days > 0) parts.Add($"{days} {(days == 1 ? "day" : "days")}");
-
-                    string durationText = parts.Count > 0 ? string.Join(", ", parts) : "0 days";
-                    string dynamicRule = $"IF {{todaysDate}} is {today:MMMM dd, yyyy}: Duration is {durationText}";
-
-                    systemContent = systemContent.Contains("{dateLogic}")
-                        ? systemContent.Replace("{dateLogic}", dynamicRule)
-                        : systemContent;
 
                     return systemContent;
                 }
