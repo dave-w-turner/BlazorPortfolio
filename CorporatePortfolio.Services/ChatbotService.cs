@@ -94,7 +94,7 @@
                         num_ctx = 8192,
                         num_batch = 512,
                         presence_penalty = 0.0,
-                        temperature = 0.0, // Strict deterministic outputs
+                        temperature = 0.0,
                         repeat_penalty = 1.2,
                         repeat_last_n = 128,
                         num_predict = 1500,
@@ -116,7 +116,7 @@
                     model = _ollamaModel,
                     messages = cleanMessages,
                     stream = true,
-                    temperature = 0.0, // Changed to 0.0 to guarantee production matches development switch-case rules
+                    temperature = 0.0,
                     max_tokens = 1500
                 };
             }
@@ -157,13 +157,15 @@
                     stream = false,
                     options = new
                     {
-                        num_ctx = 4096,
-                        num_batch = 256,
+                        num_ctx = 8192,
+                        num_batch = 512,
+                        presence_penalty = 0.0,
                         temperature = 0.0,
-                        repeat_penalty = 1.1,
-                        num_predict = 250,
-                        top_p = 0.9,
-                        top_k = 40,
+                        repeat_penalty = 1.2,
+                        repeat_last_n = 128,
+                        num_predict = 1500,
+                        top_p = 0.01,
+                        top_k = 1,
                         num_thread = 4
                     }
                 };
@@ -189,7 +191,7 @@
                     messages = cleanMessages,
                     stream = false,
                     temperature = 0.0,
-                    max_tokens = 250
+                    max_tokens = 1500
                 };
             }
 
@@ -239,13 +241,15 @@
                     stream = false,
                     options = new
                     {
-                        num_ctx = 4096,
-                        num_batch = 256,
+                        num_ctx = 8192,
+                        num_batch = 512,
+                        presence_penalty = 0.0,
                         temperature = 0.0,
-                        repeat_penalty = 1.1,
-                        num_predict = 250,
-                        top_p = 0.9,
-                        top_k = 40,
+                        repeat_penalty = 1.2,
+                        repeat_last_n = 128,
+                        num_predict = 1500,
+                        top_p = 0.01,
+                        top_k = 1,
                         num_thread = 4
                     }
                 };
@@ -270,7 +274,7 @@
                     messages = cleanMessages,
                     stream = false,
                     temperature = 0.0,
-                    max_tokens = 250
+                    max_tokens = 1500
                 };
             }
 
