@@ -10,6 +10,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="AIGreetingInstructions.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AIGreetingInstructions.txt.old">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="AIInstructions.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -19,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="AIInstructions - Copy.txt.old" />
     <None Remove="DavidTurner_Resume.docx" />
   </ItemGroup>
 
