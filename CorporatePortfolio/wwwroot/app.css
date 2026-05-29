@@ -168,7 +168,7 @@ h1:focus {
         border-radius: 15px 4px 15px 4px !important;
         background: rgba(255, 255, 255, 0.03) !important;
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        transform: translateZ(0); /* Hardware accelerate text layers */
+        transform: translateZ(0);
         backface-visibility: hidden;
         will-change: border-radius, background, border-color, box-shadow;
         transition: border-radius 0.25s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease !important;
@@ -263,9 +263,8 @@ h1:focus {
 }
 
 /* ============================================================
-   EXPERIENCE SECTION - CONSOLIDATED & POLISHED
+   EXPERIENCE SECTION
    ============================================================ */
-
 #experience .timeline-item {
     position: relative;
     padding-left: 60px;
@@ -717,7 +716,7 @@ h1:focus {
 #projects .customcard:hover li::before {
     transform: translateX(4px); /* Moves bullet 4px to the right */
     color: #ffffff; /* Brightens the bullet on hover */
-    opacity: 1; /* Optional: makes it pop against the blue */
+    opacity: 1;
 }
 
 #projects .customcard .subtitle,
@@ -973,13 +972,11 @@ p {
     }
 
     50% {
-        /* Subtle contraction pulls the light energy closer behind your hairline */
         filter: blur(28px) drop-shadow(0 0 20px rgba(125, 211, 252, 0.15)) !important;
-        opacity: 0.60 !important; /* Gently blooms brighter at peak phase */
+        opacity: 0.60 !important;
     }
 
     100% {
-        /* Expands outward into a softer fog aura */
         filter: blur(40px) drop-shadow(0 0 5px rgba(125, 211, 252, 0.02)) !important;
         opacity: 0.45 !important;
     }
@@ -988,15 +985,12 @@ p {
 @keyframes floatAndGlow {
     0%, 100% {
         transform: scale(1.1) translateY(0px);
-        /* Resting State: Lowered to 0.36 so the background code stream is highly visible through you */
         opacity: 0.36 !important;
-        /* Boosted contrast to 1.25 to prevent facial details from washing out at low opacity */
         filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)) brightness(0.82) contrast(1.25) saturate(0.70);
     }
 
     50% {
         transform: scale(1.18) translateY(-6px);
-        /* Active State: Rises to 0.52 as you float forward, sharpening the hologram projection */
         opacity: 0.52 !important;
         filter: drop-shadow(0 14px 12px rgba(0, 0, 0, 0.75)) brightness(0.92) contrast(1.28) saturate(0.80);
     }
@@ -1004,35 +998,30 @@ p {
 
 @keyframes warpEntrance {
     0% {
-        /* Hidden deep in the canvas data stream: miniature, pixelated, and blinding cyan light */
         transform: scale(0.0) rotate(-15deg) translateY(30px);
         filter: blur(30px) brightness(5) hue-rotate(90deg) contrast(3);
         opacity: 0;
     }
 
     30% {
-        /* Digital snap: Explodes forward into a horizontally stretched wide scanning line */
         transform: scaleX(2.2) scaleY(0.05) translateY(-20px);
         filter: blur(4px) brightness(3) hue-rotate(45deg);
         opacity: 0.7;
     }
 
     45% {
-        /* Dimensional twist: Compresses back tightly while throwing color artifacts */
         transform: scaleX(0.4) scaleY(1.8) translateY(10px);
         filter: blur(6px) brightness(2.5) hue-rotate(-30deg) contrast(2);
         opacity: 0.9;
     }
 
     65% {
-        /* Hologram stabilize: Resolves close to its correct layout tracking proportions but vibrates slightly */
         transform: scaleX(1.3) scaleY(0.85) translateY(-5px);
         filter: blur(2px) brightness(1.4) hue-rotate(0deg);
         opacity: 1;
     }
 
     82% {
-        /* Micro-adjustment rebound step */
         transform: scaleX(0.95) scaleY(1.05) translateY(2px);
         filter: blur(0.5px) brightness(1.1);
     }
@@ -1040,7 +1029,6 @@ p {
     100% {
         transform: scale(1.1) translateY(0px);
         filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)) blur(0px) brightness(0.82);
-        /* Seamless, flicker-free handoff to the 0% floatAndGlow marker */
         opacity: 0.36 !important;
     }
 }
@@ -1512,7 +1500,6 @@ hr, .separator-line {
         body .mud-dialog-container .mud-dialog.chat-dark #chat-container {
             flex-grow: 1 !important;
             overflow-y: auto !important;
-            padding: 20px !important;
             height: auto !important;
         }
 
@@ -1688,6 +1675,22 @@ hr, .separator-line {
     .custom-modal-card {
         width: 420px !important;
     }
+
+    /* 🖥️ Overrides the hard limits of the MudBlazor modal wrapper frame */
+    body .mud-dialog-container .mud-dialog.chat-dark {
+        width: 100% !important;
+        transition: max-width 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+    }
+
+        /* 🔓 Dynamically expands the canvas block boundary when the user shows the side-panel */
+        body .mud-dialog-container .mud-dialog.chat-dark:has(.style-container) {
+            max-width: 960px !important; /* Increases width cap from 850px so text is legible */
+        }
+
+        /* 🧩 Restores narrow presentation mode cleanly when the side-panel goes hidden */
+        body .mud-dialog-container .mud-dialog.chat-dark:not(:has(.style-container)) {
+            max-width: 480px !important;
+        }
 }
 
 
@@ -1903,148 +1906,253 @@ body .mud-dialog-container .mud-dialog.chat-dark,
     }
 }
 
+body .mud-dialog-container .mud-dialog.chat-dark,
+div.mud-dialog.chat-dark,
+.mud-dialog.chat-dark {
+    min-width: 385px !important;
+}
+
+/* Forces MudBlazor's interior layout content cells to respect the limit */
+.chat-dark .mud-dialog-content,
+.chat-main-layout-wrapper {
+    min-width: 385px !important;
+}
+
+/* Ensures the left chat messaging column stretches cleanly to this floor limit */
+.chat-left-messages-panel {
+    min-width: 385px !important;
+}
+
 /* ===================================================================
-FLOATING MICRO-SCREEN VIEW OVERRIDE (Screens under 601px wide)
+MOBILE VIEWS INTEGRATED ENGINE (Screens 600px and under)
 =================================================================== */
 @media (max-width: 600px) {
-    .mud-dialog,
-    .chat-popup {
+    body .mud-dialog-container .mud-dialog.chat-dark,
+    div.mud-dialog.chat-dark {
+        position: fixed !important;
+        top: 42% !important;
+        left: 50% !important;
+        right: auto !important;
+        bottom: auto !important;
+        margin: 0 !important;
+        transform: translate(-50%, -50%) !important;
+        width: calc(100% - 26px) !important;
+        max-width: 600px !important;
+        height: 80% !important;
+        border: 1px solid rgba(125, 211, 252, 0.15) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
+        z-index: 9999 !important;
+        overflow: hidden !important;
+    }
+
+        body .mud-dialog-container .mud-dialog.chat-dark .mud-dialog-content {
+            height: calc(100vh - 130px) !important;
+            max-height: calc(100vh - 130px) !important;
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+    .chat-main-layout-wrapper {
         position: relative !important;
-        left: 12px !important; /* Sleek 12px padding gap from the left browser rim */
-        right: 12px !important; /* Sleek 12px padding gap from the right browser rim */
-        top: 10px !important;
-        margin: 0 !important; /* Disables conflicting 75px layout penalties */
-        transform: none !important;
-        width: calc(100% - 24px) !important; /* Forces total width to respect the 12px side gaps */
-        max-width: 100% !important;
-        height: 80% !important; /* Constrains height slightly so it doesn't hit the screen roof */
-        border-radius: 14px !important; /* Full rounded corners since it floats in open space */
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        z-index: 9999 !important; /* Higher priority lets it layer over lower layout nodes */
+        width: 100% !important;
+        height: 100% !important;
+        display: block !important;
+    }
+
+    #avatar-panel-hidden .chat-right-avatar-panel {
+        display: none !important;
+    }
+
+
+    #avatar-panel-active.mobile-video-layer-active .chat-left-messages-panel #chat-container {
+        display: none !important;
+        height: 0px !important;
+    }
+
+    #avatar-panel-active.mobile-video-layer-active .chat-left-messages-panel {
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        z-index: 10 !important;
+        box-sizing: border-box !important;
+        padding: 12px 16px !important;
+        background: linear-gradient(to top, rgba(18,18,18,0.95) 0%, rgba(18,18,18,0.7) 60%, rgba(18,18,18,0) 100%) !important;
+    }
+
+    #avatar-panel-active.mobile-video-layer-active .chat-right-avatar-panel {
+        display: block !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 1 !important;
+    }
+
+
+    #avatar-panel-active.mobile-chat-layer-active .chat-right-avatar-panel {
+        display: none !important;
+    }
+
+    #avatar-panel-active.mobile-chat-layer-active .chat-left-messages-panel {
+        position: relative !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+        #avatar-panel-active.mobile-chat-layer-active .chat-left-messages-panel #chat-container {
+            display: block !important;
+            height: 100% !important;
+            max-height: none !important;
+            overflow-y: auto !important;
+            padding: 16px !important;
+        }
+
+
+    #avatar-panel-active .chat-right-avatar-panel .style-container,
+    #avatar-panel-active .style-container {
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        border-radius: 0px !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
     .chat-launcher-container,
     .chat-toggle {
         position: fixed !important;
-        bottom: 16px !important; /* Places the toggle cleanly inside its base base slot */
+        bottom: 16px !important;
         right: 16px !important;
-        z-index: 10000 !important; /* CRITICAL: Must be higher than 9999 so it floats ON TOP of things */
+        z-index: 10000 !important;
     }
 
-    .mud-dialog-content {
+    body .mud-dialog-container .mud-dialog.chat-dark:has(#avatar-panel-hidden) .mud-mobile-view-flipper,
+    div.chat-dark:has(#avatar-panel-hidden) .mud-mobile-view-flipper,
+    #avatar-panel-hidden .mud-mobile-view-flipper {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
+    body .mud-dialog-container .mud-dialog.chat-dark:has(#avatar-panel-active) .mud-mobile-view-flipper,
+    div.chat-dark:has(#avatar-panel-active) .mud-mobile-view-flipper,
+    #avatar-panel-active .mud-mobile-view-flipper {
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
+
+    div[style*="position: absolute; right: 28px; top: 50%;"] .mud-mobile-view-flipper {
+        position: relative !important;
+        transform: translateX(44px) !important;
+        margin-left: -32px !important;
+    }
+
+        #f5-avatar-toggle-btn,
+        div[style*="position: absolute; right: 28px; top: 50%;"] button:not(.mud-mobile-view-flipper) {
+            position: relative !important;
+            transform: none !important; /* Locks its starting pixel coordinates completely solid */
+        }
+
+    .mud-mobile-view-flipper {
+        order: 2 !important; /* Renders second on the right, right where you circled it next to the X */
+    }
+    div[style*="position: absolute; right: 28px; top: 50%;"] {
+        display: block !important; /* Disables the flex row layout completely so children cannot push each other */
+        position: absolute !important;
+        right: 28px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: 100px !important;
+        min-width: 100px !important;
+        height: 48px !important;
+    }
+
+        #f5-avatar-toggle-btn,
+        div[style*="position: absolute; right: 28px; top: 50%;"] > *:first-child,
+        div[style*="position: absolute; right: 28px; top: 50%;"] button:not(.mud-mobile-view-flipper) {
+            position: absolute !important;
+            right: 44px !important; /* Firmly anchors the camera icon's right edge, leaving no room for shifting */
+            top: 0 !important;
+            margin: 0 !important;
+            transform: none !important;
+        }
+
+        div[style*="position: absolute; right: 28px; top: 50%;"] .mud-mobile-view-flipper {
+            position: absolute !important;
+            right: 0px !important; /* Firmly locks it into your circled region next to the close button */
+            top: 0 !important;
+            margin: 0 !important;
+            transform: none !important;
+            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out !important;
+        }
+
+    body .mud-dialog-container .mud-dialog.chat-dark:has(#avatar-panel-hidden) .mud-mobile-view-flipper,
+    div.chat-dark:has(#avatar-panel-hidden) .mud-mobile-view-flipper,
+    #avatar-panel-hidden .mud-mobile-view-flipper {
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
+    body .mud-dialog-container .mud-dialog.chat-dark:has(#avatar-panel-active) .mud-mobile-view-flipper,
+    div.chat-dark:has(#avatar-panel-active) .mud-mobile-view-flipper,
+    #avatar-panel-active .mud-mobile-view-flipper {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
+
+    #chat-container {
         display: flex !important;
         flex-direction: column !important;
-        flex: 1 !important;
-        height: 100% !important;
-        overflow: hidden !important;
+        align-items: stretch !important; /* Forces all direct child rows flush to edges */
     }
 
-    .custom-modal-card {
-        align-content: center;
-        width: 90vw !important;
-        margin-left: 5px !important;
-    }
-
-    .auth-icon-wrapper {
-        margin-left: 15px !important;
-    }
-
-    .custom-modal-card {
-        width: 97% !important;
-        max-width: 380px !important;
-        margin: 0 1%;
-    }
-
-    .auth-text {
-        font-size: 0.85rem;
-        letter-spacing: 0;
-        width: 100%;
-    }
-
-    .btn-auth {
-        height: 50px;
-        padding: 0 16px;
-    }
-
-    .modal-body {
-        padding-bottom: 2rem !important;
-    }
-
-    .auth-icon-wrapper, .auth-spacer {
-        width: 24px;
-    }
-
-    .modal-body {
-        padding-bottom: 2rem !important;
-    }
-
-    .skill-summary-responsive-wrapper {
-        width: calc(100% - 20px) !important;
-        max-width: calc(100% - 20px) !important;
-        margin-left: 10px !important;
-        margin-right: 10px !important;
-        margin-top: 25px !important;
-        box-sizing: border-box !important;
-    }
-
-    .skeleton-summary-wrapper,
-    .summary-speech-bubble-card,
-    .layout-spacer-ghost {
-        display: none;
-        width: 100% !important;
-        max-width: 100% !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        box-sizing: border-box !important;
-    }
-
-    .layout-spacer-ghost {
-        display: none !important;
-    }
-
-    .summary-speech-bubble-card, .ghost-card {
-        padding: 10px 16px;
-    }
-
-        .summary-speech-bubble-card p, .ghost-card p {
-            font-size: 0.95rem;
-            line-height: 1.45;
+        #chat-container .connecting-status-bar,
+        .connecting-status-bar {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            padding-left: 24px !important; /* Keeps your icon dot text legible from left rim */
+            padding-right: 24px !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+            left: 0 !important;
         }
 
-    .initial-prompt-hint p {
-        font-size: 0.9rem;
-    }
-
-    #skills {
-        padding-top: 5px !important;
-    }
-
-        #skills .grid {
-            row-gap: 24px !important; /* Maximizes gap between row 1 and row 2 of buttons */
-        }
-
-    .skill-summary-responsive-wrapper {
-        margin-top: 35px !important; /* Generous top gap on phone screen layouts */
-        padding-bottom: 50px !important; /* Protects content from slipping under the chat button */
-    }
+            #chat-container .connecting-status-bar .scanner-sweep,
+            .connecting-status-bar .scanner-sweep {
+                width: 100% !important;
+                left: 0 !important;
+            }
 }
 
+
 @media (max-width: 450px), (max-height: 740px) {
-    /* Permit parent structures to scale naturally without hard limits */
     .mud-dialog,
     .chat-popup {
         height: 85vh !important;
         max-height: 85vh !important;
     }
 
-    /* Free up the container viewport restrictions so scrollbars can calculate bounds */
     .mud-dialog-content {
         overflow-y: auto !important;
         display: flex !important;
         flex-direction: column !important;
     }
 
-    /* Ensure your inner text view takes up the remainder of the view space */
     #chat-container {
         flex-grow: 1 !important;
         overflow-y: auto !important;
@@ -2083,6 +2191,14 @@ CHAT DIALOG SENDER NAME TEXT LABELS
    SMALL SCREEN INTERMEDIATE VIEW (E.g., Tablets or small windows)
    ================================================================== */
 @media (min-width: 601px) and (max-width: 1024px) {
+    .style-container {
+        width: 100% !important; /* Spans full horizontal dialog width */
+        height: 220px !important; /* Fixed portrait layout cap at the top */
+        max-height: 220px !important;
+        background: rgba(255, 255, 255, 0.02) !important;
+        border: 2px dashed rgba(125, 211, 252, 0.3) !important;
+    }
+
     body .mud-dialog-container .mud-dialog.chat-dark {
         position: fixed !important;
         top: 50% !important;
@@ -2111,9 +2227,135 @@ CHAT DIALOG SENDER NAME TEXT LABELS
     .layout-spacer-ghost {
         width: 100% !important;
         max-width: 100% !important;
-        margin-left: 0 !important;
+        margin-left: 0 !important;  
         margin-right: 0 !important;
         box-sizing: border-box !important;
+    }
+
+    body .mud-dialog-container .mud-dialog.chat-dark,
+    div.mud-dialog.chat-dark {
+        position: fixed !important;
+        top: auto !important;
+        left: auto !important;
+        bottom: 80px !important;
+        right: 40px !important;
+        margin: 0 !important;
+        transform: none !important;
+        width: 540px !important;
+        min-width: 540px !important;
+        max-width: 540px !important;
+        height: 540px !important;
+        min-height: 540px !important;
+        max-height: 540px !important;
+        transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1), min-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    #avatar-panel-hidden .chat-right-avatar-panel {
+        display: none !important;
+        height: 0px !important;
+        flex: 0 0 0px !important;
+    }
+
+    #avatar-panel-hidden .chat-left-messages-panel {
+        height: 100% !important;
+    }
+
+    body .mud-dialog-container .mud-dialog.chat-dark:has(#avatar-panel-active),
+    div.mud-dialog.chat-dark:has(#avatar-panel-active),
+    .chat-dark:has(#avatar-panel-active) {
+        height: 840px !important;
+        min-height: 840px !important;
+        max-height: 840px !important;
+    }
+
+    #avatar-panel-active .chat-right-avatar-panel {
+        display: block !important;
+        order: 1 !important; /* Locks it to render first at the top */
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 320px !important;
+        height: 320px !important;
+        border-left: none !important; /* Clears legacy desktop border lines */
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important; /* Premium horizontal dividing line */
+    }
+
+    #avatar-panel-active .chat-left-messages-panel {
+        order: 2 !important; /* Locks it to render second at the bottom */
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 auto !important; /* Automatically seizes 100% of remaining vertical space */
+        height: calc(100% - 320px) !important;
+    }
+
+    body .mud-dialog-container .mud-dialog.chat-dark .mud-dialog-content,
+    .chat-dark .mud-dialog-content {
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        flex: 1 1 auto !important;
+        height: calc(100% - 56px) !important;
+    }
+
+    .chat-main-layout-wrapper {
+        display: flex !important;
+        flex-direction: column !important; /* Enforces clean top-to-bottom stack flow */
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+    }
+
+        .chat-main-layout-wrapper > div,
+        .chat-main-layout-wrapper > div[style] {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+    #chat-container {
+        flex-grow: 1 !important;
+        flex-shrink: 1 !important;
+        width: 100% !important;
+        overflow-y: auto !important;
+    }
+
+    .chat-left-messages-panel .chatbox {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    #avatar-panel-active .chat-right-avatar-panel .style-container,
+    .avatar-panel-active .style-container {
+        height: 100% !important;
+        max-height: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    body .mud-dialog-container .mud-dialog.chat-dark .mud-mobile-view-flipper,
+    .mud-mobile-view-flipper,
+    div[style*="position: absolute; right: 28px; top: 50%;"] .mud-mobile-view-flipper {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        width: 0px !important;
+    }
+
+    div[style*="position: absolute; right: 28px; top: 50%;"] {
+        display: flex !important;
+        flex-direction: row !important;
+        width: auto !important;
+        min-width: auto !important;
+        max-width: none !important;
+    }
+
+    #f5-avatar-toggle-btn {
+        position: relative !important;
+        right: auto !important;
+        top: auto !important;
+        transform: none !important;
     }
 }
 
@@ -2121,33 +2363,103 @@ CHAT DIALOG SENDER NAME TEXT LABELS
    MOBILE VIEW (Even smaller screens / up to 600px wide)
    ================================================================== */
 @media (max-width: 600px) {
-    body .mud-dialog-container .mud-dialog.chat-dark {
+    .style-container {
+        width: 100% !important;
+        height: 160px !important; /* Compact layout for phone aspect ratios */
+        max-height: 160px !important;
+        background: rgba(255, 255, 255, 0.02) !important;
+        border: 2px dashed rgba(125, 211, 252, 0.3) !important;
+    }
+
+    body .mud-dialog-container .mud-dialog.chat-dark,
+    div.mud-dialog.chat-dark {
         position: fixed !important;
         top: 42% !important;
         left: 50% !important;
         right: auto !important;
         bottom: auto !important;
-        margin: 0 !important; /* Drops the 75px margin penalty instantly */
+        margin: 0 !important;
         transform: translate(-50%, -50%) !important;
-        width: calc(100% - 26px) !important; /* 16px safety perimeter cushion on sides */
-        max-width: 600px !important; /* Prevents looking bloated on wider viewports */
-        height: 80% !important; /* Caps vertical height safely to dodge address bars */
-        border: 1px solid rgba(125, 211, 252, 0.15) !important; /* Radiant brand-blue rim profile */
+        width: calc(100% - 26px) !important;
+        max-width: 600px !important;
+        height: 80% !important;
+        border: 1px solid rgba(125, 211, 252, 0.15) !important;
         border-radius: 16px !important;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
         z-index: 9999 !important;
+        overflow: hidden !important;
     }
 
         body .mud-dialog-container .mud-dialog.chat-dark .mud-dialog-content {
             height: calc(100vh - 130px) !important;
             max-height: calc(100vh - 130px) !important;
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
         }
+
+    #avatar-panel-hidden .chat-right-avatar-panel {
+        display: none !important;
+        height: 0px !important;
+        width: 0px !important;
+    }
+
+
+    #avatar-panel-active .chat-left-messages-panel #chat-container {
+        display: none !important;
+        height: 0px !important;
+        padding: 0 !important;
+    }
+
+    #avatar-panel-active .chat-left-messages-panel {
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        z-index: 10 !important;
+        box-sizing: border-box !important;
+        padding: 12px 16px !important;
+        background: linear-gradient(to top, rgba(18,18,18,0.95) 0%, rgba(18,18,18,0.7) 60%, rgba(18,18,18,0) 100%) !important;
+    }
+
+    #avatar-panel-active .chat-right-avatar-panel {
+        display: block !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
+        z-index: 1 !important;
+        border-left: none !important;
+        border-bottom: none !important;
+    }
+
+        #avatar-panel-active .chat-right-avatar-panel .style-container,
+        #avatar-panel-active .style-container {
+            width: 100% !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            border-radius: 0px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+    .chat-dark:has(#avatar-panel-active) .chat-main-layout-wrapper,
+    .chat-dark:has(#avatar-panel-active) .chat-main-layout-wrapper > div {
+        position: relative !important;
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
 
     .skill-summary-responsive-wrapper {
         width: calc(100% - 20px) !important;
         max-width: calc(100% - 20px) !important;
-        margin-left: auto !important; /* Uses auto-balancing to protect the right margin */
-        margin-right: auto !important; /* Uses auto-balancing to protect the right margin */
+        margin-left: auto !important;
+        margin-right: auto !important;
         box-sizing: border-box !important;
     }
 
@@ -2162,21 +2474,125 @@ CHAT DIALOG SENDER NAME TEXT LABELS
     }
 }
 
-/* ==================================================================
-   DESKTOP ONLY VIEW (Screens 1025px wide and up)
-   ================================================================== */
+#chat-container:has(.connecting-status-bar) {
+    padding: 0px !important;
+}
+
+#chat-container .connecting-status-bar {
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+#chat-container {
+    padding: 20px !important;
+}
+
+/* ===================================================================
+  PREMIUM DESKTOP DYNAMIC WIDTH CONTROLLER (Screens 1025px and up)
+=================================================================== */
 @media (min-width: 1025px) {
-    body .mud-dialog-container .mud-dialog.chat-dark {
+    html body .mud-dialog-container .mud-dialog.chat-dark,
+    body .mud-dialog-container .mud-dialog.chat-dark.mud-dialog-width-sm,
+    div.mud-dialog.chat-dark {
         position: fixed !important;
         top: auto !important;
         left: auto !important;
         bottom: 120px !important;
         right: 80px !important;
-        width: 600px !important;
-        height: 60vh !important;
-        max-height: 80vh !important;
-        transform: none !important;
         margin: 0 !important;
+        transform: none !important;
+        width: 600px !important;
+        min-width: 600px !important;
+        max-width: 600px !important;
+        height: 600px !important;
+        min-height: 600px !important;
+        max-height: 600px !important;
+        transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.35s cubic-bezier(0.16, 1, 0.3, 1), max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    
+    #avatar-panel-hidden .chat-right-avatar-panel,
+    #avatar-panel-hidden div .chat-right-avatar-panel {
+        display: none !important;
+        width: 0px !important;
+        min-width: 0px !important;
+        max-width: 0px !important;
+        flex: 0 0 0px !important;
+        border-left: none !important;
+    }
+
+    html body .mud-dialog-container .mud-dialog.chat-dark:has(#avatar-panel-active),
+    body .mud-dialog-container .mud-dialog.chat-dark.mud-dialog-width-sm:has(#avatar-panel-active),
+    div.mud-dialog.chat-dark:has(#avatar-panel-active) {
+        width: 800px !important;
+        min-width: 800px !important;
+        max-width: 800px !important;
+    }
+
+    #avatar-panel-active .chat-right-avatar-panel,
+    .avatar-panel-active div .chat-right-avatar-panel {
+        display: block !important;
+        flex: 0 0 320px !important;
+        width: 320px !important;
+        min-width: 320px !important; /* Locks width to 320px, breaking the compression conflict */
+        max-width: 320px !important;
+        height: 100% !important;
+        box-sizing: border-box !important;
+        border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    body .mud-dialog-container .mud-dialog.chat-dark .mud-dialog-content,
+    .chat-dark .mud-dialog-content {
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        flex: 1 1 auto !important;
+        height: calc(100% - 56px) !important;
+    }
+    
+    .chat-main-layout-wrapper {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+    }
+
+        .chat-main-layout-wrapper > div {
+            display: flex !important;
+            flex-direction: row !important; /* Forces columns side-by-side inside the inner div container */
+            width: 100% !important;
+            height: 100% !important;
+            flex: 1 1 auto !important;
+        }
+
+    .chat-left-messages-panel {
+        flex: 1 1 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        height: 100% !important;
+    }
+
+    body .mud-dialog-container .mud-dialog.chat-dark #chat-container,
+    #chat-container {
+        flex-grow: 1 !important;
+        flex-shrink: 1 !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: auto !important;
+    }
+
+    .chat-left-messages-panel .chatbox {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .chat-main-layout-wrapper.mobile-chat-layer-active .chat-left-messages-panel,
+    .chat-main-layout-wrapper.mobile-chat-layer-active .chat-right-avatar-panel {
+        display: block !important;
+        height: 100% !important;
     }
 
     .hero {
@@ -2502,7 +2918,6 @@ CHAT DIALOG SENDER NAME TEXT LABELS
     }
 }
 
-/* Base wrapper matches your speech bubble sizing exactly */
 .skeleton-summary-wrapper {
     position: relative;
     max-width: 700px;
@@ -2543,7 +2958,6 @@ CHAT DIALOG SENDER NAME TEXT LABELS
     width: 65%;
 }
 
-/* The clear, clean instructional overlay text */
 .skeleton-instruction-overlay {
     position: absolute;
     inset: 0;

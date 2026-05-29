@@ -14,15 +14,18 @@
 <MudDialog Class="chat-dark" Style="@_customStyle" ContentClass="mudDialog">
     <TitleContent>
         <div style="display: flex; align-items: center; width: 100%; position: relative;">
-            <!-- Pins the title text cleanly to the left -->
             <MudText Typo="Typo.h6">
                 <MudIcon Icon="@Icons.Material.Filled.SmartToy" Class="mr-3 mb-n1" />
                 David Turner
             </MudText>
 
-            <!-- FIXED RE-ALIGNMENT TOOLKIT FOR ICON GROUPS -->
-            <!-- Uses absolute positioning to pull the toggle button into the exact same horizontal flex baseline row as the close button -->
             <div @onclick:stopPropagation="true" style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); display: flex; align-items: center;">
+                <MudIconButton Icon="@(_mobileShowChatLog ? Icons.Material.Filled.Videocam : Icons.Material.Filled.Chat)"
+                               Color="Color.Inherit"
+                               Class="mud-mobile-view-flipper d-block d-sm-none mr-1"
+                               OnClick="ToggleMobileViewMode"
+                               Style="padding: 12px;" />
+
                 @if (HostEnvironment.IsDevelopment())
                 {
                     <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
@@ -55,106 +58,109 @@
         </div>
     </TitleContent>
     <DialogContent>
-        <div style="display: flex; width: 100%; height: 100%; max-height: calc(100vh - 120px); overflow: hidden;">
-            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid rgba(255,255,255,0.05);">
-                <div id="chat-container" style="flex-grow: 1; overflow-y: auto;" class="pa-4">
-                    @foreach (var msg in _messages)
-                    {
-                        @if (msg.IsConnecting)
+        <div class="chat-main-layout-wrapper @(_mobileShowChatLog ? "mobile-chat-layer-active" : "mobile-video-layer-active")"
+             id="@(_showAvatarPanel ? "avatar-panel-active" : "avatar-panel-hidden")">
+            <div style="width: 100%;">
+                <div class="chat-left-messages-panel">
+                    <div id="chat-container" style="flex-grow: 1; overflow-y: auto;" class="pa-4">
+                        @foreach (var msg in _messages)
                         {
-                            <div class="connecting-status-bar @(_isExiting ? "fade-out-down" : "fade-in-down")">
-                                <div class="connecting-dot-glow"></div>
-                                <span class="connecting-text">Connecting with David Turner...</span>
-                                <div class="scanner-sweep"></div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div style="display: flex; flex-direction: @(msg.IsUser ? "row-reverse" : "row");" class="mb-6 gap-3">
-                                <MudAvatar Size="Size.Medium" Elevation="2">
-                                    @if (!string.IsNullOrEmpty(msg.AvatarUrl))
-                                    {
-                                        <MudImage Src="@msg.AvatarUrl" />
-                                    }
-                                    else
-                                    {
-                                        <MudIcon Icon="@(msg.IsUser ? Icons.Material.Filled.Person : Icons.Material.Filled.SmartToy)" />
-                                    }
-                                </MudAvatar>
-                                <div style="max-width: 75%; display: flex; flex-direction: column; align-items: @(msg.IsUser ? "flex-end" : "flex-start");">
-                                    <span class="chat-sender-name">@(msg.IsUser ? "You" : "David")</span>
-                                    <MudPaper Class="pa-4 message-fade-in" Elevation="1"
-                                              Style="@(msg.IsUser ? "background-color: var(--mud-palette-primary); color: white; border-radius: 15px 15px 0 15px;" : "background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);")">
-                                        @if (!msg.IsUser && string.IsNullOrWhiteSpace(msg.Text))
+                            @if (msg.IsConnecting)
+                            {
+                                <div class="connecting-status-bar @(_isExiting ? "fade-out-down" : "fade-in-down")">
+                                    <div class="connecting-dot-glow"></div>
+                                    <span class="connecting-text">Connecting with David Turner...</span>
+                                    <div class="scanner-sweep"></div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div style="display: flex; flex-direction: @(msg.IsUser ? "row-reverse" : "row");" class="mb-6 gap-3">
+                                    <MudAvatar Size="Size.Medium" Elevation="2">
+                                        @if (!string.IsNullOrEmpty(msg.AvatarUrl))
                                         {
-                                            <div style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
-                                                <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></div>
-                                                <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></div>
-                                                <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></div>
-                                            </div>
-                                        }
-                                        else if (!msg.IsUser)
-                                        {
-                                            <div style="color: #F8FAFC; line-height: 1.6; font-size: 1.02em; white-space: pre-wrap; word-break: break-word;">
-                                                @msg.FormattedText
-                                            </div>
+                                            <MudImage Src="@msg.AvatarUrl" />
                                         }
                                         else
                                         {
-                                            <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">
-                                                @msg.Text
-                                            </MudText>
+                                            <MudIcon Icon="@(msg.IsUser ? Icons.Material.Filled.Person : Icons.Material.Filled.SmartToy)" />
                                         }
+                                    </MudAvatar>
+                                    <div style="max-width: 75%; display: flex; flex-direction: column; align-items: @(msg.IsUser ? "flex-end" : "flex-start");">
+                                        <span class="chat-sender-name">@(msg.IsUser ? "You" : "David")</span>
+                                        <MudPaper Class="pa-4 message-fade-in" Elevation="1"
+                                                  Style="@(msg.IsUser ? "background-color: var(--mud-palette-primary); color: white; border-radius: 15px 15px 0 15px;" : "background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);")">
+                                            @if (!msg.IsUser && string.IsNullOrWhiteSpace(msg.Text))
+                                            {
+                                                <div style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
+                                                    <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></div>
+                                                    <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></div>
+                                                    <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></div>
+                                                </div>
+                                            }
+                                            else if (!msg.IsUser)
+                                            {
+                                                <div style="color: #F8FAFC; line-height: 1.6; font-size: 1.02em; white-space: pre-wrap; word-break: break-word;">
+                                                    @msg.FormattedText
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <MudText Typo="Typo.body1" Style="color: inherit; white-space: pre-wrap; font-size: 0.95rem; word-break: break-word;">
+                                                    @msg.Text
+                                                </MudText>
+                                            }
+                                        </MudPaper>
+                                    </div>
+                                </div>
+                            }
+                        }
+
+                        @if (_isTyping && (_messages.LastOrDefault()?.IsUser == true || _messages.Count == 0))
+                        {
+                            <div style="display: flex; flex-direction: row;" class="bubble-entrance mb-6 gap-3">
+                                <MudAvatar Size="Size.Medium" Elevation="2">
+                                    <MudImage Src="@_avatarUrl" />
+                                </MudAvatar>
+                                <div style="display: flex; flex-direction: column;">
+                                    <MudPaper Class="pa-4" Elevation="1" Style="background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);">
+                                        <div class="typing-indicator" style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
+                                            <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></div>
+                                            <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></div>
+                                            <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></div>
+                                        </div>
                                     </MudPaper>
                                 </div>
                             </div>
                         }
-                    }
+                    </div>
+                </div>
 
-                    @if (_isTyping && (_messages.LastOrDefault()?.IsUser == true || _messages.Count == 0))
-                    {
-                        <div style="display: flex; flex-direction: row;" class="bubble-entrance mb-6 gap-3">
-                            <MudAvatar Size="Size.Medium" Elevation="2">
-                                <MudImage Src="@_avatarUrl" />
-                            </MudAvatar>
-                            <div style="display: flex; flex-direction: column;">
-                                <MudPaper Class="pa-4" Elevation="1" Style="background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);">
-                                    <div class="typing-indicator" style="display: flex; gap: 4px; align-items: center; justify-content: center; height: 24px; width: 40px;">
-                                        <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;"></div>
-                                        <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.2s;"></div>
-                                        <div style="width: 6px; height: 6px; background-color: #FFFFFF !important; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; animation-delay: 0.4s;"></div>
-                                    </div>
-                                </MudPaper>
+                @if (HostEnvironment.IsDevelopment())
+                {
+                    <div class="chat-right-avatar-panel" style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
+                        <AIAvatar @ref="_avatarComponent"
+                                  OnWordSpoken="HandleStreamingWordReceived"
+                                  OnAudioLive="HandlePhysicalAudioLive"
+                                  OnSpeechFinishedCallback="OnSpeechFinished"
+                                  IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
+                    </div>
+                }   
+                else
+                {
+                    <AuthorizeView Roles="Admin">
+                        <Authorized>
+                            <div class="chat-right-avatar-panel" style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
+                                <AIAvatar @ref="_avatarComponent"
+                                          OnWordSpoken="HandleStreamingWordReceived"
+                                          OnAudioLive="HandlePhysicalAudioLive"
+                                          OnSpeechFinishedCallback="OnSpeechFinished"
+                                          IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
                             </div>
-                        </div>
-                    }
-                </div>
-            </div>
-
-            @if (HostEnvironment.IsDevelopment())
-            {
-                <div style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
-                    <AIAvatar @ref="_avatarComponent"
-                              OnWordSpoken="HandleStreamingWordReceived"
-                              OnAudioLive="HandlePhysicalAudioLive"
-                              OnSpeechFinishedCallback="OnSpeechFinished"
-                              IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
-                </div>
-            }   
-            else
-            {
-                <AuthorizeView Roles="Admin">
-                    <Authorized>
-                        <div style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
-                            <AIAvatar @ref="_avatarComponent"
-                                      OnWordSpoken="HandleStreamingWordReceived"
-                                      OnAudioLive="HandlePhysicalAudioLive"
-                                      OnSpeechFinishedCallback="OnSpeechFinished"
-                                      IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
-                        </div>
-                    </Authorized>
-                </AuthorizeView>
-            }
+                        </Authorized>
+                    </AuthorizeView>
+                }
+            </div> 
         </div>
     </DialogContent>
     <DialogActions>
@@ -180,7 +186,7 @@
     [Parameter] public string Class { get; set; } = "chat-dark";
     private MudTextField<string> _textField = default!;
     private string _customStyle => State.HasPosition
-        ? $"position: fixed; margin: 0; top: {State.Top}; left: {State.Left}; width: {(_showAvatarPanel ? "770px" : (string.IsNullOrEmpty(State.Width) ? "450px" : State.Width))}; height: {State.Height}; max-width: none; z-index: 3500 !important;"
+        ? $"position: fixed; margin: 0; top: {State.Top}; left: {State.Left}; width: {(_showAvatarPanel ? "820px" : (string.IsNullOrEmpty(State.Width) ? "450px" : State.Width))}; height: {State.Height}; max-width: none; z-index: 3500 !important;"
         : "z-index: 3500 !important;";
 
     private List<ChatMessage> _messages = new();
@@ -191,6 +197,7 @@
     private const string _userAvatarUrl = "images/user-profile-pic.png";
     private AIAvatar _avatarComponent;
     private bool _showAvatarPanel = false;
+    private bool _mobileShowChatLog = false;
     private bool ShowAvatarPanel
     {
         get => _showAvatarPanel;
@@ -208,6 +215,7 @@
                 }
                 if (value == false)
                 {
+                    _mobileShowChatLog = false;
                     System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Closing avatar panel and resetting audio states.");
 
                     if (_avatarComponent is not null)
@@ -254,7 +262,12 @@
         {
             _chatDialogRef = DotNetObjectReference.Create(this);
             await Task.Delay(150);
-            await JSRuntime.InvokeVoidAsync("initChatDrag", _chatDialogRef);
+
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("initChatDrag", _chatDialogRef);
+            }
+            catch { }
 
             await Task.Delay(50);
             await ToggleAvatarButtonLock();
@@ -297,22 +310,18 @@
 
                 if (ShowAvatarPanel && _avatarComponent is not null)
                 {
-                    // 1. Maintain thinking indicators and lock user input
                     _isTyping = true;
                     _disableInput = true;
                     _isWaitingForAudioStreamHook = true;
                     await UpdateState();
 
-                    // 2. Keep the text blank so the empty bubble doesn't render prematurely
                     greetingMsg.Text = "";
                     greetingMsg.FormattedText = (await ChatbotService.FormatMessage("")).Text;
                     await UpdateState();
 
-                    // 3. Queue the greeting text straight to your F5 engine
                     await _avatarComponent.StartStreamingSession();
                     await _avatarComponent.AppendStreamingToken(fullGreetingText);
 
-                    // 4. Finalize the stream. The textbox will now stay locked until David finishes speaking!
                     await _avatarComponent.FinalizeStreamingSession();
                 }
                 else
@@ -342,7 +351,7 @@
                     }
 
                     greetingMsg.IsComplete = true;
-                    _disableInput = false; // Safely unlocks here ONLY if face panel is hidden
+                    _disableInput = false;
                     _isTyping = false;
                     _hasGreetingRendered = true;
                     await UpdateState();
@@ -434,10 +443,8 @@
 
                     serverTextAccumulator += sanitizedChunk;
 
-                    // --- MARKDOWN TARGETED TOKEN INTERCEPTOR ---
                     if (_showAvatarPanel && !string.IsNullOrWhiteSpace(sanitizedChunk))
                     {
-                        // 1. Initialize audio stream layout structures safely
                         if (!_isAudioSessionInitialized && _avatarComponent is not null)
                         {
                             try
@@ -448,7 +455,6 @@
                             catch { }
                         }
 
-                        // 2. SCAN FOR MARKDOWN LAYOUT SIGNATURES
                         if (sanitizedChunk.Contains("#") ||
                             sanitizedChunk.Contains(" -") ||
                             serverTextAccumulator.Contains("# Core Tech") ||
@@ -460,11 +466,6 @@
                             if (!_isMutedForSummary)
                             {
                                 _isMutedForSummary = true;
-
-                                // --- CRITICAL TIMER FIX ---
-                                // Set the shield right here inside the live loop token check!
-                                // This ensures that when FinalizeStreamingSession yields,
-                                // OnSpeechFinished sees the true state and blocks the unlock!
                                 _summaryPipelineActive = true;
 
                                 if (_avatarComponent is not null)
@@ -474,7 +475,6 @@
                             }
                         }
 
-                        // 3. EXECUTE VOICE ENGINE ROUTING
                         if (!_isMutedForSummary)
                         {
                             string healedChunk = System.Text.RegularExpressions.Regex.Replace(sanitizedChunk, @"([A-Za-z])([0-9])", "$1 $2");
@@ -516,7 +516,6 @@
             {
                 if (_isMutedForSummary)
                 {
-                    // Re-affirm parameters before kicking off background thread processing
                     _summaryPipelineActive = true;
 
                     _isWaitingForAudioStreamHook = true;
@@ -552,34 +551,27 @@
     {
         try
         {
-            // 1. Maintain rigid UI input restrictions
             _summaryPipelineActive = true;
             _disableInput = true;
             _isTyping = true;
             _isWaitingForAudioStreamHook = true;
             await UpdateState();
 
-            // 2. Fetch the clean verbal brief from Llama
             string generatedSummary = "";
 
-            // --- DETECT CONTACT BLOCK IN ACCUMULATED TEXT ---
             if (completeFormattedText.Contains("<contact_data>") || completeFormattedText.Contains("dave.w.turner@outlook.com"))
             {
-                // Overrides the robotic overview with your custom conversational line!
                 generatedSummary = "If you'd like to get in touch with me, I've gone ahead and placed my direct contact details right inside our chat window.";
             }
             else
             {
-                // Normal summary behavior for skills and projects
                 generatedSummary = await ChatbotService.GenerateVerbalSummary(completeFormattedText);
             }
 
             if (_avatarComponent is not null && _showAvatarPanel)
             {
-                // 3. Start the F5 streaming audio session for the summary text
                 await _avatarComponent.StartStreamingSession(muteWordTracking: true);
 
-                // 4. Split the verbal summary into sentences to stream to F5 immediately
                 string[] summarySentences = System.Text.RegularExpressions.Regex.Split(generatedSummary, @"(?<=[.!?])\s+");
                 foreach (var sentence in summarySentences)
                 {
@@ -594,19 +586,14 @@
 
                 _summaryPipelineActive = false;
 
-                // 5. Finalize the audio stream session so it knows no more sentences are coming
                 await _avatarComponent.FinalizeStreamingSession();
 
-                // 6. ASYNC TYPEWRITER EFFECT FOR THE ORIGINAL SKILLS TEXT
-                // Find the current assistant message object in your UI list
                 var currentActiveAiMsg = _messages.LastOrDefault(m => !m.IsUser);
                 if (currentActiveAiMsg is not null)
                 {
-                    // Clear the thinking indicators right as text starts typing out
                     _isTyping = false;
                     await UpdateState();
 
-                    // Split the original complete markdown skills text by space boundaries
                     string[] textWords = completeFormattedText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     string textAccumulator = "";
 
@@ -614,10 +601,8 @@
                     {
                         textAccumulator += word + " ";
 
-                        // Assign text to raw buffer to satisfy your row layout guard condition
                         currentActiveAiMsg.Text = textAccumulator;
 
-                        // Pass to your formatting service to maintain all your custom style templates
                         var formattedResult = await ChatbotService.FormatMessage(
                             textAccumulator,
                             isComplete: false,
@@ -628,7 +613,6 @@
 
                         await UpdateState();
 
-                        // Adjust this delay (in milliseconds) to speed up or slow down the typewriter speed
                         await Task.Delay(40);
                     }
                 }
@@ -640,9 +624,6 @@
         }
         finally
         {
-            // --- ONLY RESET STATE PARSING VARIABLES ---
-            // Do NOT unlock inputs here. The physical hardware event OnSpeechFinished()
-            // will safely re-enable the textbox once David finishes speaking!
             _isMutedForSummary = false;
             await UpdateState();
         }
@@ -652,7 +633,6 @@
     {
         if (!_showAvatarPanel || string.IsNullOrWhiteSpace(nextWord)) return;
 
-        // --- ADD THIS SENTINEL INTERCEPT GATING CHECK ---
         if (nextWord == "[SANDBOX_START]")
         {
             _messages.Add(new ChatMessage
@@ -668,7 +648,6 @@
             return;
         }
 
-        // --- Your original layout logic remains completely untouched below here ---
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser && !m.IsComplete)
                              ?? _messages.LastOrDefault(m => !m.IsUser);
 
@@ -699,7 +678,6 @@
     {
         try
         {
-            // Added logical OR check for server failure flag at the beginning
             if (!_isF5ServerConnected || _isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook)
             {
                 await JSRuntime.InvokeVoidAsync("eval", @"
@@ -713,7 +691,6 @@
             }
             else
             {
-                // Re-enable click actions and restore normal visibility
                 await JSRuntime.InvokeVoidAsync("eval", @"
                 var btn = document.querySelector('#f5-avatar-toggle-btn');
                 if (btn) {
@@ -740,13 +717,11 @@
             return;
         }
 
-        // 1. Release all UI restrictions here and only here
         _isTyping = false;
         _isAudioTypingStarted = false;
         _isWaitingForAudioStreamHook = false;
         _disableInput = false;
 
-        // 2. Execute your standard message completion layout updates
         var activeAiMessage = _messages.LastOrDefault(m => !m.IsUser);
         if (activeAiMessage is not null)
         {
@@ -906,21 +881,27 @@
         }
     }
 
+    private void ToggleMobileViewMode()
+    {
+        _mobileShowChatLog = !_mobileShowChatLog;
+        StateHasChanged();
+    }
+
     public void Dispose()
     {
         _healthCheckCts.Cancel();
         _healthCheckCts.Dispose();
-
         _healthCheckTimer?.Dispose();
 
-        if (JSRuntime is not null)
+        if (_avatarComponent is not null)
         {
             try
             {
-                _ = JSRuntime.InvokeVoidAsync("forceStopAndResetAudioContext");
+                _ = _avatarComponent.ForceStopAndResetAudioContext();
             }
             catch { }
         }
+
         _chatDialogRef?.Dispose();
         _persistentAvatarRef?.Dispose();
     }
