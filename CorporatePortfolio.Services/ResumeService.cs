@@ -112,7 +112,7 @@ namespace CorporatePortfolio.Services
                             }
                             else if (isProject)
                             {
-                                currentBmSb.AppendLine($"{(projParagraphCounter == 0 ? "* " : "  - ")}{text}");
+                                currentBmSb.AppendLine($"{(projParagraphCounter == 0 ? $"# {string.Join(" | ", text.Split(" | ").Take(2))}" : $"  - {text}")}");
                                 if (projParagraphCounter == 0) projParagraphCounter++;
                             }
                             else
