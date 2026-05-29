@@ -2142,6 +2142,10 @@ CHAT DIALOG SENDER NAME TEXT LABELS
    DESKTOP ONLY VIEW (Screens 1025px wide and up)
    ================================================================== */
 @media (min-width: 1025px) {
+    #skills {
+        margin-top: -2vw !important;
+    }
+
     body .mud-dialog-container .mud-dialog.chat-dark {
         position: fixed !important;
         top: auto !important;
