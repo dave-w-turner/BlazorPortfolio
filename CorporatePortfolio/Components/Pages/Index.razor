@@ -26,16 +26,27 @@
         {
             try
             {
-                var experienceTask = State.InitializeAsync(); // Loads experiences into AppState
-                var competenciesTask = ResumeService.GetCompetencies();
-
-                await Task.WhenAll(experienceTask, competenciesTask);
-
-                State.Competencies = competenciesTask.Result;
+                State.Competencies = await ResumeService.GetCompetencies();
             }
             finally
             {
                 State.UpdateSkillsLoadingState(true);
+            }
+        }
+
+        if (!State.AreExperiencesLoaded)
+        {
+            try
+            {
+                State.Experiences = await resumeService.GetExperience();
+
+                foreach (var exp in State.Experiences)
+                    foreach (var detail in exp.Details)
+                        exp.DetailsFormatted.Add(new MarkupString(detail));
+            }
+            finally
+            {
+                State.UpdateExperiencesLoadingState(true);
             }
         }
     }

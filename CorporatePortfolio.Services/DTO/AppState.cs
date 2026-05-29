@@ -6,23 +6,24 @@ namespace CorporatePortfolio.Services.DTO
     {
         public string ClickedSkillName => _clickedSkillName;
         public string CurrentSkillSummaryText { get; private set; } = string.Empty;
-        public List<ExperienceData> Experiences { get; private set; } = [];
+        public List<ExperienceData> Experiences { get; set; } = [];
         public List<CompetencyData> Competencies { get; set; } = [];
-        public event Action<string>? OnSkillSelected;
+
         public bool AreSkillsLoaded { get; set; } = false;
-        public bool ErrorInvoked { get; set; } = false;
+        public bool AreExperiencesLoaded { get; set; } = false;
+        public bool ErrorOccured { get; set; } = false;
+        public bool Loading { get; set; } = false;
+
         public event Action? ExperiencesOnChange;
         public event Action? SkillsLoaded;
+        public event Action<string>? OnSkillSelected;
+        public event Action? ErrorInvoked;
 
         private string _clickedSkillName = string.Empty;
 
         public async Task InitializeAsync()
         {
-            Experiences = await resumeService.GetExperience();
-
-            foreach (var exp in Experiences)
-                foreach (var detail in exp.Details)
-                    exp.DetailsFormatted.Add(new MarkupString(detail));
+            Loading = true;            
         }
 
         public void SetHoveredSkillSummary(string skillName)
@@ -82,10 +83,25 @@ namespace CorporatePortfolio.Services.DTO
             }
         }
 
+        public void UpdateExperiencesLoadingState(bool isLoaded)
+        {
+            if (AreExperiencesLoaded != isLoaded)
+            {
+                AreExperiencesLoaded = isLoaded;
+                NotifyStateChanged();
+            }
+        }        
+
         public void NotifyStateChanged()
         {
             ExperiencesOnChange?.Invoke();
             SkillsLoaded?.Invoke();
+        }
+
+        public void NotifyErrorStateChanged()
+        {
+            ErrorOccured = true;
+            ErrorInvoked?.Invoke();
         }
     }
 }

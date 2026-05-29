@@ -1824,6 +1824,23 @@ hr, .separator-line {
         margin-left: 0 !important;
         margin-right: 0 !important;
         box-sizing: border-box !important;
+        margin-top: 30px !important;
+    }
+
+    #skills {
+        /* Gives Core Expertise room above the grid buttons */
+        padding-top: 20px !important;
+    }
+
+        #skills .grid {
+            row-gap: 20px !important;
+            margin-bottom: 25px !important;
+        }
+
+    .skeleton-summary-wrapper,
+    .summary-speech-bubble-card {
+        /* Pushes the overlay box cleanly below the grid rows */
+        margin-top: 20px !important;
     }
 }
 
@@ -1966,17 +1983,23 @@ FLOATING MICRO-SCREEN VIEW OVERRIDE (Screens under 601px wide)
         max-width: calc(100% - 20px) !important;
         margin-left: 10px !important;
         margin-right: 10px !important;
+        margin-top: 25px !important;
         box-sizing: border-box !important;
     }
 
     .skeleton-summary-wrapper,
     .summary-speech-bubble-card,
     .layout-spacer-ghost {
+        display: none;
         width: 100% !important;
         max-width: 100% !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
         box-sizing: border-box !important;
+    }
+
+    .layout-spacer-ghost {
+        display: none !important;
     }
 
     .summary-speech-bubble-card, .ghost-card {
@@ -1993,7 +2016,16 @@ FLOATING MICRO-SCREEN VIEW OVERRIDE (Screens under 601px wide)
     }
 
     #skills {
-        padding-top: 30px !important;
+        padding-top: 5px !important;
+    }
+
+        #skills .grid {
+            row-gap: 24px !important; /* Maximizes gap between row 1 and row 2 of buttons */
+        }
+
+    .skill-summary-responsive-wrapper {
+        margin-top: 35px !important; /* Generous top gap on phone screen layouts */
+        padding-bottom: 50px !important; /* Protects content from slipping under the chat button */
     }
 }
 
@@ -2523,6 +2555,13 @@ CHAT DIALOG SENDER NAME TEXT LABELS
     font-size: 0.95rem;
     letter-spacing: 0.3px;
 }
+
+    .skeleton-instruction-overlay p {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 4px !important;
+    }
+
 
 @keyframes skeletonWave {
     0% {

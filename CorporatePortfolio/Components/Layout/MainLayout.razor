@@ -1,5 +1,6 @@
 ﻿@using CorporatePortfolio.Components
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject AppState State
 
 <MudThemeProvider @rendermode="InteractiveServer" IsDarkMode="true" Theme="_darkTheme" />
@@ -7,7 +8,10 @@
 <MudSnackbarProvider @rendermode="InteractiveServer" />
 <MudPopoverProvider @rendermode="InteractiveServer" />
 
-<Loading />
+@if (State.Loading && !State.ErrorOccured)
+{
+    <Loading />
+}
 
 <MudLayout>
     <MudMainContent>
@@ -36,6 +40,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        State.ErrorInvoked += StateHasChanged;
         await State.InitializeAsync();
     }   
+
+    public void Dispose()
+    {
+        State.ExperiencesOnChange -= StateHasChanged;
+    }
 }
