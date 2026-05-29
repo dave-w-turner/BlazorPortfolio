@@ -47,14 +47,7 @@
         State.ExperiencesOnChange += HandleStateChange;
         State.OnSkillSelected += PrepareScroll;
 
-        if (State.Experiences == null || !State.Experiences.Any())
-        {
-            await State.InitializeAsync();
-        }
-        else
-        {
-            _isLoaded = true;
-        }
+        _isLoaded = true;
     }
 
     private async void PrepareScroll(string skillName)

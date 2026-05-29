@@ -17,7 +17,7 @@
     {
         State.SkillsLoaded += RefreshLoaderState;
 
-        if (State.AreSkillsLoaded || State.ErrorInvoked)
+        if (State.AreSkillsLoaded)
         {
             RefreshLoaderState();
         }
@@ -27,7 +27,7 @@
     {
         InvokeAsync(() =>
         {
-            IsAnimationHidden = State.AreSkillsLoaded || State.ErrorInvoked;
+            IsAnimationHidden = State.AreSkillsLoaded;
             StateHasChanged();
         });
     }
