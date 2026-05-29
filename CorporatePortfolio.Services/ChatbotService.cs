@@ -142,7 +142,6 @@
                 return StreamResponseGrok(response);
         }
 
-
         public async Task<string> Generate(string question, string resumeText = "")
         {
             object payload;
