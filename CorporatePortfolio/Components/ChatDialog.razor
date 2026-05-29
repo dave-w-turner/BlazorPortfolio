@@ -455,23 +455,20 @@
                             catch { }
                         }
 
-                        if (sanitizedChunk.Contains("#") ||
-                            sanitizedChunk.Contains(" -") ||
-                            serverTextAccumulator.Contains("# Core Tech") ||
-                            serverTextAccumulator.Contains("# Azure") ||
-                            sanitizedChunk.Contains("<contact_data>") ||
-                            serverTextAccumulator.Contains("<contact_data>") ||
-                            serverTextAccumulator.Contains("## CONTACT"))
-                        {
-                            if (!_isMutedForSummary)
-                            {
-                                _isMutedForSummary = true;
-                                _summaryPipelineActive = true;
+                        var startsWithKeywords = new[] { "#", " -", " *" };
+                        var containsKeywords = new[] { "# Core Tech", "# Azure", "Here is my contact info:", "dave.w.turner@outlook.com" };
 
-                                if (_avatarComponent is not null)
-                                {
-                                    await _avatarComponent.FinalizeStreamingSession();
-                                }
+                        bool matchFound = startsWithKeywords.Any(word => sanitizedChunk.StartsWith(word) || serverTextAccumulator.StartsWith(word))
+                                                               || containsKeywords.Any(phrase => sanitizedChunk.Contains(phrase) || serverTextAccumulator.Contains(phrase));
+
+                        if (matchFound && !_isMutedForSummary)
+                        {
+                            _isMutedForSummary = true;
+                            _summaryPipelineActive = true;
+
+                            if (_avatarComponent is not null)
+                            {
+                                await _avatarComponent.FinalizeStreamingSession();
                             }
                         }
 
@@ -559,7 +556,7 @@
 
             string generatedSummary = "";
 
-            if (completeFormattedText.Contains("<contact_data>") || completeFormattedText.Contains("dave.w.turner@outlook.com"))
+            if (completeFormattedText.Contains("Here is my contact info:") || completeFormattedText.Contains("dave.w.turner@outlook.com"))
             {
                 generatedSummary = "If you'd like to get in touch with me, I've gone ahead and placed my direct contact details right inside our chat window.";
             }
@@ -865,6 +862,8 @@
 
     private async Task VerifyServerHealth()
     {
+        var retries = 3;
+        var currentAttempt = 0;
         string healthCheckUrl = Configuration["VoiceEngineUrl"] != null ? $"{Configuration["VoiceEngineUrl"]}/docs" : null ?? $"http://localhost:5000/docs";
 
         try
@@ -877,7 +876,17 @@
         }
         catch
         {
-            _isF5ServerConnected = false;
+            if (currentAttempt < retries)
+            {
+                currentAttempt++;
+                System.Diagnostics.Debug.WriteLine($"[HEALTH-CHECK] Attempt {currentAttempt} failed. Retrying...");
+                await Task.Delay(2000);
+                await VerifyServerHealth();
+            }
+            else
+            {
+                _isF5ServerConnected = false;
+            }
         }
     }
 

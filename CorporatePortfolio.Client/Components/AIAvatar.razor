@@ -44,12 +44,9 @@
         }
     }
 
-    // --- REFACTORED METHOD (AIAvatar.razor Page 1) ---
     [JSInvokable]
     public async Task OnWordAudioTriggered(string nextWord)
     {
-        // If we are playing back a silent background summary track,
-        // discard these tokens so they never reach ChatDialog.razor!
         if (_isWordTrackingMuted)
         {
             return;
@@ -61,12 +58,10 @@
         }
     }
 
-    // --- REFACTORED METHOD (AIAvatar.razor Page 2) ---
     public async Task StartStreamingSession(bool muteWordTracking = false)
     {
         if (_module is null) return;
 
-        // Activate the silence filter based on the call site parameters
         _isWordTrackingMuted = muteWordTracking;
 
         string pythonStreamUrl = !string.IsNullOrEmpty(Configuration["VoiceEngineUrl"]) ?
@@ -122,9 +117,6 @@
 
         try
         {
-            // --- ADD THIS HOOK LINE ---
-            // If an event subscriber is listening, push a special flag token up
-            // to signal that a sandbox session is initializing.
             if (OnWordSpoken.HasDelegate)
             {
                 await OnWordSpoken.InvokeAsync("[SANDBOX_START]");

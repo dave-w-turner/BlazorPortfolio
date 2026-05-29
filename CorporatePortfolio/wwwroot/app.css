@@ -2523,17 +2523,17 @@ CHAT DIALOG SENDER NAME TEXT LABELS
     html body .mud-dialog-container .mud-dialog.chat-dark:has(#avatar-panel-active),
     body .mud-dialog-container .mud-dialog.chat-dark.mud-dialog-width-sm:has(#avatar-panel-active),
     div.mud-dialog.chat-dark:has(#avatar-panel-active) {
-        width: 800px !important;
-        min-width: 800px !important;
-        max-width: 800px !important;
+        width: 920px !important;
+        min-width: 920px !important;
+        max-width: 920px !important;
     }
 
     #avatar-panel-active .chat-right-avatar-panel,
-    .avatar-panel-active div .chat-right-avatar-panel {
+    .avatar-panel-active .chat-right-avatar-panel {
         display: block !important;
         flex: 0 0 320px !important;
         width: 320px !important;
-        min-width: 320px !important; /* Locks width to 320px, breaking the compression conflict */
+        min-width: 320px !important;
         max-width: 320px !important;
         height: 100% !important;
         box-sizing: border-box !important;
@@ -2560,7 +2560,7 @@ CHAT DIALOG SENDER NAME TEXT LABELS
 
         .chat-main-layout-wrapper > div {
             display: flex !important;
-            flex-direction: row !important; /* Forces columns side-by-side inside the inner div container */
+            flex-direction: row !important;
             width: 100% !important;
             height: 100% !important;
             flex: 1 1 auto !important;
@@ -2600,6 +2600,100 @@ CHAT DIALOG SENDER NAME TEXT LABELS
         margin-left: calc(50% - 50vw) !important;
         padding: 0 !important;
     }
+}
+
+@media (max-width: 1024px) and (orientation: landscape) {
+    body .mud-dialog-container .mud-dialog.chat-dark,
+    div.mud-dialog.chat-dark {
+        position: fixed !important;
+        top: auto !important;
+        left: 50% !important;
+        bottom: 12px !important;
+        transform: translateX(-50%) !important;
+        margin: 0 !important;
+        width: 90% !important;
+        max-width: 680px !important;
+        height: 85vh !important;
+        min-height: auto !important;
+        max-height: 88vh !important;
+        border-radius: 12px !important;
+    }
+
+        body .mud-dialog-container .mud-dialog.chat-dark .mud-dialog-content {
+            height: calc(100% - 48px) !important;
+            max-height: none !important;
+        }
+
+    .chat-main-layout-wrapper {
+        display: flex !important;
+        flex-direction: row !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+        .chat-main-layout-wrapper > div,
+        .chat-main-layout-wrapper > div[style] {
+            display: flex !important;
+            flex-direction: row !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+
+    #avatar-panel-hidden .chat-left-messages-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 auto !important;
+        position: relative !important;
+    }
+
+        #avatar-panel-hidden .chat-left-messages-panel #chat-container {
+            display: block !important;
+            height: 100% !important;
+        }
+
+
+    #avatar-panel-active .chat-left-messages-panel {
+        position: relative !important;
+        bottom: auto !important;
+        left: auto !important;
+        width: 55% !important;
+        min-width: 55% !important;
+        max-width: 55% !important;
+        flex: 0 0 55% !important;
+        height: 100% !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+        #avatar-panel-active .chat-left-messages-panel #chat-container {
+            display: block !important;
+            height: 100% !important;
+        }
+
+    #avatar-panel-active .chat-right-avatar-panel {
+        display: block !important;
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        width: 45% !important;
+        min-width: 45% !important;
+        max-width: 45% !important;
+        flex: 0 0 45% !important;
+        height: 100% !important;
+        min-height: auto !important;
+        max-height: none !important;
+        border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-bottom: none !important;
+    }
+
+        #avatar-panel-active .chat-right-avatar-panel .style-container,
+        #avatar-panel-active .style-container {
+            width: 100% !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            margin: 0 !important;
+        }
 }
 
 .rad-logo {
