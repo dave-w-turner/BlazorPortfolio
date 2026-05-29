@@ -1817,14 +1817,6 @@ hr, .separator-line {
     }
 }
 
-@media (min-width: 1025px) {
-    .hero {
-        width: 100vw !important;
-        margin-left: calc(50% - 50vw) !important;
-        padding: 0 !important;
-    }
-}
-
 @media (max-width: 1024px) {
     .skill-summary-responsive-wrapper {
         width: 100% !important;
@@ -2142,10 +2134,6 @@ CHAT DIALOG SENDER NAME TEXT LABELS
    DESKTOP ONLY VIEW (Screens 1025px wide and up)
    ================================================================== */
 @media (min-width: 1025px) {
-    #skills {
-        margin-top: -2vw !important;
-    }
-
     body .mud-dialog-container .mud-dialog.chat-dark {
         position: fixed !important;
         top: auto !important;
@@ -2157,6 +2145,12 @@ CHAT DIALOG SENDER NAME TEXT LABELS
         max-height: 80vh !important;
         transform: none !important;
         margin: 0 !important;
+    }
+
+    .hero {
+        width: 100vw !important;
+        margin-left: calc(50% - 50vw) !important;
+        padding: 0 !important;
     }
 }
 
