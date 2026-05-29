@@ -1666,7 +1666,7 @@ hr, .separator-line {
         margin: 0 !important;
         transform: translate(-50%, -50%) !important;
         width: calc(100% - 32px) !important;
-        max-width: 600px !important;
+        max-width: 850px !important;
         height: 75% !important;
         border: 1px solid rgba(125, 211, 252, 0.15) !important;
         border-radius: 16px !important;

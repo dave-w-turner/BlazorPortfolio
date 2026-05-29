@@ -13,13 +13,16 @@
 
 <MudDialog Class="chat-dark" Style="@_customStyle" ContentClass="mudDialog">
     <TitleContent>
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div style="display: flex; align-items: center; width: 100%; position: relative;">
+            <!-- Pins the title text cleanly to the left -->
             <MudText Typo="Typo.h6">
                 <MudIcon Icon="@Icons.Material.Filled.SmartToy" Class="mr-3 mb-n1" />
                 David Turner
             </MudText>
 
-            <div @onclick:stopPropagation="true">
+            <!-- FIXED RE-ALIGNMENT TOOLKIT FOR ICON GROUPS -->
+            <!-- Uses absolute positioning to pull the toggle button into the exact same horizontal flex baseline row as the close button -->
+            <div @onclick:stopPropagation="true" style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); display: flex; align-items: center;">
                 @if (HostEnvironment.IsDevelopment())
                 {
                     <MudToggleIconButton @bind-Toggled="ShowAvatarPanel"
@@ -29,7 +32,7 @@
                                          ToggledIcon="@Icons.Material.Filled.Videocam"
                                          ToggledColor="@Color.Primary"
                                          ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
-                                         Class="mr-8" />
+                                         Style="margin: 0 !important; padding: 12px;" />
                 }
                 else
                 {
@@ -43,7 +46,7 @@
                                                      ToggledIcon="@Icons.Material.Filled.Videocam"
                                                      ToggledColor="@Color.Primary"
                                                      ToolTip="@(ShowAvatarPanel ? "Hide AI Face Stream" : "Show AI Face Stream")"
-                                                     Class="mr-8" />
+                                                     Style="margin: 0 !important; padding: 12px;" />
                             </Authorized>
                         </AuthorizeView>
                     </CascadingAuthenticationState>
@@ -51,7 +54,6 @@
             </div>
         </div>
     </TitleContent>
-
     <DialogContent>
         <div style="display: flex; width: 100%; height: 100%; max-height: calc(100vh - 120px); overflow: hidden;">
             <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid rgba(255,255,255,0.05);">
@@ -315,7 +317,15 @@
                 }
                 else
                 {
-                    string[] chunks = new string[] { "How ", "are you ", "today?" };
+                    var dynamicGreeting = await ChatbotService.Generate(await File.ReadAllTextAsync("AIGreetingInstructions.txt"));
+
+                    string[] words = dynamicGreeting.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    string[] chunks = words
+                        .Chunk(2)
+                        .Select(wordGroup => string.Join(" ", wordGroup) + " ")
+                        .ToArray();
+
                     bool firstWord = true;
 
                     foreach (var chunk in chunks)
@@ -328,7 +338,7 @@
                         greetingMsg.Text += chunk;
                         greetingMsg.FormattedText = (await ChatbotService.FormatMessage(greetingMsg.Text)).Text;
                         await UpdateState();
-                        await Task.Delay(new Random().Next(160, 280));
+                        await Task.Delay(new Random().Next(150, 250));
                     }
 
                     greetingMsg.IsComplete = true;
