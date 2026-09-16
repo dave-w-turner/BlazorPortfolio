@@ -79,11 +79,11 @@
                                     <MudAvatar Size="Size.Medium" Elevation="2">
                                         @if (!string.IsNullOrEmpty(msg.AvatarUrl))
                                         {
-                                            <MudImage Src="@msg.AvatarUrl" />
+                                            <MudImage Src="@msg.AvatarUrl" Style="width: 100%; height: 100%; object-fit: cover; overflow: hidden;" />
                                         }
                                         else
                                         {
-                                            <MudIcon Icon="@(msg.IsUser ? Icons.Material.Filled.Person : Icons.Material.Filled.SmartToy)" />
+                                            <MudIcon Src="@(msg.IsUser ? _userAvatarUrl : currentHeadShot)" Style="width: 100%; height: 100%; object-fit: cover; overflow: hidden;" />
                                         }
                                     </MudAvatar>
                                     <div style="max-width: 75%; display: flex; flex-direction: column; align-items: @(msg.IsUser ? "flex-end" : "flex-start");">
@@ -120,7 +120,7 @@
                         {
                             <div style="display: flex; flex-direction: row;" class="bubble-entrance mb-6 gap-3">
                                 <MudAvatar Size="Size.Medium" Elevation="2">
-                                    <MudImage Src="@_avatarUrl" />
+                                    <MudImage Src="@(string.IsNullOrEmpty(currentHeadShot) ? "images/headshots/headshot_primary.png" : $"data:image/jpeg;base64,{currentHeadShot}")" />
                                 </MudAvatar>
                                 <div style="display: flex; flex-direction: column;">
                                     <MudPaper Class="pa-4" Elevation="1" Style="background-color: #32333d; color: white; border-radius: 15px 15px 15px 0; border: 1px solid rgba(255,255,255,0.1);">
@@ -139,11 +139,20 @@
                 @if (HostEnvironment.IsDevelopment())
                 {
                     <div class="chat-right-avatar-panel" style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
-                        <AIAvatar @ref="_avatarComponent"
-                                  OnWordSpoken="HandleStreamingWordReceived"
-                                  OnAudioLive="HandlePhysicalAudioLive"
-                                  OnSpeechFinishedCallback="OnSpeechFinished"
-                                  IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
+                        <div class="style-container" style="width: 100%; height: 100%; overflow: hidden; position: relative;">
+
+                            <!-- 🎥 THE DYNAMIC DISPLAY TARGET CANVAS: Plays your 30fps real-time warped frames -->
+                            <img id="david-avatar-stream"
+                                 src="@(string.IsNullOrEmpty(currentHeadShot) ? "images/headshots/headshot_primary.png" : $"data:image/jpeg;base64,{currentHeadShot}")"
+                                 style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1;" />
+
+                            <!-- Keeps your audio processing core mounted in-memory underneath the visual canvas layout -->
+                            <AIAvatar @ref="_avatarComponent"
+                                      OnWordSpoken="HandleStreamingWordReceived"
+                                      OnAudioLive="HandlePhysicalAudioLive"
+                                      OnSpeechFinishedCallback="OnSpeechFinished"
+                                      IsParentUiLocked="@(_isTyping || _isAudioTypingStarted || _isWaitingForAudioStreamHook || _disableInput)" />
+                        </div>
                     </div>
                 }   
                 else
@@ -193,9 +202,9 @@
     private string _userInput = "";
     private bool _isTyping = false;
     private bool _disableInput = true;
-    private const string _avatarUrl = "images/my-profile-pic.jpg";
+    private string? currentHeadShot;
     private const string _userAvatarUrl = "images/user-profile-pic.png";
-    private AIAvatar _avatarComponent;
+    private AIAvatar? _avatarComponent;
     private bool _showAvatarPanel = false;
     private bool _mobileShowChatLog = false;
     private bool ShowAvatarPanel
@@ -208,6 +217,10 @@
                 _showAvatarPanel = value;
                 if (value == true)
                 {
+                    currentHeadShot = ViewHelper.GetRandomBase64HeadShot();
+
+                    _ = JSRuntime.InvokeVoidAsync("avatarStream.start", currentHeadShot);
+
                     _isWaitingForAudioStreamHook = true;
                     _isAudioTypingStarted = false;
 
@@ -215,6 +228,8 @@
                 }
                 if (value == false)
                 {
+                    _ = JSRuntime.InvokeVoidAsync("avatarStream.stop");
+
                     _mobileShowChatLog = false;
                     System.Diagnostics.Debug.WriteLine("[BLAZOR-SAFETY] Closing avatar panel and resetting audio states.");
 
@@ -251,8 +266,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        currentHeadShot = ViewHelper.GetRandomBase64HeadShot();
+
         await VerifyServerHealth();
         await UpdateState();
+
         _ = StartBackgroundHealthCheckLoop();
     }
 
@@ -301,12 +319,12 @@
                     Text = "",
                     IsUser = false,
                     UserName = "David",
-                    AvatarUrl = _avatarUrl,
+                    AvatarUrl = $"{(currentHeadShot != null ? $"data:image/jpeg;base64,{currentHeadShot}" : _userAvatarUrl)}",
                     IsComplete = false
                 };
                 _messages.Add(greetingMsg);
 
-                string fullGreetingText = "How are you today?";
+                var dynamicGreeting = (await ChatbotService.Generate(await File.ReadAllTextAsync("AIGreetingInstructions.txt"))).Replace('!', '.');
 
                 if (ShowAvatarPanel && _avatarComponent is not null)
                 {
@@ -316,20 +334,25 @@
                     await UpdateState();
 
                     greetingMsg.Text = "";
-                    greetingMsg.FormattedText = (await ChatbotService.FormatMessage("")).Text;
+                    greetingMsg.FormattedText = new MarkupString();
                     await UpdateState();
 
-                    await _avatarComponent.StartStreamingSession();
-                    await _avatarComponent.AppendStreamingToken(fullGreetingText);
+                    // 🚀 FIRST-TIME PIPELINE TIMELINE LOCK 🚀
+                    // If this is the absolute first message of the session, your Python GPU background task
+                    // requires a 30-second handshake to compile its memory tracking layout. We introduce a clean
+                    // C# Task delay right here to guarantee that the greeting tokens do not fire until the lips are warm!
+                    System.Diagnostics.Debug.WriteLine("[AVATAR-SYSTEM] First boot detected. Holding welcome greeting until GPU cache clears...");
+                    await Task.Delay(30000);
+                    System.Diagnostics.Debug.WriteLine("[AVATAR-SYSTEM] Warmup window cleared! Releasing text streams onto the live audio worker.");
 
+                    // Now it is perfectly safe to pass the token data over to F5-TTS
+                    await _avatarComponent.StartStreamingSession();
+                    await _avatarComponent.AppendStreamingToken(dynamicGreeting);
                     await _avatarComponent.FinalizeStreamingSession();
                 }
                 else
                 {
-                    var dynamicGreeting = await ChatbotService.Generate(await File.ReadAllTextAsync("AIGreetingInstructions.txt"));
-
                     string[] words = dynamicGreeting.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
                     string[] chunks = words
                         .Chunk(2)
                         .Select(wordGroup => string.Join(" ", wordGroup) + " ")
@@ -383,7 +406,7 @@
         _disableInput = true;
         await UpdateState();
 
-        var aiMsg = new ChatMessage { Text = " ", IsUser = false, UserName = "David", AvatarUrl = _avatarUrl, IsComplete = false };
+        var aiMsg = new ChatMessage { Text = " ", IsUser = false, UserName = "David", AvatarUrl = $"{(currentHeadShot != null ? $"data:image/jpeg;base64,{currentHeadShot}" : _userAvatarUrl)}", IsComplete = false };
         _messages.Add(aiMsg);
         await UpdateState();
 
@@ -637,7 +660,7 @@
                 Text = "",
                 IsUser = false,
                 UserName = "David",
-                AvatarUrl = _avatarUrl,
+                AvatarUrl = $"{(currentHeadShot != null ? $"data:image/jpeg;base64,{currentHeadShot}" : _userAvatarUrl)}",
                 IsComplete = false
             });
 

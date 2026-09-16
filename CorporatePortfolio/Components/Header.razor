@@ -93,29 +93,13 @@
 </div>
 
 @code {
-    private List<ImageMagick.MagickImage> headShots = [];
     private string? currentHeadShot;
     private bool showLogin = false;
     public bool showAdminTools = false;
 
     protected override async Task OnInitializedAsync()
     {
-        var headshot_primary = new ImageMagick.MagickImage("wwwroot/images/headshots/headshot_primary.png");
-        headShots.Add(headshot_primary);
-
-        foreach (var file in Directory.GetFiles("wwwroot/images/headshots/").Where(f => f.Contains("headshot_alt_")))
-        {
-            var headshot = new ImageMagick.MagickImage(file);
-            headShots.Add(headshot);
-        }
-
-        headShots.AddRange(await ImageSplitter.SplitGridImage("wwwroot/images/headshots/headshot_grid_1.png", 3, 4));
-        headShots.AddRange(await ImageSplitter.SplitGridImage("wwwroot/images/headshots/headshot_grid_2.png", 4, 3));
-
-        byte[] imageBytes = headShots[Random.Shared.Next(headShots.Count)].ToByteArray(ImageMagick.MagickFormat.Png);
-
-        string base64String = Convert.ToBase64String(imageBytes);
-        currentHeadShot = $"data:image/png;base64,{base64String}";
+        currentHeadShot = $"data:image/jpeg;base64,{ViewHelper.GetRandomBase64HeadShot()}";
         State.ExperiencesOnChange += HandleLayoutStateUpdate;
     }
 

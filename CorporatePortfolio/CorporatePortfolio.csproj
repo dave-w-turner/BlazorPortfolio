@@ -27,25 +27,25 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
-    <PackageReference Include="NuGet.Packaging" Version="7.6.0" />
-    <PackageReference Include="NuGet.Protocol" Version="7.6.0" />
+    <PackageReference Include="NuGet.Packaging" Version="7.9.0" />
+    <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
     <ProjectReference Include="..\CorporatePortfolio.Client\CorporatePortfolio.Client.csproj" />
     <ProjectReference Include="..\CorporatePortfolio.Services\CorporatePortfolio.Services.csproj" />
-    <PackageReference Include="Blazor.Bootstrap" Version="3.5.0" />
-    <PackageReference Include="DocX" Version="5.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Facebook" Version="10.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.8" />
-    <PackageReference Include="Microsoft.Identity.Web" Version="4.9.0" />
-    <PackageReference Include="Microsoft.Identity.Web.UI" Version="4.9.0" />
-    <PackageReference Include="MudBlazor" Version="9.4.0" />
+    <PackageReference Include="Blazor.Bootstrap" Version="4.0.0" />
+    <PackageReference Include="DocX" Version="5.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Facebook" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="4.14.2" />
+    <PackageReference Include="Microsoft.Identity.Web.UI" Version="4.14.2" />
+    <PackageReference Include="MudBlazor" Version="9.10.0" />
   </ItemGroup>
 
   <ItemGroup>

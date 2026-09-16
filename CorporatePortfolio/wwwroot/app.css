@@ -3088,3 +3088,12 @@ body:has(.chat-no-overlay) {
     position: fixed !important;
     width: 100% !important;
 }
+
+.mud-avatar img,
+.mud-avatar-img,
+img.mud-avatar-img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center 15% !important;
+}
