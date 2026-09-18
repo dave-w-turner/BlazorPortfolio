@@ -32,7 +32,6 @@
             const header = document.querySelector('.mud-dialog-title');
             if (!dialog || !header) return;
 
-            // 1. BOUNDARY RESET ON RESIZE
             function handleResize() {
                 if (!dialog) return;
 
@@ -74,12 +73,10 @@
                 dialog.style.removeProperty('position');
             }
 
-            // Attach listener for browser window resizing
             window.removeEventListener('resize', handleResize);
             window.addEventListener('resize', handleResize);
-            handleResize(); // Invoke immediately on load
+            handleResize();
 
-            // 2. DESKTOP DRAGGING MECHANICS
             header.onmousedown = (e) => {
                 if (window.innerWidth <= 600) return;
 
@@ -230,11 +227,6 @@
             const rainDrops = [];
 
             const draw = () => {
-                // ==========================================================================
-                // ✨ THE 1:1 RESOLUTION LOCK (THE ULTIMATE FIX)
-                // Dynamically matches canvas coordinates to your CSS tracking size every frame
-                // This removes layout gaps and prevents characters from looking blurry or faint
-                // ==========================================================================
                 if (targetElement) {
                     const currentWidth = targetElement.offsetWidth || 750;
                     const currentHeight = targetElement.offsetHeight || 140;
@@ -243,7 +235,6 @@
                         canvas.width = currentWidth;
                         canvas.height = currentHeight;
                 
-                        // Recalculate columns based on the true expanded screen width
                         columns = Math.floor(canvas.width / fontSize);
                         for (let x = 0; x < columns; x++) {
                             if (rainDrops[x] === undefined) {
@@ -253,14 +244,9 @@
                     }
                 }
 
-                // Base fade background layer configuration
                 context.fillStyle = 'rgba(15, 23, 42, 0.05)';
                 context.fillRect(0, 0, canvas.width, canvas.height);
 
-                // ==========================================================================
-                // 🚀 BRIGHTNESS OPTIMIZATION
-                // Increased alpha up to 0.45 to ensure code drops stand out clearly
-                // ==========================================================================
                 context.fillStyle = 'rgba(125, 211, 252, 0.45)'; 
                 context.font = 'bold ' + fontSize + 'px monospace'; // Bold font helps visibility
 
@@ -283,6 +269,110 @@
             // Run the animation loop
             setInterval(draw, 33);
         };
+
+window.avatarStream = {
+    socket: null,
+    currentUrl: null,
+    isReady: false, 
+
+    start: async function (base64ImageString) {
+        this.isReady = false;
+        console.log("[AVATAR-UI] Initializing avatar streaming pipeline...");
+
+        let imgElement = document.getElementById('david-avatar-stream');
+        let retries = 0;
+        
+        while (!imgElement && retries < 20) {
+            await new Promise(resolve => setTimeout(resolve, 100)); 
+            imgElement = document.getElementById('david-avatar-stream');
+            retries++;
+        }
+
+        if (!imgElement) {
+            console.error("[AVATAR-UI-ERR] Critical Error: Target image element '#david-avatar-stream' failed to render in DOM.");
+            return;
+        }
+
+        let cleanBase64 = String(base64ImageString).trim();
+        if (cleanBase64.includes(",")) {
+            cleanBase64 = cleanBase64.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+        }
+
+        console.log("[AVATAR-UI] Syncing source portrait asset context over HTTP...");
+        
+        try {
+            const targetUrl = new URL("/set-avatar-context", "http://127.0.0.1:8080");
+            
+            const binaryString = atob(cleanBase64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const fileBlob = new Blob([bytes], { type: 'image/jpeg' });
+
+            const formData = new FormData();
+            formData.append("file", fileBlob, "portrait.jpg");
+            
+            const response = await fetch(targetUrl.href, {
+                method: "POST",
+                body: formData
+            });
+            
+            const result = await response.json();
+            console.log("[AVATAR-UI] Server context update response:", result);
+        } catch (httpErr) {
+            console.error("[AVATAR-UI] Failed to sync avatar context over HTTP:", httpErr);
+        }
+
+        console.log("[AVATAR-UI] Spinning up active stream socket engine...");
+        this.socket = new WebSocket(`ws://127.0.0.1:8080/stream-avatar`);
+        //this.socket.binaryType = 'arraybuffer';
+
+        this.socket.onopen = () => {
+            window.activeAvatarSocketPipe = this.socket;
+            
+            // Backend is pre-warmed at startup; unlock stream immediately!
+            window.avatarStream.isReady = true;
+            console.log("[AVATAR-UI] Pipeline fully linked. Ready to stream voice instantly.");
+        };
+
+        this.socket.onmessage = (event) => {
+            if (this.currentUrl) { URL.revokeObjectURL(this.currentUrl); }
+            const blob = new Blob([event.data], { type: 'image/jpeg' });
+            this.currentUrl = URL.createObjectURL(blob);
+            imgElement.src = this.currentUrl;
+        };
+
+        this.socket.onclose = () => {
+            console.log("[AVATAR-UI] Stream closed.");
+            window.activeAvatarSocketPipe = null;
+            this.isReady = false;
+        };
+
+        this.socket.onerror = (err) => {
+            console.error("[AVATAR-UI] Stream error:", err);
+            this.isReady = false;
+        };
+    },
+
+    stop: function () {
+        this.isReady = false;
+        if (this.socket) { 
+            this.socket.close(); 
+        }
+        if (this.currentUrl) { 
+            URL.revokeObjectURL(this.currentUrl); 
+        }
+        window.activeAvatarSocketPipe = null;
+        console.log("[AVATAR-UI] Stream manager stopped and memory cleared.");
+    }
+};
+
+// Ensure the stream manager context sits globally on the top-level window context scope
+window.avatarStream = window.avatarStream;
+
+
     </script>
 </body>
 </html>

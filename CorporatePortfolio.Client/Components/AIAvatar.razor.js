@@ -104,27 +104,61 @@ async function processBackgroundFetchLoop() {
         checkSystemIdleState();
         return;
     }
+
     let textToGenerate = pendingSentencesToFetchQueue.shift();
+
     try {
         const response = await fetch(jsActiveTargetUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jsBearerToken}` },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${jsBearerToken}`
+            },
             body: JSON.stringify({ text: textToGenerate })
         });
+
         if (!response.ok) throw new Error("FastAPI generation request rejected.");
+
         const reader = response.body.getReader();
         let phraseBuffers = [];
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+
+            // 🚀 THE UNBLOCKED ACCELERATION STREAM BRIDGE ENGINE
+            // Safely clone and extract the exact streaming voice bits into an isolated buffer allocation layout
+            if (window.activeAvatarSocketPipe && window.activeAvatarSocketPipe.readyState === 1) {
+                try {
+                    // 1. Create a pristine local memory allocation matching the incoming packet size exactly
+                    const unblockedSamplesCopy = new Int16Array(value.byteLength / 2);
+
+                    // 2. Read directly from the standard network layout view wrapper to prevent layout boundary exceptions
+                    const incomingInt16View = new Int16Array(value.buffer, value.byteOffset, value.byteLength / 2);
+
+                    // 3. Clone the active audio data arrays safely into your private storage container
+                    unblockedSamplesCopy.set(incomingInt16View);
+
+                    // 4. Force release the clean standalone array buffer down the active socket wire
+                    window.activeAvatarSocketPipe.send(unblockedSamplesCopy.buffer);
+                } catch (socketErr) {
+                    console.warn("[AVATAR-BRIDGE-ERR] Standalone array buffer synchronization failed: ", socketErr);
+                }
+            }
+
+            // LINE 111 (Kept intact right below our extraction tracker):
             const int16Array = new Int16Array(value.buffer, value.byteOffset, value.byteLength / 2);
             if (int16Array.length === 0) continue;
+
             const float32Array = new Float32Array(int16Array.length);
             for (let i = 0; i < int16Array.length; i++) {
                 float32Array[i] = int16Array[i] / 32768.0;
             }
             phraseBuffers.push(float32Array);
         }
+
+        // 🚀 TRACK 2: THE SPEAKER HARDWARE SOUND CARD ENGINE (KEEP INTENTIONAL)
+        // Stitches the stored phrases back together to feed your laptop speakers natively
         if (phraseBuffers.length > 0) {
             let totalLength = phraseBuffers.reduce((acc, b) => acc + b.length, 0);
             let mergedFloats = new Float32Array(totalLength);
@@ -133,22 +167,25 @@ async function processBackgroundFetchLoop() {
                 mergedFloats.set(buffer, offset);
                 offset += buffer.length;
             }
+
             downloadedAudioPayloadBufferQueue.push({ audioData: mergedFloats, text: textToGenerate });
+
             if (!isJsPlaybackWorkerRunning) {
                 isJsPlaybackWorkerRunning = true;
                 processHardwarePlaybackLoop();
             }
         }
+
     } catch (err) {
         console.error("[GPU-FETCHER-FAULT]: Recovery triggered.", err);
         isJsFetchWorkerRunning = false;
         checkSystemIdleState();
     }
+
     if (isJsFetchWorkerRunning) {
         setTimeout(processBackgroundFetchLoop, 0);
     }
 }
-
 function processHardwarePlaybackLoop() {
     if (!globalAudioCtx || downloadedAudioPayloadBufferQueue.length === 0) {
         isJsPlaybackWorkerRunning = false;
@@ -160,8 +197,31 @@ function processHardwarePlaybackLoop() {
         let mergedFloats = payload.audioData;
         let sentenceText = payload.text;
 
+        // Map your check block to match our new readiness flag explicitly!
+        if (window.activeAvatarSocketPipe && window.activeAvatarSocketPipe.readyState === 1 && window.avatarStream && window.avatarStream.isReady) {
+            try {
+                const sampleCount = mergedFloats.length;
+                const byteBuffer = new ArrayBuffer(sampleCount * 2);
+                const dataView = new DataView(byteBuffer);
+
+                for (let i = 0; i < sampleCount; i++) {
+                    let sample = Math.max(-1, Math.min(1, mergedFloats[i]));
+                    let int16Sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                    dataView.setInt16(i * 2, int16Sample, true);
+                }
+
+                window.activeAvatarSocketPipe.send(byteBuffer);
+                console.log(`[AVATAR-BRIDGE] Sent ${sampleCount} samples to Python server.`);
+            } catch (socketErr) {
+                console.warn("[AVATAR-JS] Mirroring payload chunk failed: ", socketErr);
+            }
+        } else {
+            console.log("[AVATAR-BRIDGE-GUARD] Audio playback suppressed or bridge state busy/initializing...");
+        }
+
         if (dotNetReference && window.isWaitingForAudioHandshake) {
             window.isWaitingForAudioHandshake = false;
+
             let physicalStartDelayMs = Math.max(0, (nextPlayTime - globalAudioCtx.currentTime) * 1000);
             setTimeout(() => {
                 if (dotNetReference) dotNetReference.invokeMethodAsync('OnAudioStarted');
