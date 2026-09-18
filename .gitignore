@@ -364,3 +364,5 @@ FodyWeavers.xsd
 
 .env
 normalized_reference.wav
+/CorporatePortfolio/PortraitServices/LivePortrait/**
+/CorporatePortfolio/PortraitServices/FasterLivePortrait
