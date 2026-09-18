@@ -250,14 +250,34 @@ namespace CorporatePortfolio.Services
                     while ((!currentParagraph?.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
                                 x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bmId))) ?? false)
                     {
-                        competenciesSb.AppendLine(currentParagraph?.Text.Trim());
+                        if (!string.IsNullOrEmpty(currentParagraph?.Text))
+                        {
+                            competenciesSb.AppendLine(currentParagraph?.Text.Trim());
+                        }
+
                         currentParagraph = currentParagraph?.NextParagraph;
                     }
                 }
 
                 var skillList = await GetTagsFromProject(competenciesSb.ToString());
+                var randomSkillSet = new List<string>();
 
-                foreach (var skill in skillList)
+                Random randomGenerator = new();
+
+                for (int i = 0; i < 6; i++)
+                {
+                    int randomSkillIndex = randomGenerator.Next(0, skillList.Count - 1);
+                    var skill = skillList[randomSkillIndex];
+
+                    if (!randomSkillSet.Contains(skill))
+                        randomSkillSet.Add(skill);
+                    else
+                    {
+                        i--;
+                    }
+                }
+
+                foreach (var skill in randomSkillSet)
                 {
                     competencies.Add(new CompetencyData
                     {
@@ -267,9 +287,7 @@ namespace CorporatePortfolio.Services
                 }
 
                 List<CompetencyData> selectedSkills = [.. competencies
-                    .Where(c => !string.IsNullOrEmpty(c.Icon))
-                    .OrderBy(c => c.Name)
-                    .Take(6)];
+                    .OrderBy(c => c.Name)];
 
                 string resumeText = await GetResumeText();
 
@@ -475,13 +493,76 @@ namespace CorporatePortfolio.Services
 
         private static async Task<string> GetIconForCompetency(string competency)
         {
-            return competency.ToLower() switch
+            return competency.ToLower().Trim() switch
             {
-                var s when s.Contains("sql") || s.Contains("database") => "table",
-                var s when s.Contains("c#") => "code",
-                var s when s.Contains("azure") || s.Contains("devops") => "cloud",
-                var s when s.Contains("automation") => "cpu",
-                var s when s.Contains("responsive ui") => "window-dock",
+                var s when s.Contains("sql") || s.Contains("database") || s.Contains("entity framework") => "database",
+
+                var s when s.Contains("c#") => "code-square",
+                var s when s.Contains("typescript") => "filetype-tsx",
+                var s when s.Contains("javascript") => "filetype-js",
+
+                var s when s.Contains("angular 2.0") => "triangle-fill",
+                var s when s.Contains("angularjs") => "hash",
+                var s when s.Contains("angular") => "triangle",
+                var s when s.Contains("blazor") => "lightning-charge",
+                var s when s.Contains("razor") => "layers",
+                var s when s.Contains("mvc") => "diagram-3",
+                var s when s.Contains("css") => "filetype-css",
+                var s when s.Contains("jquery") => "file-earmark-code",
+                var s when s.Contains("kendo ui") => "grid-3x3-gap",
+
+                var s when s.Contains("asp.net core") => "cpu",
+                var s when s.Contains("asp.net") => "server",
+                var s when s.Contains(".net core") => "box-seam",
+                var s when s.Contains(".net") => "braces-asterisk",
+
+                var s when s.Contains("azure") => "cloud-arrow-up",
+                var s when s.Contains("app services") => "cloud-haze2",
+                var s when s.Contains("app service") => "cloud-fog2",
+
+                var s when s.Contains("active directory") => "shield-check",
+                var s when s.Contains("adfs") => "key",
+                var s when s.Contains("ad") => "person-badge",
+                var s when s.Contains("cryptography") => "shield-lock",
+
+                var s when s.Contains("devops") => "infinity",
+                var s when s.Contains("ci/cd") => "arrow-repeat",
+                var s when s.Contains("yaml pipelines") => "terminal-split",
+                var s when s.Contains("yaml") => "filetype-yml",
+                var s when s.Contains("sccm") => "pc-display-horizontal",
+
+                var s when s.Contains("android") => "android2",
+                var s when s.Contains("windows") => "windows",
+                var s when s.Contains("ubuntu") => "ubuntu",
+                var s when s.Contains("fedora") => "app-indicator",
+                var s when s.Contains("redhat") => "hat",
+                var s when s.Contains("kali") => "incognito",
+                var s when s.Contains("linux") => "terminal",
+
+                var s when s.Contains("visual studio") => "code-slash",
+                var s when s.Contains("nuget") => "box",
+                var s when s.Contains("github") => "github",
+                var s when s.Contains("git") => "git",
+
+                var s when s.Contains("automation") => "robot",
+                var s when s.Contains("selenium") => "eye",
+                var s when s.Contains("ms test") => "check2-circle",
+                var s when s.Contains("nunit") => "check2-all",
+                var s when s.Contains("xunit") => "check2",
+                var s when s.Contains("tdd") => "patch-check",
+                var s when s.Contains("code reviews") => "chat-left-text",
+
+                var s when s.Contains("signalr") => "broadcast-pin",
+                var s when s.Contains("design patterns") => "bezier2",
+                var s when s.Contains("agile") => "speedometer2",
+                var s when s.Contains("scrum") => "people",
+                var s when s.Contains("sdlc") => "kanban",
+                var s when s.Contains("practices") => "journal-code",
+                var s when s.Contains("responsive ui") => "laptop-profile",
+                var s when s.Contains("smartsimple") => "briefcase",
+                var s when s.Contains("crm dynamics") => "activity",
+                var s when s.Contains("crm") => "graph-up-arrow",
+
                 _ => string.Empty
             };
         }
