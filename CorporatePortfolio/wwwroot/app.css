@@ -625,6 +625,13 @@ h1:focus {
     font-size: 0.95rem;
 }
 
+    #projects .project-body li div > div {
+        padding-left: 30px !important;
+        color: #cbd5e1 !important;
+        font-size: 0.95rem !important;
+        margin-top: -6px !important;
+    }
+
     #projects .project-body li::before {
         content: ">";
         position: absolute;
@@ -2977,7 +2984,10 @@ CHAT DIALOG SENDER NAME TEXT LABELS
     }
 
 .animated-fade-in-up {
-    animation: bubbleFadeInUp 0.25s ease-out forwards;
+    animation: bubbleFadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.08s !important;
+    backface-visibility: hidden;
+    transform: translateZ(0);
 }
 
 .fade-in-fast {

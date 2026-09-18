@@ -21,16 +21,44 @@ namespace CorporatePortfolio.Services.DTO
 
         private string _clickedSkillName = string.Empty;
 
+        private CancellationTokenSource? _mouseDebounceCancellationToken;
+        public CancellationTokenSource? MouseDebounceCancellationToken
+        {
+            get
+            {
+                return _mouseDebounceCancellationToken;
+            }
+            set
+            {
+                _mouseDebounceCancellationToken = value;
+            }
+        }
+
         public async Task InitializeAsync()
         {
             Loading = true;            
         }
 
-        public void SetHoveredSkillSummary(string skillName)
+        public async Task SetHoveredSkillSummary(string skillName)
         {
-            var skill = Competencies.FirstOrDefault(c => c.Name == skillName);
-            CurrentSkillSummaryText = skill?.Summary ?? string.Empty;
-            NotifyStateChanged();
+            await Task.Delay(200);
+            _mouseDebounceCancellationToken?.Cancel();
+            _mouseDebounceCancellationToken = new CancellationTokenSource();
+            var activeToken = _mouseDebounceCancellationToken.Token;
+
+            try
+            {
+                if (!activeToken.IsCancellationRequested)
+                {
+                    var skill = Competencies.FirstOrDefault(c => c.Name == skillName);
+                    CurrentSkillSummaryText = skill?.Summary ?? string.Empty;
+
+                    NotifyStateChanged();
+                }
+            }
+            catch (TaskCanceledException)
+            {
+            }
         }
 
         public void ClearHoveredSkillSummary()

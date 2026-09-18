@@ -10,10 +10,9 @@
     <div class="grid" @onmouseleave="HandleGlobalMouseOut">
         @foreach (var competency in State.Competencies)
         {
-            <!-- Keep classes intact but the hover interaction boundary is handled via CSS uniformly -->
             <div class="customcard @(competency.Name == State.ClickedSkillName ? "selected-active" : "")"
-                 @onclick="(() => OnSkillClick(competency.Name))"
-                 @onmouseover="() => State.SetHoveredSkillSummary(competency.Name)">
+                 @onclick="(() => OnSkillClick(competency.Name))" @onmouseover="() => State.SetHoveredSkillSummary(competency.Name)">
+
                 <span class="card-content">
                     <i class="bi bi-@competency.Icon"></i> @competency.Name
                 </span>
@@ -23,10 +22,24 @@
 </div>
 
 @code {
-    // Fired ONLY when the mouse completely leaves the entire row area of buttons
-    private void HandleGlobalMouseOut()
+    private async Task HandleGlobalMouseOut()
     {
-        State.ClearHoveredSkillSummary();
+        State.MouseDebounceCancellationToken?.Cancel();
+        State.MouseDebounceCancellationToken = new System.Threading.CancellationTokenSource();
+        var activeToken = State.MouseDebounceCancellationToken.Token;
+
+        try
+        {
+            await Task.Delay(200, activeToken);
+
+            if (!activeToken.IsCancellationRequested)
+            {
+                State.ClearHoveredSkillSummary();
+            }
+        }
+        catch (TaskCanceledException)
+        {
+        }
     }
 
     private async Task OnSkillClick(string skillName)
