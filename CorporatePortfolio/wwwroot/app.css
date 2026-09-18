@@ -1499,7 +1499,6 @@ hr, .separator-line {
 
         body .mud-dialog-container .mud-dialog.chat-dark #chat-container {
             flex-grow: 1 !important;
-            overflow-y: auto !important;
             height: auto !important;
         }
 
@@ -2010,7 +2009,6 @@ MOBILE VIEWS INTEGRATED ENGINE (Screens 600px and under)
             display: block !important;
             height: 100% !important;
             max-height: none !important;
-            overflow-y: auto !important;
             padding: 16px !important;
         }
 
@@ -2155,7 +2153,6 @@ MOBILE VIEWS INTEGRATED ENGINE (Screens 600px and under)
 
     #chat-container {
         flex-grow: 1 !important;
-        overflow-y: auto !important;
         height: 100% !important;
     }
 }
@@ -2317,7 +2314,6 @@ CHAT DIALOG SENDER NAME TEXT LABELS
         flex-grow: 1 !important;
         flex-shrink: 1 !important;
         width: 100% !important;
-        overflow-y: auto !important;
     }
 
     .chat-left-messages-panel .chatbox {
@@ -2570,7 +2566,6 @@ CHAT DIALOG SENDER NAME TEXT LABELS
         flex: 1 1 auto !important;
         display: flex !important;
         flex-direction: column !important;
-        overflow: hidden !important;
         height: 100% !important;
     }
 
@@ -2581,7 +2576,6 @@ CHAT DIALOG SENDER NAME TEXT LABELS
         width: 100% !important;
         height: auto !important;
         max-height: none !important;
-        overflow-y: auto !important;
     }
 
     .chat-left-messages-panel .chatbox {

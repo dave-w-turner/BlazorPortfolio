@@ -276,13 +276,18 @@ namespace CorporatePortfolio.Services
                 // 4. Generate summaries for the selected skills (runs once per file lifecycle)
                 foreach (var skill in selectedSkills)
                 {
+#if DEBUG
+                    skill.Summary = $"Summary {selectedSkills.IndexOf(skill) + 1}";
+#else
                     skill.Summary = await _chatbotService.Generate(
-                        $@"Please summarize this skill: '{skill.Name}'. DO NOT MENTION SUMMARY IN YOUR ANSWER. DO NOT MENTION THE EMPLOYERS. 
-                JUST SUMMARIZE THE SKILL AND INCLUDE THE SKILL NAME ONLY ONCE WITHIN THE SUMMARY ITSELF.
-                Provide a concise summary of 2 sentences that highlights the key aspects and importance of this skill in the context of
-                the resume data provided. Avoid generic descriptions and focus on what makes this skill valuable to potential employers.
-                Only 1 paragraph MAX! Instead of mentioning developers, speak in the first person context.",
-                        resumeText);
+                                            $@"Please summarize this skill: '{skill.Name}'. DO NOT MENTION SUMMARY IN YOUR ANSWER. DO NOT MENTION THE EMPLOYERS. 
+                                                JUST SUMMARIZE THE SKILL AND INCLUDE THE SKILL NAME ONLY ONCE WITHIN THE SUMMARY ITSELF.
+                                                Provide a concise summary of 2 sentences that highlights the key aspects and importance of this skill in the context of
+                                                the resume data provided. Avoid generic descriptions and focus on what makes this skill valuable to potential employers.
+                                                Only 1 paragraph MAX! Instead of mentioning developers, speak in the first person context.",
+                                            resumeText);
+#endif
+
                 }
 
                 return selectedSkills;

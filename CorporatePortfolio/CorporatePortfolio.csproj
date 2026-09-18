@@ -24,6 +24,10 @@
   <ItemGroup>
     <None Remove="AIInstructions - Copy.txt.old" />
     <None Remove="DavidTurner_Resume.docx" />
+    <None Remove="PortraitServices\LivePortrait\pretrained_weights\liveportrait_animals\base_models\appearance_feature_extractor.pth" />
+    <None Remove="PortraitServices\LivePortrait\pretrained_weights\liveportrait_animals\base_models\motion_extractor.pth" />
+    <None Remove="PortraitServices\LivePortrait\pretrained_weights\liveportrait_animals\base_models\spade_generator.pth" />
+    <None Remove="PortraitServices\LivePortrait\pretrained_weights\liveportrait_animals\base_models\warping_module.pth" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,6 +56,10 @@
     <Content Update="wwwroot\DavidTurner_Resume.docx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="PortraitServices\LivePortrait\pretrained_weights\liveportrait_animals\base_models\" />
   </ItemGroup>
 
 </Project>

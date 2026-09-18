@@ -62,7 +62,7 @@
              id="@(_showAvatarPanel ? "avatar-panel-active" : "avatar-panel-hidden")">
             <div style="width: 100%;">
                 <div class="chat-left-messages-panel">
-                    <div id="chat-container" style="flex-grow: 1; overflow-y: auto;" class="pa-4">
+                    <div id="chat-container" style="flex-grow:1 !important; overflow-y: auto !important;" class="pa-4">
                         @foreach (var msg in _messages)
                         {
                             @if (msg.IsConnecting)
