@@ -4,6 +4,6 @@
     {
         public string Name { get; set; }
         public string Icon { get; set; }
-        public string Summary { get; set; } = string.Empty;
+        public FormattedText Summary { get; set; }
     }
 }

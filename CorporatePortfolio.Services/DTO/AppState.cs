@@ -5,8 +5,9 @@ namespace CorporatePortfolio.Services.DTO
     public class AppState(ResumeService resumeService)
     {
         public string ClickedSkillName => _clickedSkillName;
-        public string CurrentSkillSummaryText { get; private set; } = string.Empty;
+        public FormattedText CurrentSkillSummaryText { get; private set; } = new FormattedText("");
         public List<ExperienceData> Experiences { get; set; } = [];
+        public List<ProjectData> Projects { get; set; } = [];
         public List<CompetencyData> Competencies { get; set; } = [];
 
         public bool AreSkillsLoaded { get; set; } = false;
@@ -51,7 +52,7 @@ namespace CorporatePortfolio.Services.DTO
                 if (!activeToken.IsCancellationRequested)
                 {
                     var skill = Competencies.FirstOrDefault(c => c.Name == skillName);
-                    CurrentSkillSummaryText = skill?.Summary ?? string.Empty;
+                    CurrentSkillSummaryText = skill?.Summary ?? new FormattedText("");
 
                     NotifyStateChanged();
                 }
@@ -67,12 +68,12 @@ namespace CorporatePortfolio.Services.DTO
             {
                 // If a skill was previously clicked, revert back to its summary text when the mouse leaves
                 var clickedSkill = Competencies.FirstOrDefault(c => c.Name == _clickedSkillName);
-                CurrentSkillSummaryText = clickedSkill?.Summary ?? string.Empty;
+                CurrentSkillSummaryText = clickedSkill?.Summary ?? new FormattedText("");
             }
             else
             {
                 // If nothing was clicked, clear the text completely
-                CurrentSkillSummaryText = string.Empty;
+                CurrentSkillSummaryText = new FormattedText("");
             }
 
             NotifyStateChanged();
@@ -82,16 +83,14 @@ namespace CorporatePortfolio.Services.DTO
         {
             if (_clickedSkillName == skillName)
             {
-                // Toggle off: Clicking the already active card unlocks it
                 _clickedSkillName = string.Empty;
-                CurrentSkillSummaryText = string.Empty;
+                CurrentSkillSummaryText = new FormattedText("");
             }
             else
             {
-                // Lock down the summary for this new skill
                 _clickedSkillName = skillName;
                 var skill = Competencies.FirstOrDefault(c => c.Name == skillName);
-                CurrentSkillSummaryText = skill?.Summary ?? string.Empty;
+                CurrentSkillSummaryText = skill?.Summary ?? new FormattedText("");
             }
 
             NotifyStateChanged();

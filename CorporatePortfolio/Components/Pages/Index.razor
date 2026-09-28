@@ -8,12 +8,14 @@
 
 @if (State.AreSkillsLoaded)
 {
-    <Header />
-    <Skills />
-    <Experience />
-    <Projects />
-    <LetsConnect />
-    <Footer />
+    <div class="main-app-layout">
+        <Header />
+        <Skills />
+        <Experience />
+        <Projects />
+        <LetsConnect />
+        <Footer />
+    </div>
 }
 
 @code {
@@ -21,18 +23,6 @@
     {
         State.SkillsLoaded += HandleStateChanged;
         State.ExperiencesOnChange += HandleStateChanged;
-
-        if (!State.AreSkillsLoaded)
-        {
-            try
-            {
-                State.Competencies = await ResumeService.GetCompetencies();
-            }
-            finally
-            {
-                State.UpdateSkillsLoadingState(true);
-            }
-        }
 
         if (!State.AreExperiencesLoaded)
         {
@@ -47,6 +37,18 @@
             finally
             {
                 State.UpdateExperiencesLoadingState(true);
+            }
+        }
+
+        if (!State.AreSkillsLoaded)
+        {
+            try
+            {
+                State.Competencies = await ResumeService.GetCompetencies(State.Experiences, await resumeService.GetProjects());
+            }
+            finally
+            {
+                State.UpdateSkillsLoadingState(true);
             }
         }
     }

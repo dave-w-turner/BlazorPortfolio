@@ -1,5 +1,6 @@
 ﻿@using CorporatePortfolio.Services
 @using CorporatePortfolio.Services.DTO
+@inject AppState State
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject IJSRuntime JS
 
@@ -12,14 +13,14 @@
     else
     {
         <div class="project-list">
-            @foreach (var project in projects)
+            @foreach (var project in State.Projects)
             {
-                <div class="fade-up" style="transition-delay: 0.2s; width: 100%;">
-                    <div class="customcard project-wide">
+                var idx = State.Projects.IndexOf(project);
+                <div id="@($"proj-{idx}")" class="fade-up" style="transition-delay: 0.2s; width: 100%;">
+                    <div class="customcard project-wide @(project.HasKeyword ? "glowing-container" : "")">
                         <div class="project-header">
                             <h3>@project.Title</h3>
                     
-                            <!-- Updated: Stacked Date and Button -->
                             <div class="project-meta-stack">
                                 <span class="date">@project.Date</span>
                                 @if (!string.IsNullOrEmpty(project.SourceUrl))
@@ -54,14 +55,13 @@
 </div>
 
 @code {
-    private List<ProjectData> projects = new();
     private bool _isLoaded = false;
 
     protected override async Task OnInitializedAsync()
     {
-        projects = await resumeService.GetProjects();
+        State.Projects = await resumeService.GetProjects();
         
-        foreach (var project in projects)
+        foreach (var project in State.Projects)
         {
             for (int i = 0; i < project.Details.Count; i++)
             {
@@ -69,13 +69,13 @@
             }
         }
         
-        _isLoaded = true; // Set to true after all data is ready
+        _isLoaded = true;
         StateHasChanged();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_isLoaded) // Wait until data is actually there
+        if (_isLoaded)
         {
             await JS.InvokeVoidAsync("initScrollAnimations");
         }
