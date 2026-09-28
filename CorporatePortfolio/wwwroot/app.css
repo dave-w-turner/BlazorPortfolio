@@ -146,6 +146,7 @@ h1:focus {
     align-items: center !important;
     justify-content: center !important;
     height: 100% !important;
+    width: 105% !important;
     min-height: 60px !important;
     padding: 0 15px !important;
     text-align: center !important;
@@ -854,24 +855,39 @@ h1:focus {
             padding: 60px 0px !important
         }
 
-body, html, #app {
+html, body {
     margin: 0 !important;
     padding: 0 !important;
-    overflow-x: hidden !important;
+    min-height: 100dvh !important;
+    width: 100% !important;
     background: linear-gradient(135deg, #0f172a 0%, #020617 100%) !important;
-    background-attachment: fixed !important; /* Locks the gradient in place during scrolling */
+    background-attachment: fixed !important;
     background-repeat: no-repeat !important;
     background-size: cover !important;
+    background-color: #020617 !important;
+    overscroll-behavior-y: none !important;
 }
 
 body {
-    overflow-y: hidden;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
 }
 
 #app {
-    min-height: 100vh !important;
-    height: 100% !important;
-    overflow-x: hidden;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: 100dvh !important;
+    background: transparent !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-app-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    width: 100%;
 }
 
 h1, h2 {
@@ -1833,12 +1849,11 @@ hr, .separator-line {
         margin-left: 0 !important;
         margin-right: 0 !important;
         box-sizing: border-box !important;
-        margin-top: 30px !important;
+        margin-top: 0px !important;
     }
 
     #skills {
-        /* Gives Core Expertise room above the grid buttons */
-        padding-top: 20px !important;
+        padding-top: 0px !important;
     }
 
         #skills .grid {
@@ -1848,8 +1863,7 @@ hr, .separator-line {
 
     .skeleton-summary-wrapper,
     .summary-speech-bubble-card {
-        /* Pushes the overlay box cleanly below the grid rows */
-        margin-top: 20px !important;
+        margin-top: 0px !important;
     }
 }
 
@@ -3020,7 +3034,7 @@ CHAT DIALOG SENDER NAME TEXT LABELS
     position: relative;
     max-width: 700px;
     min-height: 125px;
-    margin: 2rem auto;
+    margin: 0rem 2rem;
     padding: 16px 24px !important;
     background: rgba(255, 255, 255, 0.015);
     border: 1px solid rgba(255, 255, 255, 0.04);
@@ -3033,7 +3047,6 @@ CHAT DIALOG SENDER NAME TEXT LABELS
 }
 
     .skeleton-summary-wrapper
-    /* Individual abstract text lines */
     .skeleton-line {
         height: 12px;
         background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);

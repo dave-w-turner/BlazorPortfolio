@@ -40,7 +40,6 @@
 <ProviderList @bind-IsOpen="showLogin" />
 <AdminTools @bind-IsOpen="showAdminTools" />
 
-<!-- INDEPENDENT STABLE HERO ZONE -->
 <div class="hero fade-in">
     <div class="hero-content">
         <div class="profile-container-wrapper">
@@ -65,12 +64,12 @@
                 @foreach (var competency in State.Competencies)
                 {
                     <div class="ghost-card">
-                        <p>@competency.Summary</p>
+                        <p>@competency.Summary.Text</p>
                     </div>
                 }
             </div>
 
-            @if (string.IsNullOrWhiteSpace(State.CurrentSkillSummaryText))
+            @if (string.IsNullOrEmpty(State.CurrentSkillSummaryText.Text.Value))
             {
                 <div class="skeleton-summary-wrapper fade-in-fast" aria-hidden="true">
                     <div class="skeleton-line skeleton-title"></div>
@@ -84,7 +83,7 @@
             else
             {
                 <div class="summary-speech-bubble-card animated-fade-in-up">
-                    <p>@State.CurrentSkillSummaryText</p>
+                    <p>@State.CurrentSkillSummaryText.Text</p>
                 </div>
             }
         </div>

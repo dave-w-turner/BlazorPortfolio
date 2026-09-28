@@ -35,24 +35,20 @@
             function handleResize() {
                 if (!dialog) return;
 
-                // Mobile Viewport (600px or less)
                 if (window.innerWidth <= 600) {
                     if (header) header.style.cursor = 'default';
                     resetToDefault();
                     return;
                 }
 
-                // Desktop Viewport
                 if (header) header.style.cursor = 'move';
 
-                // Boundary Check: If the dragged position overflows a smaller window, reset it back
                 if (dialog.style.top && dialog.style.top !== 'auto') {
                     const rect = dialog.getBoundingClientRect();
             
                     if (rect.right > window.innerWidth || rect.bottom > window.innerHeight || rect.left < 0 || rect.top < 0) {
                         resetToDefault();
 
-                        // Erase local state dimensions to revert to fallback positioning
                         if (dotNetHelper) {
                             dotNetHelper.invokeMethodAsync('SaveDimensions', 'auto', 'auto', '440px', '540px');
                         }
@@ -60,7 +56,6 @@
                 }
             }
 
-            // Helper to clear manual coordinates and fall back to our CSS media queries
             function resetToDefault() {
                 dialog.style.removeProperty('top');
                 dialog.style.removeProperty('left');
@@ -91,7 +86,6 @@
                     moveEvent = moveEvent || window.event;
                     moveEvent.preventDefault();
 
-                    // Setup direct fixed tracking only after first move to prevent jumps
                     if (!hasMoved) {
                         const rect = dialog.getBoundingClientRect();
 
@@ -115,14 +109,12 @@
                     startX = moveEvent.clientX;
                     startY = moveEvent.clientY;
 
-                    // Compute Top positioning with boundary clamp
                     let newTop = dialog.offsetTop - deltaY;
-                    const maxTop = window.innerHeight - 60; // Leaves the header in view at the bottom
+                    const maxTop = window.innerHeight - 60;
                     newTop = Math.max(0, Math.min(newTop, maxTop));
 
-                    // Compute Left positioning with boundary clamp
                     let newLeft = dialog.offsetLeft - deltaX;
-                    const maxLeft = window.innerWidth - 60; // Leaves left edge of header in view
+                    const maxLeft = window.innerWidth - 60;
                     newLeft = Math.max(0, Math.min(newLeft, maxLeft));
 
                     dialog.style.setProperty('top', newTop + "px", 'important');
@@ -141,7 +133,6 @@
             };
         }
 
-        // Global scrolling helper function
         window.scrollToBottom = (elementId) => {
             const element = document.getElementById(elementId);
             if (element) {
@@ -177,13 +168,11 @@
         };
 
         window.scrollToElement = (elementId) => {
-            // Wrap in frame request to ensure Blazor has finished updating the DOM painting
             requestAnimationFrame(() => {
                 const element = document.getElementById(elementId);
                 if (element) {
-                    const yOffset = -100; // Space for fixed navbar header
+                    const yOffset = -100;
             
-                    // Calculate absolute position down the page safely, bypassing parent constraints
                     let targetY = 0;
                     let currentElement = element;
                     while (currentElement) {
@@ -193,13 +182,11 @@
             
                     const finalScrollPosition = targetY + yOffset;
 
-                    // Perform the smooth scroll
                     window.scrollTo({
                         top: finalScrollPosition,
                         behavior: 'smooth'
                     });
 
-                    // Highlight animation feedback
                     element.style.transition = "filter 0.5s ease, transform 0.5s ease";
                     element.style.filter = "brightness(1.3) saturate(1.2)";
             
@@ -248,7 +235,7 @@
                 context.fillRect(0, 0, canvas.width, canvas.height);
 
                 context.fillStyle = 'rgba(125, 211, 252, 0.45)'; 
-                context.font = 'bold ' + fontSize + 'px monospace'; // Bold font helps visibility
+                context.font = 'bold ' + fontSize + 'px monospace';
 
                 for (let i = 0; i < columns; i++) {
                     const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
@@ -266,113 +253,107 @@
                 }
             };
 
-            // Run the animation loop
             setInterval(draw, 33);
         };
 
-window.avatarStream = {
-    socket: null,
-    currentUrl: null,
-    isReady: false, 
+        window.avatarStream = {
+            socket: null,
+            currentUrl: null,
+            isReady: false, 
 
-    start: async function (base64ImageString) {
-        this.isReady = false;
-        console.log("[AVATAR-UI] Initializing avatar streaming pipeline...");
+            start: async function (base64ImageString) {
+                this.isReady = false;
+                console.log("[AVATAR-UI] Initializing avatar streaming pipeline...");
 
-        let imgElement = document.getElementById('david-avatar-stream');
-        let retries = 0;
+                let imgElement = document.getElementById('david-avatar-stream');
+                let retries = 0;
         
-        while (!imgElement && retries < 20) {
-            await new Promise(resolve => setTimeout(resolve, 100)); 
-            imgElement = document.getElementById('david-avatar-stream');
-            retries++;
-        }
+                while (!imgElement && retries < 20) {
+                    await new Promise(resolve => setTimeout(resolve, 100)); 
+                    imgElement = document.getElementById('david-avatar-stream');
+                    retries++;
+                }
 
-        if (!imgElement) {
-            console.error("[AVATAR-UI-ERR] Critical Error: Target image element '#david-avatar-stream' failed to render in DOM.");
-            return;
-        }
+                if (!imgElement) {
+                    console.error("[AVATAR-UI-ERR] Critical Error: Target image element '#david-avatar-stream' failed to render in DOM.");
+                    return;
+                }
 
-        let cleanBase64 = String(base64ImageString).trim();
-        if (cleanBase64.includes(",")) {
-            cleanBase64 = cleanBase64.replace(/^data:image\/[a-z]+;base64,/, '').trim();
-        }
+                let cleanBase64 = String(base64ImageString).trim();
+                if (cleanBase64.includes(",")) {
+                    cleanBase64 = cleanBase64.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+                }
 
-        console.log("[AVATAR-UI] Syncing source portrait asset context over HTTP...");
+                console.log("[AVATAR-UI] Syncing source portrait asset context over HTTP...");
         
-        try {
-            const targetUrl = new URL("/set-avatar-context", "http://127.0.0.1:8080");
+                try {
+                    const targetUrl = new URL("/set-avatar-context", "http://127.0.0.1:8080");
             
-            const binaryString = atob(cleanBase64);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
+                    const binaryString = atob(cleanBase64);
+                    const len = binaryString.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    const fileBlob = new Blob([bytes], { type: 'image/jpeg' });
+
+                    const formData = new FormData();
+                    formData.append("file", fileBlob, "portrait.jpg");
+            
+                    const response = await fetch(targetUrl.href, {
+                        method: "POST",
+                        body: formData
+                    });
+            
+                    const result = await response.json();
+                    console.log("[AVATAR-UI] Server context update response:", result);
+                } catch (httpErr) {
+                    console.error("[AVATAR-UI] Failed to sync avatar context over HTTP:", httpErr);
+                }
+
+                console.log("[AVATAR-UI] Spinning up active stream socket engine...");
+                this.socket = new WebSocket(`ws://127.0.0.1:8080/stream-avatar`);
+
+                this.socket.onopen = () => {
+                    window.activeAvatarSocketPipe = this.socket;
+            
+                    window.avatarStream.isReady = true;
+                    console.log("[AVATAR-UI] Pipeline fully linked. Ready to stream voice instantly.");
+                };
+
+                this.socket.onmessage = (event) => {
+                    if (this.currentUrl) { URL.revokeObjectURL(this.currentUrl); }
+                    const blob = new Blob([event.data], { type: 'image/jpeg' });
+                    this.currentUrl = URL.createObjectURL(blob);
+                    imgElement.src = this.currentUrl;
+                };
+
+                this.socket.onclose = () => {
+                    console.log("[AVATAR-UI] Stream closed.");
+                    window.activeAvatarSocketPipe = null;
+                    this.isReady = false;
+                };
+
+                this.socket.onerror = (err) => {
+                    console.error("[AVATAR-UI] Stream error:", err);
+                    this.isReady = false;
+                };
+            },
+
+            stop: function () {
+                this.isReady = false;
+                if (this.socket) { 
+                    this.socket.close(); 
+                }
+                if (this.currentUrl) { 
+                    URL.revokeObjectURL(this.currentUrl); 
+                }
+                window.activeAvatarSocketPipe = null;
+                console.log("[AVATAR-UI] Stream manager stopped and memory cleared.");
             }
-            const fileBlob = new Blob([bytes], { type: 'image/jpeg' });
-
-            const formData = new FormData();
-            formData.append("file", fileBlob, "portrait.jpg");
-            
-            const response = await fetch(targetUrl.href, {
-                method: "POST",
-                body: formData
-            });
-            
-            const result = await response.json();
-            console.log("[AVATAR-UI] Server context update response:", result);
-        } catch (httpErr) {
-            console.error("[AVATAR-UI] Failed to sync avatar context over HTTP:", httpErr);
-        }
-
-        console.log("[AVATAR-UI] Spinning up active stream socket engine...");
-        this.socket = new WebSocket(`ws://127.0.0.1:8080/stream-avatar`);
-        //this.socket.binaryType = 'arraybuffer';
-
-        this.socket.onopen = () => {
-            window.activeAvatarSocketPipe = this.socket;
-            
-            // Backend is pre-warmed at startup; unlock stream immediately!
-            window.avatarStream.isReady = true;
-            console.log("[AVATAR-UI] Pipeline fully linked. Ready to stream voice instantly.");
         };
 
-        this.socket.onmessage = (event) => {
-            if (this.currentUrl) { URL.revokeObjectURL(this.currentUrl); }
-            const blob = new Blob([event.data], { type: 'image/jpeg' });
-            this.currentUrl = URL.createObjectURL(blob);
-            imgElement.src = this.currentUrl;
-        };
-
-        this.socket.onclose = () => {
-            console.log("[AVATAR-UI] Stream closed.");
-            window.activeAvatarSocketPipe = null;
-            this.isReady = false;
-        };
-
-        this.socket.onerror = (err) => {
-            console.error("[AVATAR-UI] Stream error:", err);
-            this.isReady = false;
-        };
-    },
-
-    stop: function () {
-        this.isReady = false;
-        if (this.socket) { 
-            this.socket.close(); 
-        }
-        if (this.currentUrl) { 
-            URL.revokeObjectURL(this.currentUrl); 
-        }
-        window.activeAvatarSocketPipe = null;
-        console.log("[AVATAR-UI] Stream manager stopped and memory cleared.");
-    }
-};
-
-// Ensure the stream manager context sits globally on the top-level window context scope
-window.avatarStream = window.avatarStream;
-
-
+        window.avatarStream = window.avatarStream;
     </script>
 </body>
 </html>

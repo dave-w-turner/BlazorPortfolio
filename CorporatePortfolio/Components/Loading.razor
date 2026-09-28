@@ -2,12 +2,21 @@
 @implements IDisposable
 @inject AppState State
 
-<div style="position: absolute; top: 0; left: 0; z-index: 9999; width: 100%; height: 100%;
+<div style="position: fixed; top: 0; left: 0; z-index: 9999; width: 100vw; height: 100dvh;
     pointer-events: @(IsAnimationHidden ? "none" : "all");
     visibility: @(IsAnimationHidden ? "hidden" : "visible");
     opacity: @(IsAnimationHidden ? 0 : 1);
-    transition: opacity 0.4s ease, visibility 0.4s ease;">
-    <dotlottie-wc src="mangemant.lottie" autoplay loop style="width: 100%; height: 100%;"></dotlottie-wc>
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;">
+
+    <dotlottie-wc src="mangemant.lottie"
+                  autoplay
+                  loop
+                  style="min-width: 100vw; min-height: 100dvh; width: auto; height: auto; object-fit: cover;">
+    </dotlottie-wc>
 </div>
 
 @code {

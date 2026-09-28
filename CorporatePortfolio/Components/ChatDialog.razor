@@ -337,15 +337,10 @@
                     greetingMsg.FormattedText = new MarkupString();
                     await UpdateState();
 
-                    // 🚀 FIRST-TIME PIPELINE TIMELINE LOCK 🚀
-                    // If this is the absolute first message of the session, your Python GPU background task
-                    // requires a 30-second handshake to compile its memory tracking layout. We introduce a clean
-                    // C# Task delay right here to guarantee that the greeting tokens do not fire until the lips are warm!
                     System.Diagnostics.Debug.WriteLine("[AVATAR-SYSTEM] First boot detected. Holding welcome greeting until GPU cache clears...");
                     await Task.Delay(30000);
                     System.Diagnostics.Debug.WriteLine("[AVATAR-SYSTEM] Warmup window cleared! Releasing text streams onto the live audio worker.");
 
-                    // Now it is perfectly safe to pass the token data over to F5-TTS
                     await _avatarComponent.StartStreamingSession();
                     await _avatarComponent.AppendStreamingToken(dynamicGreeting);
                     await _avatarComponent.FinalizeStreamingSession();
