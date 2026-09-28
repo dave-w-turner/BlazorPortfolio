@@ -691,9 +691,10 @@ namespace CorporatePortfolio.Services
                 var s when s.Contains("lean") || s.Contains("xp") => "lightning",
                 var s when s.Contains("sdlc") || s.Contains("waterfall") => "kanban",
                 var s when s.Contains("practices") => "journal-code",
-                var s when s.Contains("smartsimple") => "briefcase",
-                var s when s.Contains("crm dynamics") => "activity",
-                var s when s.Contains("crm") => "graph-up-arrow",
+
+                // Grouped SmartSimple together with CRM Dynamics and general CRMs
+                var s when s.Contains("crm dynamics") || s.Contains("smartsimple") || s.Contains("crm") => "graph-up-arrow",
+
                 var s when s.Contains("business intelligence") || s.Contains("reporting") || s.Contains("dashboards") || s.Contains("ssrs") || s.Contains("ssis") || s.Contains("ssas") => "graph-up-arrow",
                 var s when s.Contains("service level agreements") || s.Contains("key performance indicators") => "file-earmark-check",
                 var s when s.Contains("code reviews") || s.Contains("pair programming") => "chat-left-text",
