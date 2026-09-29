@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 using System.Text;
+using System.Text.RegularExpressions;
 using Xceed.Words.NET;
 
 namespace CorporatePortfolio.Services
@@ -225,91 +226,101 @@ namespace CorporatePortfolio.Services
         public async Task<List<CompetencyData>> GetCompetencies(List<ExperienceData> experiences, List<ProjectData> projects)
         {
             var fileInfo = new FileInfo("DavidTurner_Resume.docx");
+            var competencyBm = _document.Bookmarks.Where(bm => bm.Name.Equals("Competencies")).FirstOrDefault();
+            var bmId = competencyBm != null ? _document.Xml.Descendants()
+                    .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
+                                         (x.Attribute("name")?.Value == competencyBm.Name ||
+                                          x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == competencyBm.Name)))
+                    ?.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value : null;
 
-            return await _memoryCache.GetOrCreateAsync("#cachedSkillsWithSummaries", async entry =>
+            List<CompetencyData> competencies = [];
+            var competenciesSb = new StringBuilder();
+
+            if (competencyBm != null)
             {
-                var fileProvider = new PhysicalFileProvider(Path.GetDirectoryName(fileInfo.FullName)!);
-                var changeToken = fileProvider.Watch(Path.GetFileName(fileInfo.Name));
+                var currentParagraph = competencyBm.Paragraph;
 
-                entry.ExpirationTokens.Add(changeToken);
-
-                var competencyBm = _document.Bookmarks.Where(bm => bm.Name.Equals("Competencies")).FirstOrDefault();
-                var bmId = competencyBm != null ? _document.Xml.Descendants()
-                        .FirstOrDefault(x => x.Name.LocalName == "bookmarkStart" &&
-                                             (x.Attribute("name")?.Value == competencyBm.Name ||
-                                              x.Attributes().Any(a => a.Name.LocalName == "name" && a.Value == competencyBm.Name)))
-                        ?.Attributes().FirstOrDefault(a => a.Name.LocalName == "id")?.Value : null;
-
-                List<CompetencyData> competencies = [];
-                var competenciesSb = new StringBuilder();
-
-                if (competencyBm != null)
+                while ((!currentParagraph?.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
+                            x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bmId))) ?? false)
                 {
-                    var currentParagraph = competencyBm.Paragraph;
-
-                    while ((!currentParagraph?.Xml.DescendantsAndSelf().Any(x => x.Name.LocalName == "bookmarkEnd" &&
-                                x.Attributes().Any(a => a.Name.LocalName == "id" && a.Value == bmId))) ?? false)
+                    if (!string.IsNullOrEmpty(currentParagraph?.Text))
                     {
-                        if (!string.IsNullOrEmpty(currentParagraph?.Text))
-                        {
-                            competenciesSb.AppendLine(currentParagraph?.Text.Trim());
-                        }
-
-                        currentParagraph = currentParagraph?.NextParagraph;
+                        competenciesSb.AppendLine(currentParagraph?.Text.Trim());
                     }
+
+                    currentParagraph = currentParagraph?.NextParagraph;
                 }
+            }
 
-                var skillList = await GetTagsFromProject(competenciesSb.ToString());
+            var skillList = await GetTagsFromProject(competenciesSb.ToString());
 
-                var flatExperienceDetails = experiences.SelectMany(e => e.Details).ToList();
-                var flatProjectDetails = projects.SelectMany(p => p.Details).ToList();
+            var flatExperienceDetails = experiences.SelectMany(e => e.Details).ToList();
+            var flatProjectDetails = projects.SelectMany(p => p.Details).ToList();
 
-                var matchingExperiences = skillList.Where(skill => flatExperienceDetails.Any(d => d.Contains(skill)));
-                var matchingProjects = skillList.Where(skill => flatProjectDetails.Any(d => d.Contains(skill)));
+            var skillRegexes = skillList.Select(skill =>
+            {
+                string escapedSkill = Regex.Escape(skill);
 
-                List<string> distinctMatchingSkills = [.. matchingExperiences.Union(matchingProjects)];
-                List<string> filteredSkills = [.. distinctMatchingSkills
+                string endBoundary = Regex.IsMatch(skill, @"[a-zA-Z0-9]$") ? @"\b" : @"(?![a-zA-Z0-9])";
+                string startBoundary = Regex.IsMatch(skill, @"^[a-zA-Z0-9]") ? @"\b" : @"(?<![a-zA-Z0-9])";
+
+                return new
+                {
+                    SkillName = skill,
+                    Pattern = new Regex(startBoundary + escapedSkill + endBoundary, RegexOptions.IgnoreCase | RegexOptions.Compiled)
+                };
+            }).ToList();
+
+            var matchingExperiences = skillRegexes
+                .Where(sr => flatExperienceDetails.Any(detail => sr.Pattern.IsMatch(detail)))
+                .Select(sr => sr.SkillName);
+
+            var matchingProjects = skillRegexes
+                .Where(sr => flatProjectDetails.Any(detail => sr.Pattern.IsMatch(detail)))
+                .Select(sr => sr.SkillName);
+
+            List<string> distinctMatchingSkills = [.. matchingExperiences.Union(matchingProjects)];
+            List<string> filteredSkills = [.. distinctMatchingSkills
                     .Where(skill => !distinctMatchingSkills.Any(otherSkill =>
                         otherSkill.Length > skill.Length &&
                         otherSkill.Contains(skill, StringComparison.OrdinalIgnoreCase)))];
 
-                var randomSkillSet = new List<string>();
+            var randomSkillSet = new List<string>();
 
-                Random randomGenerator = new();
+            Random randomGenerator = new();
 
-                for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 6; i++)
+            {
+                int randomSkillIndex = randomGenerator.Next(0, filteredSkills.Count - 1);
+                var skill = filteredSkills[randomSkillIndex];
+
+                if (!randomSkillSet.Contains(skill))
+                    randomSkillSet.Add(skill);
+                else
                 {
-                    int randomSkillIndex = randomGenerator.Next(0, filteredSkills.Count - 1);
-                    var skill = filteredSkills[randomSkillIndex];
-
-                    if (!randomSkillSet.Contains(skill))
-                        randomSkillSet.Add(skill);
-                    else
-                    {
-                        i--;
-                    }
+                    i--;
                 }
+            }
 
-                foreach (var skill in randomSkillSet)
+            foreach (var skill in randomSkillSet)
+            {
+                competencies.Add(new CompetencyData
                 {
-                    competencies.Add(new CompetencyData
-                    {
-                        Name = skill,
-                        Icon = await GetIconForCompetency(skill)
-                    });
-                }
+                    Name = skill,
+                    Icon = await GetIconForCompetency(skill)
+                });
+            }
 
-                List<CompetencyData> selectedSkills = [.. competencies
+            List<CompetencyData> selectedSkills = [.. competencies
                     .OrderBy(c => c.Name)];
 
-                string resumeText = await GetResumeText();
+            string resumeText = await GetResumeText();
 
-                // 4. Generate summaries for the selected skills (runs once per file lifecycle)
-                foreach (var skill in selectedSkills)
-                {
-                    //#if DEBUG
-                    //                    skill.Summary = new FormattedText($"Summary {selectedSkills.IndexOf(skill) + 1}");
-                    //#else
+            foreach (var skill in selectedSkills)
+            {
+#if DEBUG
+                skill.Summary = new FormattedText($"Summary {selectedSkills.IndexOf(skill) + 1}");
+#else
                     skill.Summary = await ChatbotService.FormatMessage(await _chatbotService.Generate(
                                             $@"Please summarize this skill: '{skill.Name}'. DO NOT MENTION SUMMARY IN YOUR ANSWER. DO NOT MENTION THE EMPLOYERS. 
                                                 JUST SUMMARIZE THE SKILL AND INCLUDE THE SKILL NAME ONLY ONCE WITHIN THE SUMMARY ITSELF.
@@ -317,12 +328,11 @@ namespace CorporatePortfolio.Services
                                                 the resume data provided. Avoid generic descriptions and focus on what makes this skill valuable to potential employers.
                                                 Only 1 paragraph MAX! Instead of mentioning developers, speak in the first person context.",
                                             resumeText), true, null, true);
-                    //#endif
+#endif
 
-                }
+            }
 
-                return selectedSkills;
-            }) ?? [];
+            return selectedSkills;
         }
 
         public async Task<List<ExperienceData>> GetExperience()
@@ -576,7 +586,7 @@ namespace CorporatePortfolio.Services
                 var s when s.Contains("bootstrap") => "bootstrap",
                 var s when s.Contains("tailwind css") => "wind",
                 var s when s.Contains("material design") => "palette",
-                var s when s.Contains("responsive ui") || s.Contains("responsive design") => "laptop-profile",
+                var s when s.Contains("responsive ui") || s.Contains("responsive design") => "window-fullscreen",
                 var s when s.Contains("component libraries") || s.Contains("ui frameworks") => "collection",
                 var s when s.Contains("single page applications") || s.Contains("pwa") || s.Contains("progressive web apps") => "window-fullscreen",
                 var s when s.Contains("webassembly") => "plugin",

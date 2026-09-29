@@ -1,4 +1,5 @@
-﻿@using CorporatePortfolio.Services
+﻿@using System.Text.RegularExpressions
+@using CorporatePortfolio.Services
 @using CorporatePortfolio.Services.DTO
 @inject IJSRuntime JS
 @inject AppState State
@@ -46,27 +47,63 @@
     {
         State.SetClickedSkillSummary(skillName);
 
-        for (int a = 0; a < State.Experiences.Count; a++)
-        {
-            for (int b = 0; b < State.Experiences[a].DetailsFormatted.Count; b++)
-            {
-                var formattedText = (await ChatbotService.FormatMessage(State.Experiences[a].Details[b], true, skillName, true));
-                State.Experiences[a].DetailsFormatted[b] = formattedText.Text;
+        string escapedSkill = Regex.Escape(skillName);
+        string startBoundary = Regex.IsMatch(skillName, @"^[a-zA-Z0-9]") ? @"\b" : @"(?<![a-zA-Z0-9])";
+        string endBoundary = Regex.IsMatch(skillName, @"[a-zA-Z0-9]$") ? @"\b" : @"(?![a-zA-Z0-9])";
+        string pattern = startBoundary + escapedSkill + endBoundary;
+        var regex = new Regex(pattern, RegexOptions.IgnoreCase);
 
-                if (!State.Experiences[a].HasKeyword && formattedText.HasKeyword)
-                    State.Experiences[a].HasKeyword = formattedText.HasKeyword;
+        foreach (var exp in State.Experiences)
+        {
+            exp.HasKeyword = false;
+
+            for (int b = 0; b < exp.Details.Count; b++)
+            {
+                if (regex.IsMatch(exp.Details[b]))
+                {
+                    var formattedText = await ChatbotService.FormatMessage(exp.Details[b], true, skillName, true);
+
+                    if (b < exp.DetailsFormatted.Count)
+                    {
+                        exp.DetailsFormatted[b] = (MarkupString)formattedText.Text;
+                    }
+
+                    exp.HasKeyword = true;
+                }
+                else
+                {
+                    if (b < exp.DetailsFormatted.Count)
+                    {
+                        exp.DetailsFormatted[b] = (MarkupString)exp.Details[b];
+                    }
+                }
             }
         }
 
-        for (int a = 0; a < State.Projects.Count; a++)
+        foreach (var proj in State.Projects)
         {
-            for (int b = 0; b < State.Projects[a].DetailsFormatted.Count; b++)
-            {
-                var formattedText = (await ChatbotService.FormatMessage(State.Projects[a].Details[b], true, skillName, true));
-                State.Projects[a].DetailsFormatted[b] = formattedText.Text;
+            proj.HasKeyword = false;
 
-                if (!State.Projects[a].HasKeyword && formattedText.HasKeyword)
-                    State.Projects[a].HasKeyword = formattedText.HasKeyword;
+            for (int b = 0; b < proj.Details.Count; b++)
+            {
+                if (regex.IsMatch(proj.Details[b]))
+                {
+                    var formattedText = await ChatbotService.FormatMessage(proj.Details[b], true, skillName, true);
+
+                    if (b < proj.DetailsFormatted.Count)
+                    {
+                        proj.DetailsFormatted[b] = (MarkupString)formattedText.Text;
+                    }
+
+                    proj.HasKeyword = true;
+                }
+                else
+                {
+                    if (b < proj.DetailsFormatted.Count)
+                    {
+                        proj.DetailsFormatted[b] = (MarkupString)proj.Details[b];
+                    }
+                }
             }
         }
 
