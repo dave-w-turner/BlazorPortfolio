@@ -2180,11 +2180,33 @@ MOBILE VIEWS INTEGRATED ENGINE (Screens 600px and under)
             }
 
     #skills .grid {
-        grid-template-columns: repeat(3, 1fr) !important;
         gap: 12px !important;
     }
-}
 
+    .portfolio-header-actions {
+        top: 10px !important;
+        right: 5px !important;
+    }
+
+    #experience {
+        margin-left: 3% !important;
+        padding: 0px !important;
+    }
+
+    #projects {
+        margin-left: 3% !important;
+        padding: 0px !important;
+    }
+
+    #skills {
+        margin-left: 3% !important;
+        padding: 0px !important;
+    }
+
+    .section {
+        margin-top: 10px !important;
+    }
+}
 
 @media (max-width: 450px), (max-height: 740px) {
     .mud-dialog,
