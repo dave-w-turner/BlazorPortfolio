@@ -40,16 +40,13 @@
             }
         }
 
-        if (!State.AreSkillsLoaded)
+        try
         {
-            try
-            {
-                State.Competencies = await ResumeService.GetCompetencies(State.Experiences, await resumeService.GetProjects());
-            }
-            finally
-            {
-                State.UpdateSkillsLoadingState(true);
-            }
+            State.Competencies = await ResumeService.GetCompetencies(State.Experiences, await resumeService.GetProjects());
+        }
+        finally
+        {
+            State.UpdateSkillsLoadingState(true);
         }
     }
 

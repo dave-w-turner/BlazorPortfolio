@@ -1,4 +1,5 @@
-﻿@using CorporatePortfolio.Services
+﻿@using System.Text.RegularExpressions
+@using CorporatePortfolio.Services
 @using CorporatePortfolio.Services.DTO
 @implements IDisposable
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
@@ -50,8 +51,15 @@
 
     private async void PrepareScroll(string skillName)
     {
+        string escapedSkill = Regex.Escape(skillName);
+        string startBoundary = Regex.IsMatch(skillName, @"^[a-zA-Z0-9]") ? @"\b" : @"(?<![a-zA-Z0-9])";
+        string endBoundary = Regex.IsMatch(skillName, @"[a-zA-Z0-9]$") ? @"\b" : @"(?![a-zA-Z0-9])";
+
+        string pattern = startBoundary + escapedSkill + endBoundary;
+        var options = RegexOptions.IgnoreCase;
+
         var expTarget = State.Experiences.FirstOrDefault(e =>
-            e.Details.Any(d => d.Contains(skillName, StringComparison.OrdinalIgnoreCase)));
+            e.Details.Any(d => Regex.IsMatch(d, pattern, options)));
 
         if (expTarget != null)
         {
@@ -66,9 +74,9 @@
         else
         {
             var projTarget = State.Projects.FirstOrDefault(e =>
-                e.Details.Any(d => d.Contains(skillName, StringComparison.OrdinalIgnoreCase)));
+                e.Details.Any(d => Regex.IsMatch(d, pattern, options)));
 
-            if (projTarget != null) 
+            if (projTarget != null)
             {
                 int indexProj = State.Projects.IndexOf(projTarget);
 
