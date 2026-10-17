@@ -45,7 +45,7 @@ builder.Services.AddScoped(sp => new HttpClient(new HttpClientHandler { UseCooki
     BaseAddress = new Uri(builder.Environment.ContentRootPath)
 });
 
-builder.Services.AddScoped<ResumeUploadService>();
+builder.Services.AddScoped((sp) => new ResumeUploadService(builder.Environment.WebRootPath, builder.Environment.ContentRootPath));
 
 var authBuilder = builder.Services.AddAuthentication(options =>
 {
