@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
 
-namespace CorporatePortfolio
+namespace CorporatePortfolio.Services
 {
     public class ResumeUploadService(IWebHostEnvironment environment)
     {
@@ -26,6 +26,11 @@ namespace CorporatePortfolio
                 if (string.IsNullOrEmpty(uploadFolder))
                 {
                     uploadFolder = Path.Combine(_environment.ContentRootPath, "wwwroot");
+                }
+
+                if (uploadFolder.Contains("wwwroot\\wwwroot"))
+                {
+                    uploadFolder = uploadFolder.Replace("wwwroot\\wwwroot", "wwwroot");
                 }
 
                 if (!Directory.Exists(uploadFolder))
