@@ -66,13 +66,11 @@ namespace CorporatePortfolio.Services.DTO
         {
             if (!string.IsNullOrEmpty(_clickedSkillName))
             {
-                // If a skill was previously clicked, revert back to its summary text when the mouse leaves
                 var clickedSkill = Competencies.FirstOrDefault(c => c.Name == _clickedSkillName);
                 CurrentSkillSummaryText = clickedSkill?.Summary ?? new FormattedText("");
             }
             else
             {
-                // If nothing was clicked, clear the text completely
                 CurrentSkillSummaryText = new FormattedText("");
             }
 

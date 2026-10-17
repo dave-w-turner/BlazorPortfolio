@@ -141,12 +141,10 @@
                     <div class="chat-right-avatar-panel" style="@(_showAvatarPanel ? "display: block;" : "display: none;")">
                         <div class="style-container" style="width: 100%; height: 100%; overflow: hidden; position: relative;">
 
-                            <!-- 🎥 THE DYNAMIC DISPLAY TARGET CANVAS: Plays your 30fps real-time warped frames -->
                             <img id="david-avatar-stream"
                                  src="@(string.IsNullOrEmpty(currentHeadShot) ? "images/headshots/headshot_primary.png" : $"data:image/jpeg;base64,{currentHeadShot}")"
                                  style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1;" />
 
-                            <!-- Keeps your audio processing core mounted in-memory underneath the visual canvas layout -->
                             <AIAvatar @ref="_avatarComponent"
                                       OnWordSpoken="HandleStreamingWordReceived"
                                       OnAudioLive="HandlePhysicalAudioLive"

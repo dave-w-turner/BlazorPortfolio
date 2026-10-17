@@ -1,7 +1,5 @@
-﻿@using System.Net.Http
-@using Microsoft.AspNetCore.Components.Forms
-@inject AntiforgeryStateProvider AntiforgeryProvider
-@inject HttpClient Http
+﻿@using Microsoft.AspNetCore.Components.Forms
+@inject ResumeUploadService UploadService
 
 @if (!string.IsNullOrEmpty(statusMessage))
 {
@@ -38,24 +36,12 @@
     private bool isUploading = false;
     private string statusMessage = string.Empty;
     private bool isError = false;
-    private const long maxAllowedSize = 1024 * 1024 * 5; // 5MB Limit
+    private const long maxAllowedSize = 1024 * 1024 * 5;
 
     private async Task HandleFileSelection(InputFileChangeEventArgs e)
     {
         var selectedFile = e.File;
         if (selectedFile == null) return;
-
-        if (!selectedFile.Name.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
-        {
-            SetStatus("Invalid file type. Only .docx files are permitted.", true);
-            return;
-        }
-
-        if (selectedFile.Size > maxAllowedSize)
-        {
-            SetStatus("File size exceeds the 5MB maximum limit.", true);
-            return;
-        }
 
         try
         {
@@ -63,31 +49,19 @@
             SetStatus("Uploading file...", false);
             StateHasChanged();
 
-            var antiforgeryToken = AntiforgeryProvider.GetAntiforgeryToken();
+            var result = await UploadService.UploadResumeAsync(selectedFile);
 
-            using var content = new MultipartFormDataContent();
-            var fileStream = selectedFile.OpenReadStream(maxAllowedSize);
-            var streamContent = new StreamContent(fileStream);
-            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-            content.Add(streamContent, "file", selectedFile.Name);
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, "FileUpload/upload-resume");
-            request.Content = content;
-
-            var response = await Http.SendAsync(request);
-
-            if (response.IsSuccessStatusCode)
+            if (result.Success)
             {
-                SetStatus("Resume uploaded successfully!", false);
+                SetStatus(result.Message, false);
                 StateHasChanged();
                 await Task.Delay(600);
-                statusMessage = string.Empty; 
+                statusMessage = string.Empty;
                 await OnUploadSuccess.InvokeAsync();
             }
             else
             {
-                var errorResponse = await response.Content.ReadAsStringAsync();
-                SetStatus(!string.IsNullOrEmpty(errorResponse) ? errorResponse : "Upload failed.", true);
+                SetStatus(result.Message, true);
             }
         }
         catch (Exception ex)

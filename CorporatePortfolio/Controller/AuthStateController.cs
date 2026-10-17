@@ -4,7 +4,6 @@ using System.Security.Claims;
 
 namespace CorporatePortfolio.Controller
 {
-    // Inside your Backend Server Project Controller
     [ApiController]
     [Route("api/auth")]
     public class AuthStateController : ControllerBase
@@ -17,7 +16,6 @@ namespace CorporatePortfolio.Controller
                 return AnonymousState();
             }
 
-            // Gather all roles assigned to this user from the server session
             var roles = User.Claims
                 .Where(c => c.Type == ClaimTypes.Role || c.Type == "role")
                 .Select(c => c.Value)

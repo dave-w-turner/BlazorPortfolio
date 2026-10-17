@@ -1,5 +1,4 @@
-﻿using CorporatePortfolio.Data;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -45,7 +44,6 @@ public class AccountController(SignInManager<ApplicationUser> signInManager) : C
             return LocalRedirect(returnUrl);
         }
 
-        // Auto-register the user if they don't exist yet
         var newEmail = info.Principal.FindFirstValue(ClaimTypes.Email) ?? info.Principal.FindFirst("preferred_username")?.Value;
         if (newEmail != null)
         {

@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
-namespace CorporatePortfolio.Data;
+namespace CorporatePortfolio;
 
 public class ApplicationUser : IdentityUser
 {
