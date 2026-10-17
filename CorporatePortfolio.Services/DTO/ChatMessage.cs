@@ -8,7 +8,7 @@ namespace CorporatePortfolio.Services.DTO
         public bool IsUser { get; set; }
         public string UserName { get; set; } = "";
         public string AvatarUrl { get; set; } = "";
-        public bool IsComplete { get; set; } = true; // Default to true
+        public bool IsComplete { get; set; } = true;
         public bool IsConnecting { get; set; }
         public MarkupString FormattedText { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.Now;

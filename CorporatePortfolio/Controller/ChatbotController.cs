@@ -30,7 +30,6 @@ namespace CorporatePortfolio.Controller
             {
                 if (string.IsNullOrEmpty(chunk)) continue;
 
-                // Detect when a Markdown link starts
                 if (chunk.Contains('['))
                 {
                     isBuffering = true;
@@ -40,7 +39,6 @@ namespace CorporatePortfolio.Controller
                 {
                     buffer.Append(chunk);
 
-                    // Detect when the Markdown link completes
                     if (chunk.Contains(')'))
                     {
                         var completeLink = buffer.ToString();
@@ -52,13 +50,11 @@ namespace CorporatePortfolio.Controller
                 }
                 else
                 {
-                    // Regular text is streamed instantly
                     await Response.WriteAsync($"data: {chunk}\n\n");
                     await Response.Body.FlushAsync();
                 }
             }
 
-            // Flush any leftover text in the buffer just in case
             if (buffer.Length > 0)
             {
                 await Response.WriteAsync($"data: {buffer}\n\n");

@@ -108,11 +108,8 @@ namespace CorporatePortfolio
                     gridImage.ResetPage();
                 }
 
-                // CRITICAL FOR GRID EXTRACTS: Force background color color-space flattening 
-                // This strips out any temporary transparency alpha flags before writing the raw JPEG stream
                 gridImage.BackgroundColor = trimWhiteBorders ? MagickColors.White : MagickColors.Black;
 
-                // Use Extent/Flatten behaviors to cleanly finalize the pixel buffer map
                 gridImage.Extent(gridImage.Width, gridImage.Height);
 
                 imageBytes = gridImage.ToByteArray(MagickFormat.Jpeg);

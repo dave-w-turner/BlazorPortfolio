@@ -1,5 +1,5 @@
+using CorporatePortfolio;
 using CorporatePortfolio.Components;
-using CorporatePortfolio.Data;
 using CorporatePortfolio.Services;
 using CorporatePortfolio.Services.DTO;
 using Microsoft.AspNetCore.Components;
@@ -23,8 +23,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddServerSideBlazor()
     .AddHubOptions(options =>
     {
-        // Raise the WebSocket threshold size to handle rapid interop streaming traffic smoothly
-        options.MaximumReceiveMessageSize = 1024 * 1024; // 1 MB
+        options.MaximumReceiveMessageSize = 64 * 1024 * 1024;
     });
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -40,6 +39,13 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+
+builder.Services.AddScoped(sp => new HttpClient(new HttpClientHandler { UseCookies = true })
+{
+    BaseAddress = new Uri(builder.Environment.ContentRootPath)
+});
+
+builder.Services.AddScoped<ResumeUploadService>();
 
 var authBuilder = builder.Services.AddAuthentication(options =>
 {
@@ -152,8 +158,6 @@ builder.Services.AddSingleton(provider =>
     var ollamaClient = httpClientFactory.CreateClient("OllamaClient");
     var hostEnv = provider.GetRequiredService<IHostEnvironment>();
 
-    // Resolve the absolute physical location to your instructions file
-    // Assumes your file lives in the root directory or wwwroot. Adjust folder name if needed!
     string absoluteRulesPath = Path.Combine(hostEnv.ContentRootPath, "AIInstructions.txt");
 
     return new ChatbotService(
@@ -161,7 +165,7 @@ builder.Services.AddSingleton(provider =>
         hostEnv.IsDevelopment(),
         provider.GetRequiredService<IConfiguration>()["OllamaModel"] ?? string.Empty,
         provider.GetRequiredService<IMemoryCache>(),
-        absoluteRulesPath); // Pass it explicitly here
+        absoluteRulesPath);
 });
 
 
