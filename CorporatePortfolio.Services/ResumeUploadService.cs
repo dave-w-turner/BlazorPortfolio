@@ -2,9 +2,8 @@
 
 namespace CorporatePortfolio.Services
 {
-    public class ResumeUploadService(IWebHostEnvironment environment)
+    public class ResumeUploadService(string webRootPath, string contentRootPath)
     {
-        private readonly IWebHostEnvironment _environment = environment;
         private const long MaxFileSizeInBytes = 1024 * 1024 * 5;
 
         public async Task<(bool Success, string Message)> UploadResumeAsync(IBrowserFile file)
@@ -21,11 +20,11 @@ namespace CorporatePortfolio.Services
 
             try
             {
-                var uploadFolder = _environment.WebRootPath;
+                var uploadFolder = webRootPath;
 
                 if (string.IsNullOrEmpty(uploadFolder))
                 {
-                    uploadFolder = Path.Combine(_environment.ContentRootPath, "wwwroot");
+                    uploadFolder = Path.Combine(contentRootPath, "wwwroot");
                 }
 
                 if (uploadFolder.Contains("wwwroot\\wwwroot"))
